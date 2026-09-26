@@ -39,6 +39,11 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**", "/api/auth/**", "/ws/**", "/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // The container HEALTHCHECK curls this with `curl -f`, which
+                        // treats a 401 as a failure. Without this the app starts fine
+                        // but is reported unhealthy, blocking anything that waits on
+                        // service_healthy. Keep it limited to health, not all of actuator.
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/api/v1/screenshots/upload").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/games/active").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/games/{id}/register").hasRole("PLAYER")
