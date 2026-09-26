@@ -6,8 +6,9 @@ WORKDIR /app
 COPY pom.xml ./
 RUN mvn -B -q dependency:go-offline
 
-COPY mvnw mvnw.cmd .mvn ./
-RUN chmod +x mvnw
+# No Maven wrapper needed: the maven:3.9 base image already provides `mvn`,
+# which is what the package step below actually calls. Copying mvnw/.mvn here
+# only forced the build to carry a wrapper directory it never used.
 COPY src ./src
 
 RUN mvn -B -q -Dmaven.test.skip=true package

@@ -76,7 +76,7 @@ services:
     restart: unless-stopped
     ports:
       # Host port -> nginx container port. Also ignored when a domain is
-      # attached in Coolify. Override with FRONTEND_PORT if 3000 is taken.
+      # attached in Coolify. Override with FRONTEND_PORT if 3003 is taken.
       - "${FRONTEND_PORT:-3003}:80"
     depends_on:
       backend:
