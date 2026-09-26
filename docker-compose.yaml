@@ -1,0 +1,92 @@
+name: bingo-mobile
+
+# Full mobile stack for Coolify deployment (mirrors how the Mini App is deployed
+# from frontAndBackend/docker-compose.yaml): its OWN Postgres, the phone+password
+# backend, and the Expo web frontend. For individual local testing use
+# bingo-mobile-backend/docker-compose.yaml (backend only) and `npx expo start`
+# (frontend) instead.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bingo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD not set}
+      POSTGRES_DB: ${POSTGRES_DB:-bingo_mobile}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bingo} -d ${POSTGRES_DB:-bingo_mobile}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - backend
+
+  backend:
+    build:
+      context: ./bingo-mobile-backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      MASTER_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bingo_mobile}
+      MASTER_DB_USERNAME: ${POSTGRES_USER:-bingo}
+      MASTER_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      TENANT_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bingo_mobile}
+      TENANT_DB_USERNAME: ${POSTGRES_USER:-bingo}
+      TENANT_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      tenant.datasource.default-database: ${POSTGRES_DB:-bingo_mobile}
+
+      # Phone + password auth only — no Telegram bot on this backend.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET not set (>= 32 chars)}
+      JWT_EXPIRES_MINUTES: ${JWT_EXPIRES_MINUTES:-10080}
+      SUPER_ADMIN_PHONE: ${SUPER_ADMIN_PHONE:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+
+      SCREENSHOTS_DIR: /data/screenshots
+      JAVA_TOOL_OPTIONS: -Xms256m -Xmx1024m
+    volumes:
+      - screenshots:/data/screenshots
+    ports:
+      # Host port -> container port. Behind Coolify these are IGNORED: attach a
+      # domain to the service and the proxy routes by hostname. They only
+      # matter for a bare `docker compose up`. Override the host side with
+      # BACKEND_PORT if 8081 is taken on the host.
+      - "${BACKEND_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: ./bingo-mobile
+      dockerfile: Dockerfile
+      args:
+        # Public URL the deployed web bundle calls. This is a BUILD arg: it is
+        # baked into the static bundle, so changing it later needs a rebuild,
+        # not just a restart. Must be the PUBLIC https domain of the backend
+        # service (e.g. https://api.mobile.example.com) -- never the internal
+        # compose address http://backend:8080, which phones cannot resolve.
+        # Required here so a misconfigured deploy fails the build instead of
+        # shipping a bundle that silently falls back to http://localhost:8080.
+        EXPO_PUBLIC_BACKEND_URL: ${EXPO_PUBLIC_BACKEND_URL:?EXPO_PUBLIC_BACKEND_URL not set (public https URL of the backend, e.g. https://api.mobile.example.com)}
+    restart: unless-stopped
+    ports:
+      # Host port -> nginx container port. Also ignored when a domain is
+      # attached in Coolify. Override with FRONTEND_PORT if 3000 is taken.
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - backend
+
+volumes:
+  pgdata:
+  screenshots:
+
+networks:
+  backend:

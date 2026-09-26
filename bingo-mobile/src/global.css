@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme palettes served at runtime by NativeWind (bp-* tokens -> CSS variables).
+   :root = light, .dark = dark (current app look). */
+:root {
+  --bp-background: #f4f5f9;
+  --bp-bg: #ffffff;
+  --bp-surface: #ffffff;
+  --bp-surface-alt: #edf0f7;
+  --bp-elevated: #ffffff;
+  --bp-border-inactive: #d9deea;
+  --bp-text-primary: #1a1e2c;
+  --bp-text-secondary: #5b6478;
+  --bp-text-inactive: #97a1b6;
+  --bp-surface-60: #eef1f899;
+  --bp-gold-ink: #a16207;
+  --bp-accent-ink: #0f766e;
+  --bp-warning-ink: #c2410c;
+  --bp-danger-ink: #dc2626;
+  --bp-success-ink: #15803d;
+  --bp-secondary-ink: #b45309;
+}
+
+.dark {
+  --bp-background: #0b0d17;
+  --bp-bg: #0b0e1b;
+  --bp-surface: #131729;
+  --bp-surface-alt: #1a2038;
+  --bp-elevated: #1c2240;
+  --bp-border-inactive: #2a3252;
+  --bp-text-primary: #e7e9f5;
+  --bp-text-secondary: #9aa2c2;
+  --bp-text-inactive: #6b7299;
+  --bp-surface-60: #13172999;
+  --bp-gold-ink: #f2c94c;
+  --bp-accent-ink: #36e4b5;
+  --bp-warning-ink: #f2994a;
+  --bp-danger-ink: #ff5c6c;
+  --bp-success-ink: #27ae60;
+  --bp-secondary-ink: #ffb454;
+}

@@ -1,0 +1,54 @@
+package com.bingo.app.tenant.repository;
+
+import com.bingo.app.tenant.entity.BingoClaim;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface BingoClaimRepository extends JpaRepository<BingoClaim, Long> {
+
+    @Modifying
+    @Query("UPDATE BingoClaim c SET c.validatedAt = :now, c.validatedBy = :adminId " +
+            "WHERE c.id = :claimId AND c.validatedAt IS NULL")
+    int claimForProcessing(@Param("claimId") Long claimId,
+                           @Param("adminId") Long adminId,
+                           @Param("now") LocalDateTime now);
+
+    List<BingoClaim> findByGameIdAndResult(Long gameId, String result);
+
+    List<BingoClaim> findByGameId(Long gameId);
+
+    List<BingoClaim> findByPlayerId(Long playerId);
+
+    boolean existsByGameIdAndPlayerIdAndResult(Long gameId, Long playerId, String result);
+
+    boolean existsByGameIdAndCardIdAndResult(Long gameId, Long cardId, String result);
+
+    Optional<BingoClaim> findByGameIdAndPlayerIdAndResult(Long gameId, Long playerId, String result);
+
+    @Query("SELECT c FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = :result ORDER BY c.claimedAt ASC")
+    List<BingoClaim> findByGameIdAndResultOrderByClaimedAt(@Param("gameId") Long gameId, @Param("result") String result);
+
+    @Query("SELECT c FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = :result AND c.validatedAt IS NULL ORDER BY c.claimedAt ASC")
+    List<BingoClaim> findByGameIdAndResultAndValidatedAtIsNull(@Param("gameId") Long gameId, @Param("result") String result);
+
+    @Query("SELECT COUNT(c) FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = :result AND c.validatedAt IS NULL")
+    long countByGameIdAndResultAndValidatedAtIsNull(@Param("gameId") Long gameId, @Param("result") String result);
+
+    @Query("SELECT COUNT(c) FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = :result AND c.validatedAt IS NOT NULL")
+    long countByGameIdAndResultAndValidatedAtIsNotNull(@Param("gameId") Long gameId, @Param("result") String result);
+
+    @Query("SELECT c FROM BingoClaim c WHERE c.gameId = :gameId ORDER BY c.claimedAt DESC")
+    List<BingoClaim> findByGameIdOrderByClaimedAtDesc(@Param("gameId") Long gameId);
+
+    @Query("SELECT c FROM BingoClaim c WHERE c.result = 'VALID' AND c.validatedAt IS NULL " +
+            "AND c.gameId IN (SELECT g.id FROM Game g WHERE g.status = 'ENDED') ORDER BY c.claimedAt ASC")
+    List<BingoClaim> findUnresolvedClaimsOnEndedGames();
+}

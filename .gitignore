@@ -1,0 +1,24 @@
+# Secrets and machine-specific config -- never commit these.
+# Coolify gets these from its own Environment Variables section, not from git.
+.env
+.env.*
+!.env.example
+
+# Build output
+bingo-mobile/node_modules/
+bingo-mobile/.expo/
+bingo-mobile/dist/
+bingo-mobile/web-build/
+bingo-mobile-backend/target/
+bingo-mobile-backend/*.jar
+
+# Logs
+*.log
+npm-debug.*
+yarn-error.*
+
+# Editor / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
