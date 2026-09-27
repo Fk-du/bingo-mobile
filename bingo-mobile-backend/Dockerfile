@@ -30,7 +30,13 @@ ENV TZ=UTC \
     JAVA_TOOL_OPTIONS="-Xms256m -Xmx1024m"
 
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+# A Spring Boot start on an empty database takes ~30s (Hibernate builds the
+# schema, the tenant migrations run), so the start period has to outlast that
+# or the probe exhausts its retries mid-boot. start-interval probes every 5s
+# during the start period, so the container goes healthy within seconds of the
+# app answering instead of waiting a full interval. The compose file repeats
+# this healthcheck so it also applies when the image is run from the stack.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=180s --start-interval=5s --retries=6 \
   CMD curl -fsS http://127.0.0.1:8080/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

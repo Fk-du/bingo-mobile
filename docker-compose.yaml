@@ -46,6 +46,23 @@ services:
 
       SCREENSHOTS_DIR: /data/screenshots
       JAVA_TOOL_OPTIONS: -Xms256m -Xmx1024m
+    healthcheck:
+      # Declared HERE on purpose, not only in the Dockerfile. A healthcheck in
+      # the compose file overrides the one baked into the image, which is what
+      # keeps this service from being reported unhealthy during startup: the app
+      # needs ~30s to boot (Hibernate builds the whole schema on an empty
+      # database), so a check whose start_period is too short exhausts its
+      # retries while the JVM is still starting and compose aborts the deploy
+      # with "dependency failed to start ... is unhealthy".
+      # start_period: failures do not count while the app boots.
+      # start_interval: probe often during that window, so the deploy resumes
+      # within seconds of readiness instead of a full interval later.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 180s
+      start_interval: 5s
     volumes:
       - screenshots:/data/screenshots
     ports:
@@ -78,6 +95,14 @@ services:
       # Host port -> nginx container port. Also ignored when a domain is
       # attached in Coolify. Override with FRONTEND_PORT if 3003 is taken.
       - "${FRONTEND_PORT:-3003}:80"
+    healthcheck:
+      # nginx:alpine has no curl, but its busybox base provides wget.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 5s
     depends_on:
       backend:
         condition: service_healthy
