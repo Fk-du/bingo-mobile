@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bingo-mobile",
+    "name": "BingoPlus",
     "slug": "bingo-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -42,7 +42,14 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableBundleCompression": true,
+            "buildArchs": [
+              "arm64-v8a",
+              "armeabi-v7a"
+            ]
           }
         }
       ],
