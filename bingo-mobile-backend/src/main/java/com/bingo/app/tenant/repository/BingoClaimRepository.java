@@ -39,6 +39,16 @@ public interface BingoClaimRepository extends JpaRepository<BingoClaim, Long> {
     @Query("SELECT c FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = :result AND c.validatedAt IS NULL ORDER BY c.claimedAt ASC")
     List<BingoClaim> findByGameIdAndResultAndValidatedAtIsNull(@Param("gameId") Long gameId, @Param("result") String result);
 
+    /**
+     * Claims an admin has already confirmed as winners but that have not been paid
+     * out yet. A claim is locked (validatedAt set) the moment the admin approves it;
+     * its share is only known — and only credited — when the last pending claim of
+     * the game is resolved, because every winner shares the same pot equally.
+     */
+    @Query("SELECT c FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = 'VALID' " +
+            "AND c.validatedAt IS NOT NULL AND c.rewardAmount IS NULL ORDER BY c.validatedAt ASC")
+    List<BingoClaim> findApprovedUnpaidWinners(@Param("gameId") Long gameId);
+
     @Query("SELECT COUNT(c) FROM BingoClaim c WHERE c.gameId = :gameId AND c.result = :result AND c.validatedAt IS NULL")
     long countByGameIdAndResultAndValidatedAtIsNull(@Param("gameId") Long gameId, @Param("result") String result);
 

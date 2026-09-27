@@ -312,4 +312,254 @@ class GameEnginePayoutsTest {
         verify(walletService, never()).refundPlayer(anyLong(), any(BigDecimal.class), anyLong());
         assertEquals(com.bingo.app.tenant.enums.GameStatus.ENDED, g.getStatus());
     }
+
+    // ------------------------------------------------------------------
+    // Per-claim approval: the admin reviews claims one at a time and the pot
+    // is split equally between every confirmed winner when the last claim is
+    // resolved.
+    // ------------------------------------------------------------------
+
+    private BingoClaim claimFor(Game g, long id, long playerId) {
+        BingoClaim c = claim(id, playerId);
+        c.setGameId(g.getId());
+        return c;
+    }
+
+    private BingoClaim approved(Game g, long id, long playerId) {
+        BingoClaim c = claimFor(g, id, playerId);
+        c.setValidatedAt(LocalDateTime.now());
+        c.setValidatedBy(2L);
+        return c;
+    }
+
+    @Test
+    @DisplayName("per-claim approve: first of two claims is held, nothing paid until the last is decided")
+    void perClaimApproveHoldsUntilLastDecision() {
+        Game g = game(50L, new BigDecimal("20.00"), "10.00");
+        BingoClaim c1 = claimFor(g, 1L, 101L);
+        BingoClaim c2 = claimFor(g, 2L, 102L);
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        // 1st approve: both pending, then only the second one is left.
+        when(bingoClaimRepository.findByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID"))
+                .thenReturn(List.of(c1, c2))
+                .thenReturn(List.of(c2));
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(c1));
+        when(bingoClaimRepository.claimForProcessing(eq(1L), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = engine.approveClaim(g.getId(), 1L, 2L);
+
+        assertAll(
+                () -> assertTrue(result.isPendingReview(), "other claims still await review"),
+                () -> assertFalse(result.isGameEnded(), "the pot is not paid out mid-review"),
+                () -> assertEquals(1, result.getApprovedCount()),
+                () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.CLAIM_PENDING, g.getStatus())
+        );
+        verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
+        verify(walletService, never()).creditAgentCommission(anyLong(), any(), anyLong());
+        assertNotNull(c1.getValidatedAt(), "the approval must be persisted, not only the lock");
+    }
+
+    @Test
+    @DisplayName("two per-claim approvals: both winners share the pot equally, game ends")
+    void perClaimApproveSplitsEquallyBetweenWinners() {
+        Game g = game(51L, new BigDecimal("20.00"), "10.00");
+        BingoClaim c1 = claimFor(g, 1L, 101L);
+        BingoClaim c2 = claimFor(g, 2L, 102L);
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID"))
+                .thenReturn(List.of(c1, c2))   // before the 1st approval
+                .thenReturn(List.of(c2))        // still one pending after it
+                .thenReturn(List.of(c2))        // before the 2nd approval
+                .thenReturn(List.of());         // nothing left after it
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(c1));
+        when(bingoClaimRepository.findById(2L)).thenReturn(Optional.of(c2));
+        when(bingoClaimRepository.claimForProcessing(anyLong(), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.findApprovedUnpaidWinners(g.getId())).thenReturn(List.of(approved(g, 1L, 101L), approved(g, 2L, 102L)));
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameCardRepository.findByGameIdAndCardId(eq(g.getId()), anyLong())).thenReturn(Optional.of(new GameCard()));
+
+        engine.approveClaim(g.getId(), 1L, 2L);
+        var result = engine.approveClaim(g.getId(), 2L, 2L);
+
+        assertAll(
+                () -> assertTrue(result.isGameEnded()),
+                () -> assertEquals(2, result.getApprovedCount()),
+                () -> assertEquals(0, new BigDecimal("9.00").compareTo(result.getRewardAmount())),
+                () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.ENDED, g.getStatus())
+        );
+        verify(walletService, times(1)).creditAgentCommission(eq(2L), eq(new BigDecimal("2.00")), eq(51L));
+        verify(walletService).creditWinnings(101L, new BigDecimal("9.00"), 51L);
+        verify(walletService).creditWinnings(102L, new BigDecimal("9.00"), 51L);
+        verify(cardService, times(2)).markCardAsWinner(eq(51L), anyLong());
+    }
+
+    @Test
+    @DisplayName("three per-claim approvals: pot split three ways, cent-perfect")
+    void perClaimApproveSplitsThreeWays() {
+        Game g = game(52L, new BigDecimal("10.00"), "10.00");
+        BingoClaim c1 = claimFor(g, 1L, 101L);
+        BingoClaim c2 = claimFor(g, 2L, 102L);
+        BingoClaim c3 = claimFor(g, 3L, 103L);
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID"))
+                .thenReturn(List.of(c1, c2, c3))   // before the 1st approval
+                .thenReturn(List.of(c2, c3))        // two left after it
+                .thenReturn(List.of(c2, c3))        // before the 2nd approval
+                .thenReturn(List.of(c3))            // one left after it
+                .thenReturn(List.of(c3))            // before the 3rd approval
+                .thenReturn(List.of());             // nothing left after it
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(c1));
+        when(bingoClaimRepository.findById(2L)).thenReturn(Optional.of(c2));
+        when(bingoClaimRepository.findById(3L)).thenReturn(Optional.of(c3));
+        when(bingoClaimRepository.claimForProcessing(anyLong(), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.findApprovedUnpaidWinners(g.getId()))
+                .thenReturn(List.of(approved(g, 1L, 101L), approved(g, 2L, 102L), approved(g, 3L, 103L)));
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameCardRepository.findByGameIdAndCardId(eq(g.getId()), anyLong())).thenReturn(Optional.of(new GameCard()));
+
+        engine.approveClaim(g.getId(), 1L, 2L);
+        engine.approveClaim(g.getId(), 2L, 2L);
+        var result = engine.approveClaim(g.getId(), 3L, 2L);
+
+        assertEquals(3, result.getApprovedCount());
+        // 10.00 pot - 10% commission = 9.00 net, three winners -> 3.00 each
+        verify(walletService).creditWinnings(101L, new BigDecimal("3.00"), 52L);
+        verify(walletService).creditWinnings(102L, new BigDecimal("3.00"), 52L);
+        verify(walletService).creditWinnings(103L, new BigDecimal("3.00"), 52L);
+    }
+
+    @Test
+    @DisplayName("approve then reject: the confirmed winner takes the whole net pool")
+    void perClaimApproveThenRejectPaysTheOnlyWinner() {
+        Game g = game(53L, new BigDecimal("20.00"), "10.00");
+        BingoClaim good = claimFor(g, 1L, 101L);
+        BingoClaim bad = claimFor(g, 2L, 102L);
+        bad.setGameId(g.getId());
+        GameCard badCard = new GameCard();
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(gameRepository.findById(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID"))
+                .thenReturn(List.of(good, bad))
+                .thenReturn(List.of(bad));
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(good));
+        when(bingoClaimRepository.findById(2L)).thenReturn(Optional.of(bad));
+        when(bingoClaimRepository.claimForProcessing(anyLong(), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.findApprovedUnpaidWinners(g.getId())).thenReturn(List.of(approved(g, 1L, 101L)));
+        when(bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID")).thenReturn(0L);
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameCardRepository.findById(bad.getCardId())).thenReturn(Optional.of(badCard));
+        when(gameCardRepository.findByGameIdAndCardId(eq(g.getId()), anyLong())).thenReturn(Optional.of(new GameCard()));
+        when(gameCardRepository.save(any(GameCard.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        engine.approveClaim(g.getId(), 1L, 2L);
+        engine.rejectClaim(g.getId(), 2L, 2L, "pattern not complete");
+
+        assertAll(
+                () -> assertEquals("REJECTED", bad.getResult()),
+                () -> assertTrue(badCard.isBanned()),
+                () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.ENDED, g.getStatus())
+        );
+        // the single confirmed winner takes the whole net pool — nobody else shares it
+        verify(walletService).creditWinnings(101L, new BigDecimal("18.00"), 53L);
+        verify(walletService, never()).creditWinnings(eq(102L), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("one player claiming with two cards wins a single share, the second card is voided")
+    void perClaimApproveGivesOnePlayerOneShare() {
+        Game g = game(54L, new BigDecimal("20.00"), "10.00");
+        BingoClaim first = claimFor(g, 1L, 101L);
+        BingoClaim second = claimFor(g, 2L, 101L);
+        second.setGameId(g.getId());
+        GameCard secondCard = new GameCard();
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(gameRepository.findById(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID"))
+                .thenReturn(List.of(first, second))
+                .thenReturn(List.of(second));
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(first));
+        when(bingoClaimRepository.findById(2L)).thenReturn(Optional.of(second));
+        when(bingoClaimRepository.claimForProcessing(anyLong(), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.findApprovedUnpaidWinners(g.getId())).thenReturn(List.of(approved(g, 1L, 101L)));
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameCardRepository.findById(second.getCardId())).thenReturn(Optional.of(secondCard));
+        when(gameCardRepository.findByGameIdAndCardId(eq(g.getId()), anyLong())).thenReturn(Optional.of(new GameCard()));
+        when(gameCardRepository.save(any(GameCard.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        engine.approveClaim(g.getId(), 1L, 2L);
+        var result = engine.approveClaim(g.getId(), 2L, 2L);
+
+        assertAll(
+                () -> assertEquals("REJECTED", second.getResult(), "a second card cannot take a second share"),
+                () -> assertTrue(secondCard.isBanned()),
+                () -> assertEquals(1, result.getApprovedCount()),
+                () -> assertEquals(0, new BigDecimal("18.00").compareTo(result.getRewardAmount()))
+        );
+        verify(walletService, times(1)).creditWinnings(eq(101L), any(), eq(54L));
+    }
+
+    @Test
+    @DisplayName("every claim rejected: no payout, the game resumes")
+    void perClaimAllRejectedResumesGame() {
+        Game g = game(55L, new BigDecimal("20.00"), "10.00");
+        BingoClaim c = claim(1L, 101L);
+        c.setGameId(g.getId());
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(gameRepository.findById(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(c));
+        when(bingoClaimRepository.claimForProcessing(eq(1L), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID")).thenReturn(0L);
+        when(bingoClaimRepository.findApprovedUnpaidWinners(g.getId())).thenReturn(List.of());
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameCardRepository.findById(c.getCardId())).thenReturn(Optional.of(new GameCard()));
+        when(gameCardRepository.save(any(GameCard.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        engine.rejectClaim(g.getId(), 1L, 2L, "nope");
+
+        assertEquals(com.bingo.app.tenant.enums.GameStatus.IN_PROGRESS, g.getStatus());
+        verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
+        verify(walletService, never()).creditAgentCommission(anyLong(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("per-claim approve beyond the simultaneous-winner cap restarts the round")
+    void perClaimApproveRestartsBeyondCap() {
+        Game g = game(56L, new BigDecimal("40.00"), "10.00");
+        stubPending(g, claim(1L, 101L), claim(2L, 102L), claim(3L, 103L), claim(4L, 104L));
+
+        var result = engine.approveClaim(g.getId(), 1L, 2L);
+
+        assertAll(
+                () -> assertTrue(result.isRestarted()),
+                () -> assertEquals(0, result.getApprovedCount()),
+                () -> verify(gameService).restartGame(eq(56L), eq(2L))
+        );
+        verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("a claim that is no longer pending cannot be approved twice")
+    void perClaimApproveRejectsAlreadyProcessedClaim() {
+        Game g = game(57L, new BigDecimal("20.00"), "10.00");
+        BingoClaim c = claim(1L, 101L);
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID")).thenReturn(List.of());
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(c));
+
+        assertThrows(GameProgressException.class, () -> engine.approveClaim(g.getId(), 1L, 2L));
+    }
 }

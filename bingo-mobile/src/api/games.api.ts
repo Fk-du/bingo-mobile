@@ -89,6 +89,12 @@ export const gamesApi = {
     );
     return res.data;
   },
+  approveClaim: async (gameId: number, claimId: number) => {
+    const res = await apiClient.post<ApiResponse<BingoClaimResultResponse>>(
+      `/games/${gameId}/claims/${claimId}/approve`
+    );
+    return res.data;
+  },
   getState: async (id: number) => {
     const res = await apiClient.get<ApiResponse<GameStateResponse>>(`/games/${id}/state`);
     return res.data;

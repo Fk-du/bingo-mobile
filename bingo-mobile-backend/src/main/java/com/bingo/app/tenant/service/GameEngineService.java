@@ -610,13 +610,7 @@ public class GameEngineService {
      */
     @Transactional(transactionManager = "tenantTransactionManager")
     public BingoClaimResult approveAllClaims(Long gameId, Long adminId) {
-        Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
-
-        if (!game.getAdminUserId().equals(adminId)) {
-            throw new GameProgressException("Game does not belong to this admin",
-                    "This game does not belong to you.");
-        }
+        Game game = lockOwnedGame(gameId, adminId);
 
         List<BingoClaim> pending = bingoClaimRepository
                 .findByGameIdAndResultAndValidatedAtIsNull(gameId, "VALID");
@@ -635,22 +629,144 @@ public class GameEngineService {
         // Atomically lock every claim — any that lose a race are dropped.
         // A player may only win one share: skip a second claim from the same player.
         LocalDateTime now = LocalDateTime.now();
-        java.util.Set<Long> claimedPlayers = new java.util.HashSet<>();
-        List<BingoClaim> winners = new java.util.ArrayList<>();
-        for (BingoClaim c : pending) {
-            if (!claimedPlayers.add(c.getPlayerId())) {
-                continue;
-            }
+        List<BingoClaim> locked = new java.util.ArrayList<>();
+        for (BingoClaim c : dedupeByPlayer(pending)) {
             if (bingoClaimRepository.claimForProcessing(c.getId(), adminId, now) == 1) {
-                winners.add(c);
+                // Keep the entity in step with the lock: the bulk update does not touch
+                // the persistence context, so the payout save below must not write the
+                // stale validatedAt = null back over the approval.
+                c.setValidatedBy(adminId);
+                c.setValidatedAt(now);
+                locked.add(c);
             }
         }
-        int shareCount = winners.size();
-        if (shareCount == 0) {
+        if (locked.isEmpty()) {
             throw new GameProgressException("No claims could be locked for processing",
                     "No pending claims could be approved. Try again.");
         }
 
+        return settleApprovedWinners(game, adminId, locked);
+    }
+
+    /**
+     * Approve ONE pending claim as a winner. The game is not paid out yet: the
+     * remaining claims still have to be reviewed, and the pot is shared equally
+     * between every winner. Payout therefore happens when the last pending claim
+     * of this game is resolved — approved (see {@link #settleApprovedWinners}) or
+     * rejected. If no claim is approved at all, the game resumes as before.
+     */
+    @Transactional(transactionManager = "tenantTransactionManager")
+    public BingoClaimResult approveClaim(Long gameId, Long claimId, Long adminId) {
+        Game game = lockOwnedGame(gameId, adminId);
+
+        if (game.getStatus() != GameStatus.CLAIM_PENDING) {
+            throw new RequestAlreadyProcessedException("Game is not in CLAIM_PENDING state");
+        }
+
+        List<BingoClaim> pending = bingoClaimRepository
+                .findByGameIdAndResultAndValidatedAtIsNull(gameId, "VALID");
+        if (pending.isEmpty()) {
+            throw new GameProgressException("No pending claims for game " + gameId,
+                    "There are no claims waiting for review.");
+        }
+        if (pending.size() > MAX_SIMULTANEOUS_WINNERS) {
+            return restartDueToTooManyClaims(gameId, adminId, pending.size());
+        }
+
+        BingoClaim claim = bingoClaimRepository.findById(claimId)
+                .orElseThrow(() -> new RuntimeException("Claim not found"));
+        if (!claim.getGameId().equals(gameId)) {
+            throw new RuntimeException("Claim does not belong to this game");
+        }
+        boolean stillPending = pending.stream().anyMatch(c -> c.getId().equals(claimId));
+        if (!stillPending) {
+            throw new RequestAlreadyProcessedException("Claim already processed");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (bingoClaimRepository.claimForProcessing(claimId, adminId, now) == 0) {
+            throw new RequestAlreadyProcessedException("Claim already processed");
+        }
+
+        // One player can only ever take one share: a second card from an already
+        // confirmed winner is rejected, exactly like a duplicate claim in a bulk approval.
+        boolean duplicateWinner = alreadyApprovedWinner(gameId, claim.getPlayerId(), claimId);
+        if (duplicateWinner) {
+            return rejectDuplicateClaim(game, claimId, adminId,
+                    "This player already wins a share of this game");
+        }
+
+        // Keep the in-memory claim in step with the lock: the bulk update above does not
+        // touch the persistence context, so a later save must not write the stale
+        // validatedAt = null back over the approval.
+        claim.setValidatedBy(adminId);
+        claim.setValidatedAt(now);
+        claim.setResult("VALID");
+        bingoClaimRepository.save(claim);
+
+        boolean morePending = !bingoClaimRepository
+                .findByGameIdAndResultAndValidatedAtIsNull(gameId, "VALID").isEmpty();
+
+        log.info("Game {}: Admin {} approved claim {} (player {}). {} claim(s) still pending.",
+                gameId, adminId, claimId, claim.getPlayerId(), morePending ? "1+" : "0");
+
+        // Every winner shares the pot equally, so the shares can only be settled once
+        // the admin is done reviewing this round.
+        if (morePending) {
+            publishClaimResolvedEvent(gameId, GameStatus.CLAIM_PENDING);
+            return BingoClaimResult.builder()
+                    .valid(true)
+                    .claimId(claimId)
+                    .pendingReview(true)
+                    .gameEnded(false)
+                    .approvedCount(1)
+                    .rewardAmount(java.math.BigDecimal.ZERO)
+                    .commission(java.math.BigDecimal.ZERO)
+                    .build();
+        }
+        return settleApprovedWinners(game, adminId);
+    }
+
+    /**
+     * Pay out the confirmed winners of a game and end it. Every approved claim is
+     * one simultaneous winner and they take the net pool in equal shares, no matter
+     * how many cards claimed: two claimants split the pot two ways, three split it
+     * three ways. With no approved winner the game simply resumes.
+     *
+     * <p>Guarded by the game row lock and by the {@code CLAIM_PENDING} status, so the
+     * commission can only ever be taken and the pot only ever be paid once.
+     */
+    private BingoClaimResult settleApprovedWinners(Game game, Long adminId) {
+        return settleApprovedWinners(game, adminId,
+                bingoClaimRepository.findApprovedUnpaidWinners(game.getId()));
+    }
+
+    /**
+     * @param approved the confirmed winners of this game. Callers that just locked the
+     *                 claims pass them in directly; callers that resolve a claim in a
+     *                 later transaction re-read the confirmed winners instead.
+     */
+    private BingoClaimResult settleApprovedWinners(Game game, Long adminId, List<BingoClaim> approved) {
+        Long gameId = game.getId();
+        List<BingoClaim> winners = dedupeByPlayer(approved);
+        if (winners.isEmpty()) {
+            // Every claim was rejected: nothing to pay, so play carries on.
+            game.setStatus(GameStatus.IN_PROGRESS);
+            gameRepository.save(game);
+            startCalling(gameId);
+            publishClaimResolvedEvent(gameId, GameStatus.IN_PROGRESS);
+            log.info("Game {}: All claims rejected, game resumed.", gameId);
+            return BingoClaimResult.builder()
+                    .valid(false)
+                    .pendingReview(false)
+                    .gameEnded(false)
+                    .approvedCount(0)
+                    .rewardAmount(java.math.BigDecimal.ZERO)
+                    .commission(java.math.BigDecimal.ZERO)
+                    .build();
+        }
+
+        int shareCount = winners.size();
         BigDecimal prizePool = game.getPrizePool();
         BigDecimal grossCommission = commissionFor(game);
         BigDecimal ownerShare = ownerShareFor(grossCommission);
@@ -681,8 +797,9 @@ public class GameEngineService {
         stopCalling(gameId);
         publishGameStatusEvent(gameId, GameStatus.ENDED);
 
-        log.info("Game {}: Admin {} approved {} simultaneous winners, each paid {}. Game ended.",
-                gameId, adminId, shareCount, shares[0]);
+        log.info("Game {}: Admin {} settled {} simultaneous winner(s) from a pot of {}, "
+                        + "each paid {}. Game ended.",
+                gameId, adminId, shareCount, prizePool, shares[0]);
 
         return BingoClaimResult.builder()
                 .valid(true)
@@ -692,6 +809,64 @@ public class GameEngineService {
                 .rewardAmount(shares[0])
                 .commission(grossCommission)
                 .build();
+    }
+
+    /** Load the game under its row lock and confirm this admin owns it. */
+    private Game lockOwnedGame(Long gameId, Long adminId) {
+        Game game = gameRepository.findByIdForUpdate(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        if (!game.getAdminUserId().equals(adminId)) {
+            throw new GameProgressException("Game does not belong to this admin",
+                    "This game does not belong to you.");
+        }
+        return game;
+    }
+
+    /** Keep only the first claim per player — one player can only win one share. */
+    private List<BingoClaim> dedupeByPlayer(List<BingoClaim> claims) {
+        java.util.Set<Long> players = new java.util.HashSet<>();
+        List<BingoClaim> unique = new java.util.ArrayList<>();
+        for (BingoClaim c : claims) {
+            if (players.add(c.getPlayerId())) {
+                unique.add(c);
+            }
+        }
+        return unique;
+    }
+
+    /**
+     * True when this player already holds a confirmed, unpaid winner's claim other
+     * than the one being reviewed — the claim under review has just been locked by
+     * this transaction and is excluded so it cannot be mistaken for a second card.
+     */
+    private boolean alreadyApprovedWinner(Long gameId, Long playerId, Long excludeClaimId) {
+        return bingoClaimRepository.findApprovedUnpaidWinners(gameId).stream()
+                .anyMatch(c -> c.getPlayerId().equals(playerId) && !c.getId().equals(excludeClaimId));
+    }
+
+    /**
+     * A second card from a player who already wins a share is voided: the card is
+     * banned, exactly like a rejected claim, and the game settles on the winners
+     * that remain.
+     */
+    private BingoClaimResult rejectDuplicateClaim(Game game, Long claimId, Long adminId, String reason) {
+        BingoClaim duplicate = bingoClaimRepository.findById(claimId).orElse(null);
+        if (duplicate != null) {
+            duplicate.setResult("REJECTED");
+            duplicate.setRejectionReason(reason);
+            duplicate.setValidatedBy(adminId);
+            bingoClaimRepository.save(duplicate);
+            if (duplicate.getCardId() != null) {
+                gameCardRepository.findById(duplicate.getCardId()).ifPresent(gc -> {
+                    gc.setBanned(true);
+                    gameCardRepository.save(gc);
+                });
+            }
+            notifyCardOwnerOfBan(game.getId(), duplicate);
+        }
+        log.info("Game {}: claim {} voided as a duplicate claim. Reason: {}",
+                game.getId(), claimId, reason);
+        return settleApprovedWinners(game, adminId);
     }
 
     /**
@@ -774,20 +949,18 @@ public class GameEngineService {
 
         notifyCardOwnerOfBan(gameId, claim);
 
-        // Resume game only if no other valid pending claims
+        log.info("Game {}: Admin {} rejected claim {}. Reason: {}.",
+                gameId, adminId, claimId, reason);
+
+        // Only when no claim is left to review does the round resolve: if another
+        // claim was already confirmed as a winner, the winners are paid their equal
+        // shares now and the game ends; with no winner at all the game resumes.
         long remaining = bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNull(gameId, "VALID");
         if (remaining == 0) {
-            game.setStatus(GameStatus.IN_PROGRESS);
-            gameRepository.save(game);
-            startCalling(gameId);
-            publishClaimResolvedEvent(gameId, GameStatus.IN_PROGRESS);
-            log.info("Game {}: All claims resolved, game resumed.", gameId);
+            settleApprovedWinners(game, adminId);
         } else {
             publishClaimResolvedEvent(gameId, GameStatus.CLAIM_PENDING);
         }
-
-        log.info("Game {}: Admin {} rejected claim {}. Reason: {}.",
-                gameId, adminId, claimId, reason);
     }
 
     /**

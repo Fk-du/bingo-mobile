@@ -251,6 +251,31 @@ public class GameController {
         return ApiResponse.ok("Claim rejected, game resumed");
     }
 
+    @PostMapping("/{id}/claims/{claimId}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<BingoClaimResultResponse> approveClaim(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @PathVariable Long claimId) {
+        var result = gameEngineService.approveClaim(id, claimId, principal.getUser().getId());
+        String message = result.isRestarted()
+                ? "Too many players claimed — the game was restarted with a fresh number sequence. Players were notified."
+                : result.isGameEnded()
+                        ? "Claim approved. All confirmed winners were paid an equal share of the pot. Game ended."
+                        : "Claim approved. The pot is shared equally between every confirmed winner once the remaining claims are reviewed.";
+        return ApiResponse.ok(message, BingoClaimResultResponse.builder()
+                .valid(result.isValid())
+                .claimId(claimId)
+                .pendingReview(result.isPendingReview())
+                .gameEnded(result.isGameEnded())
+                .approvedCount(result.getApprovedCount())
+                .rewardAmount(result.getRewardAmount())
+                .commission(result.getCommission())
+                .banned(result.isBanned())
+                .restarted(result.isRestarted())
+                .build());
+    }
+
     @PostMapping("/{id}/marks")
     @PreAuthorize("hasRole('PLAYER')")
     public ApiResponse<Void> saveMarks(

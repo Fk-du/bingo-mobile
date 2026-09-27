@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { AppState, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
 import { CardGrid } from '@/components/games/CardGrid';
 import { FairnessPanel } from '@/components/games/FairnessPanel';
@@ -30,6 +30,7 @@ export default function LiveGameScreen() {
   const restartNotice = useGameStore((s) => s.restartNotice);
   const totalNumbersCalled = useGameStore((s) => s.totalNumbersCalled);
   const prizePool = useGameStore((s) => s.prizePool);
+  const isConnecting = useGameStore((s) => s.isConnecting);
   const setPlayerCards = useGameStore((s) => s.setPlayerCards);
   const setRestartNotice = useGameStore((s) => s.setRestartNotice);
 
@@ -104,6 +105,34 @@ export default function LiveGameScreen() {
 
   useEffect(() => {
     void loadState();
+  }, [loadState]);
+
+  // The socket is the fast path, but it is not the only way this screen learns
+  // a number was called: a dropped session, a proxy that drops the upgrade or a
+  // phone that slept through it all leave the board frozen until the player
+  // pulls to refresh. Polling keeps the board moving on its own, and the
+  // refetch on every socket event keeps it instant when the socket is healthy.
+  useEffect(() => {
+    const id = setInterval(() => void loadState(), 4_000);
+    return () => clearInterval(id);
+  }, [loadState]);
+
+  // When the socket is healthy it delivers a number the instant it is called;
+  // pull the rest of the state (cards, pool, marks) straight away rather than
+  // waiting for the next poll tick.
+  const liveCalledCount = calledNumberEntries.length;
+  useEffect(() => {
+    if (liveCalledCount === 0) return;
+    const id = setTimeout(() => void loadState(), 0);
+    return () => clearTimeout(id);
+  }, [loadState, liveCalledCount]);
+
+  // Coming back from background must not leave a stale board behind.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (status) => {
+      if (status === 'active') void loadState();
+    });
+    return () => sub.remove();
   }, [loadState]);
 
   const isManual = state?.autoMark === false;
@@ -206,6 +235,17 @@ export default function LiveGameScreen() {
             <View className="h-2 w-2 rounded-full bg-bp-danger" />
             <Text className="text-[10px] font-bold uppercase tracking-wider text-red-500">
               {t('game.live') ?? 'Live'}
+            </Text>
+          </View>
+        )}
+        {/* While the socket is still connecting or retrying, say so: the board
+            keeps updating through the poll, but the player should not sit there
+            assuming the game is stalled. */}
+        {isConnecting && (
+          <View className="flex-row items-center gap-1.5 rounded-full border border-bp-border bg-bp-background px-3 py-1">
+            <View className="h-2 w-2 rounded-full bg-bp-textSecondary" />
+            <Text className="text-[10px] font-bold uppercase tracking-wider text-bp-textSecondary">
+              {t('game.syncing') ?? 'Syncing'}
             </Text>
           </View>
         )}
