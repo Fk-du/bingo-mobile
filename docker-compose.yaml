@@ -57,6 +57,13 @@ services:
       # start_period: failures do not count while the app boots.
       # start_interval: probe often during that window, so the deploy resumes
       # within seconds of readiness instead of a full interval later.
+      # IMPORTANT: this file is only half the story. Coolify builds the compose
+      # it actually runs from its own "deployable compose", and a healthcheck
+      # configured on the service in the Coolify dashboard is injected there and
+      # replaces this one. Keep the Coolify Healthcheck values in step with the
+      # ones below (Start Period >= 120s), or the deploy aborts ~10s in with
+      # "dependency failed to start: container backend-... is unhealthy" while the
+      # JVM is still building its schema.
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
