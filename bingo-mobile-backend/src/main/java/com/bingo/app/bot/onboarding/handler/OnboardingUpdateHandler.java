@@ -1,5 +1,6 @@
 package com.bingo.app.bot.onboarding.handler;
 
+import com.bingo.app.bot.i18n.BotText;
 import com.bingo.app.bot.onboarding.OnboardingBot;
 import com.bingo.app.bot.onboarding.PasswordOnboardingService;
 import com.bingo.app.master.entity.User;
@@ -35,6 +36,7 @@ public class OnboardingUpdateHandler {
     private final InviteService inviteService;
     private final UserService userService;
     private final PasswordOnboardingService passwordOnboarding;
+    private final BotText botText;
 
     @Value("${app.super-admin.telegram-id}")
     private Long superAdminTelegramId;
@@ -44,8 +46,8 @@ public class OnboardingUpdateHandler {
             return;
         }
         if (update.hasMessage() && update.getMessage().hasText()) {
-            String text = update.getMessage().getText();
-            if (text != null && text.startsWith("/start")) {
+            String messageText = update.getMessage().getText();
+            if (messageText != null && messageText.startsWith("/start")) {
                 handleStart(update, bot);
                 return;
             }
@@ -69,33 +71,35 @@ public class OnboardingUpdateHandler {
 
         User existing = userService.findByTelegramId(telegramId);
         if (existing != null) {
-            sendText(bot, chatId, "👋 Welcome back! You are already registered.");
+            sendText(bot, chatId, botText.t("welcome_back"));
             continueOnboarding(bot, chatId, existing);
             return;
         }
 
         if (telegramId.equals(superAdminTelegramId)) {
             User superAdmin = userService.ensureSuperAdmin(telegramId);
-            sendText(bot, chatId, "✅ Welcome Super Admin! You have full platform access.");
+            sendText(bot, chatId, botText.t("super_admin_welcome"));
             continueOnboarding(bot, chatId, superAdmin);
             return;
         }
 
         if (code == null || code.isBlank()) {
-            sendText(bot, chatId, "❌ Invalid invite link. Please use the link provided by your admin.");
+            sendText(bot, chatId, botText.t("invalid_invite"));
             return;
         }
 
         try {
             User newUser = inviteService.registerWithInvite(telegramId, code);
             TenantHelper.runWithTenant(newUser, () -> {
-                String roleText = newUser.getRole() == com.bingo.app.master.enums.Role.ADMIN ? "Admin" : "Player";
-                sendText(bot, chatId, "🎉 Welcome to BingoPlus! You have been registered as a " + roleText + ".");
+                sendText(bot, chatId, newUser.getRole() == com.bingo.app.master.enums.Role.ADMIN
+                        ? botText.t("registered_admin")
+                        : botText.t("registered_player"));
                 continueOnboarding(bot, chatId, newUser);
             });
         } catch (Exception e) {
             log.error("Registration failed for telegramId={}", telegramId, e);
-            sendText(bot, chatId, "❌ Registration failed: " + e.getMessage());
+            sendText(bot, chatId, botText.t("registration_failed", "reason", e.getMessage() == null
+                    ? botText.one("error_generic", "en") : e.getMessage()));
         }
     }
 
@@ -106,7 +110,7 @@ public class OnboardingUpdateHandler {
 
         User user = userService.findByTelegramId(telegramId);
         if (user == null) {
-            sendText(bot, chatId, "Welcome to BingoPlus! To get started, open your invite link to register.");
+            sendText(bot, chatId, botText.t("unknown_user_need_invite_short"));
             return;
         }
 
@@ -117,12 +121,12 @@ public class OnboardingUpdateHandler {
 
         User fresh = userService.findByTelegramId(telegramId);
         if (fresh.getPhoneNumber() == null || fresh.getPhoneNumber().isBlank()) {
-            sendText(bot, chatId, "⚠️ We couldn't read your phone number. Please tap the button below again:");
+            sendText(bot, chatId, botText.t("phone_read_failed"));
             requestPhoneNumber(bot, chatId);
             return;
         }
 
-        sendText(bot, chatId, "✅ Phone number saved! Welcome to BingoPlus.");
+        sendText(bot, chatId, botText.t("phone_saved"));
         passwordOnboarding.prompt(bot, chatId, fresh);
     }
 
@@ -132,7 +136,7 @@ public class OnboardingUpdateHandler {
             passwordOnboarding.handleText(bot, update);
             return;
         }
-        sendText(bot, chatId, "Use the buttons below — there's nothing to type.");
+        sendText(bot, chatId, botText.t("nothing_to_type"));
     }
 
     private void continueOnboarding(OnboardingBot bot, Long chatId, User user) {
@@ -140,15 +144,12 @@ public class OnboardingUpdateHandler {
             requestPhoneNumber(bot, chatId);
             return;
         }
-        sendText(bot, chatId, "You are fully registered with phone " + user.getPhoneNumber() + ".");
+        sendText(bot, chatId, botText.t("registered_with_phone", "phone", user.getPhoneNumber()));
         passwordOnboarding.prompt(bot, chatId, user);
     }
 
     public void requestPhoneNumber(OnboardingBot bot, Long chatId) {
-        passwordOnboarding.requestPhoneNumber(bot, chatId,
-                "📱 *One more step — verify your account*\n\n" +
-                        "Please **share your phone number** by tapping the button below.\n\n" +
-                        "You'll use this phone number to log into the mobile app.");
+        passwordOnboarding.requestPhoneNumber(bot, chatId, botText.t("phone_request_short"));
     }
 
     private String extractStartCode(String text) {

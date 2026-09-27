@@ -1,5 +1,6 @@
 package com.bingo.app.bot.onboarding;
 
+import com.bingo.app.bot.i18n.BotText;
 import com.bingo.app.master.entity.User;
 import com.bingo.app.master.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class PasswordOnboardingService {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final BotText botText;
 
     private final Map<String, PendingPassword> pendingPasswords = new ConcurrentHashMap<>();
 
@@ -57,14 +59,10 @@ public class PasswordOnboardingService {
      */
     public void prompt(TelegramLongPollingBot bot, Long chatId, User user) {
         if (hasPassword(user)) {
-            sendText(bot, chatId, "🔑 You already have a password for the mobile app — log in with your phone number and it.");
+            sendText(bot, chatId, botText.t("already_has_password"));
             return;
         }
-        sendText(bot, chatId,
-                "📱 *To use the BingoPlus mobile app*\n\n"
-                        + "Mobile login is your phone number plus a password, so set a password once here "
-                        + "and you can sign in from the app. You can skip this and set it later.",
-                inlinePanel());
+        sendText(bot, chatId, botText.t("password_prompt"), inlinePanel());
     }
 
     /**
@@ -88,20 +86,19 @@ public class PasswordOnboardingService {
         if (!pending.isConfirmed()) {
             if (text.length() < MIN_PASSWORD_LENGTH) {
                 deleteMessage(bot, chatId, messageId);
-                sendText(bot, chatId, "⚠️ Password must be at least " + MIN_PASSWORD_LENGTH + " characters. Please try again:");
+                sendText(bot, chatId, botText.t("password_too_short", "min", MIN_PASSWORD_LENGTH));
                 return true;
             }
             deleteMessage(bot, chatId, messageId);
             pendingPasswords.put(stateKey, new PendingPassword(text, true));
-            sendText(bot, chatId, "🔁 Please type the same password again to confirm:");
+            sendText(bot, chatId, botText.t("password_confirm"));
             return true;
         }
 
         deleteMessage(bot, chatId, messageId);
         if (!pending.getPassword().equals(text)) {
             pendingPasswords.put(stateKey, new PendingPassword(null, false));
-            sendText(bot, chatId, "❌ The passwords did not match. Type your new password (at least "
-                    + MIN_PASSWORD_LENGTH + " characters):");
+            sendText(bot, chatId, botText.t("password_mismatch", "min", MIN_PASSWORD_LENGTH));
             return true;
         }
 
@@ -109,15 +106,14 @@ public class PasswordOnboardingService {
         try {
             User user = userService.findByTelegramId(telegramId);
             if (user == null) {
-                sendText(bot, chatId, "Account not found. Please /start with your invite link.");
+                sendText(bot, chatId, botText.t("account_not_found"));
                 return true;
             }
             userService.setPassword(user.getId(), passwordEncoder.encode(text));
-            sendText(bot, chatId, "✅ Password saved! You can now log into the BingoPlus mobile app "
-                    + "with your phone number and this password.");
+            sendText(bot, chatId, botText.t("password_saved"));
         } catch (Exception e) {
             log.error("Failed to set password for telegramId={}", telegramId, e);
-            sendText(bot, chatId, "❌ Failed to save password. Please try again.");
+            sendText(bot, chatId, botText.t("password_save_failed"));
         }
         return true;
     }
@@ -139,19 +135,18 @@ public class PasswordOnboardingService {
 
         User user = userService.findByTelegramId(telegramId);
         if (user == null) {
-            sendText(bot, chatId, "Account not found. Please /start with your invite link.");
+            sendText(bot, chatId, botText.t("account_not_found"));
             return true;
         }
 
         if (OnboardingBotConstants.Actions.CREATE_PASSWORD.equals(data)) {
             pendingPasswords.put(stateKey(bot, chatId), new PendingPassword(null, false));
-            sendText(bot, chatId, "🔐 Type your new password (at least " + MIN_PASSWORD_LENGTH + " characters):");
+            sendText(bot, chatId, botText.t("password_type_new", "min", MIN_PASSWORD_LENGTH));
             return true;
         }
 
         pendingPasswords.remove(stateKey(bot, chatId));
-        sendText(bot, chatId, "No problem! You can set a password any time from this bot "
-                + "if you want to use the mobile app.");
+        sendText(bot, chatId, botText.t("password_skipped"));
         return true;
     }
 
@@ -170,11 +165,11 @@ public class PasswordOnboardingService {
 
     private InlineKeyboardMarkup inlinePanel() {
         InlineKeyboardButton create = InlineKeyboardButton.builder()
-                .text(OnboardingBotConstants.BTN_CREATE_PASSWORD)
+                .text(botText.label("btn_create_password"))
                 .callbackData(OnboardingBotConstants.Actions.CREATE_PASSWORD)
                 .build();
         InlineKeyboardButton skip = InlineKeyboardButton.builder()
-                .text("Skip for now")
+                .text(botText.label("btn_skip_password"))
                 .callbackData(OnboardingBotConstants.Actions.SKIP_PASSWORD)
                 .build();
         return InlineKeyboardMarkup.builder()
@@ -185,7 +180,7 @@ public class PasswordOnboardingService {
     /** The share-phone keyboard, shared so both bots word the same request. */
     public void requestPhoneNumber(TelegramLongPollingBot bot, Long chatId, String text) {
         KeyboardButton button = KeyboardButton.builder()
-                .text(OnboardingBotConstants.BTN_SHARE_PHONE)
+                .text(botText.label("btn_share_phone"))
                 .requestContact(true)
                 .build();
         KeyboardRow row = new KeyboardRow();

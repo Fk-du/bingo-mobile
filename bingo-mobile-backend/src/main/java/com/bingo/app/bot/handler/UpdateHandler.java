@@ -1,35 +1,35 @@
 package com.bingo.app.bot.handler;
 
-import com.bingo.app.master.entity.User;
-import com.bingo.app.master.service.UserService;
-import com.bingo.app.bot.BotConstants;
-import com.bingo.app.bot.callback.CallbackContext;
-import com.bingo.app.bot.callback.CallbackRouter;
-import com.bingo.app.bot.onboarding.PasswordOnboardingService;
-import com.bingo.app.bot.service.MenuService;
-import com.bingo.app.infrastructure.persistence.TenantHelper;
 import com.bingo.app.bot.BingoTelegramBot;
 import com.bingo.app.bot.command.StartCommand;
+import com.bingo.app.bot.i18n.BotText;
+import com.bingo.app.bot.onboarding.PasswordOnboardingService;
+import com.bingo.app.master.entity.User;
+import com.bingo.app.master.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+/**
+ * Registration only.
+ *
+ * <p>The bot exists to get a person from an invite link to a mobile login:
+ * register with the invite code, share a phone number, set a password. There is
+ * no game menu, no balance, no game list and no dashboard — the game itself
+ * lives in the mobile app, and every word the bot sends is the shared
+ * bilingual catalogue in {@link BotText}.</p>
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class UpdateHandler {
 
     private final StartCommand startCommand;
-    private final CallbackRouter callbackRouter;
     private final UserService userService;
-    private final MenuService menuService;
     private final PasswordOnboardingService passwordOnboarding;
-
-    @Value("${bingo.webapp.url}")
-    private String webAppUrl;
+    private final BotText text;
 
     public void handle(Update update, BingoTelegramBot bot) {
         if (update == null) {
@@ -37,20 +37,18 @@ public class UpdateHandler {
             return;
         }
 
-        // Handle callback queries (button presses)
+        // The password panel is part of registration and must be answered first.
         if (update.hasCallbackQuery()) {
-            handleCallbackQuery(update, bot);
+            passwordOnboarding.handleCallback(bot, update);
             return;
         }
 
-        // Handle text messages
-        if (update.hasMessage() && update.getMessage().hasText()) {
+        if (update.getMessage() != null && update.getMessage().hasText()) {
             handleTextMessage(update, bot);
             return;
         }
 
-        // Contact messages (phone share via request_contact button)
-        if (update.hasMessage() && update.getMessage().hasContact()) {
+        if (update.getMessage() != null && update.getMessage().hasContact()) {
             handleContact(update, bot);
         }
     }
@@ -64,7 +62,7 @@ public class UpdateHandler {
 
         User user = userService.findByTelegramId(telegramId);
         if (user == null) {
-            sendMessage(bot, chatId, "Welcome to BingoPlus! To get started, use the /start command with the invite link your admin provided.");
+            sendMessage(bot, chatId, text.t("unknown_user_need_invite"));
             return;
         }
 
@@ -78,79 +76,33 @@ public class UpdateHandler {
 
         User fresh = userService.findByTelegramId(telegramId);
         if (fresh.getPhoneNumber() == null || fresh.getPhoneNumber().isBlank()) {
-            startCommand.requestPhoneNumber(bot, chatId, "⚠️ We couldn't read your phone number. Please tap the button below again:");
+            passwordOnboarding.requestPhoneNumber(bot, chatId, text.t("phone_request_full"));
             return;
         }
 
-        sendMessage(bot, chatId, "✅ Phone number saved! Welcome to BingoPlus.");
+        sendMessage(bot, chatId, text.t("phone_saved"));
         if (fresh.getTelegramUsername() == null || fresh.getTelegramUsername().isBlank()) {
-            sendMessage(bot, chatId, "Tip: set a username in Telegram Settings so admins can identify you (Settings - Chat Settings - Username).");
+            sendMessage(bot, chatId, text.t("username_tip"));
         }
         // Mobile login is phone + password and the password cannot be derived
-        // from Telegram, so offer to set one before the user leaves the chat.
+        // from Telegram, so the last registration step is offered here.
         passwordOnboarding.prompt(bot, chatId, fresh);
-        if (!passwordOnboarding.isCapturing(bot, chatId)) {
-            TenantHelper.runWithTenant(fresh, () -> menuService.showMenu(bot, update, fresh));
-        }
-    }
-
-    private void handleCallbackQuery(Update update, BingoTelegramBot bot) {
-        String data = update.getCallbackQuery().getData();
-        Long telegramId = update.getCallbackQuery().getFrom().getId();
-        Long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-        log.debug("Callback query received: data={}, telegramId={}", data, telegramId);
-
-        User user = userService.findByTelegramId(telegramId);
-        if (user == null) {
-            log.warn("User not found for telegramId: {}", telegramId);
-            sendMessage(bot, chatId, "User not found. Please /start to register.");
-            return;
-        }
-
-        if (phoneMissing(user)) {
-            startCommand.requestPhoneNumber(bot, chatId);
-            return;
-        }
-
-        // The password panel is part of registration and must win over the game
-        // menu, which is only shown once the user is actually playing.
-        if (passwordOnboarding.handleCallback(bot, update)) {
-            return;
-        }
-
-        CallbackContext ctx = CallbackContext.builder()
-                .bot(bot)
-                .chatId(chatId)
-                .telegramId(telegramId)
-                .user(user)
-                .data(data)
-                .build();
-
-        TenantHelper.runWithTenant(user, () -> callbackRouter.route(ctx));
     }
 
     private void handleTextMessage(Update update, BingoTelegramBot bot) {
-        String text = update.getMessage().getText();
+        String message = update.getMessage().getText();
         Long telegramId = update.getMessage().getFrom().getId();
         Long chatId = update.getMessage().getChatId();
 
-        log.debug("Text message received: text={}, telegramId={}", text, telegramId);
+        log.debug("Text message received: text={}, telegramId={}", message, telegramId);
 
-        // /start remains the only registration path (invite link deep link).
-        if (text.startsWith("/start")) {
+        // /start is the only registration path (invite link deep link).
+        if (message.startsWith("/start")) {
             startCommand.handle(update, bot);
             return;
         }
 
-        if (text.equalsIgnoreCase("/app") || text.equalsIgnoreCase("/open") || text.equalsIgnoreCase("/launch")) {
-            // Sourced from config: this used to hardcode a domain, which can end
-            // up pointing at an unrelated site once DNS or hosting changes.
-            sendMessage(bot, chatId, "Open BingoPlus here: [BingoPlus](" + webAppUrl + ")");
-            return;
-        }
-
-        // A half-typed password is never menu input — answer it as a password.
+        // A half-typed password is never chat input — answer it as a password.
         if (passwordOnboarding.isCapturing(bot, chatId)) {
             passwordOnboarding.handleText(bot, update);
             return;
@@ -158,47 +110,26 @@ public class UpdateHandler {
 
         User user = userService.findByTelegramId(telegramId);
         if (user == null) {
-            // Unknown user: guide them to register via /start with an invite.
-            sendMessage(bot, chatId, "Welcome to BingoPlus! To get started, use the /start command with the invite link your admin provided.");
+            sendMessage(bot, chatId, text.t("unknown_user_need_invite"));
+            return;
+        }
+        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+            passwordOnboarding.requestPhoneNumber(bot, chatId, text.t("phone_request_full"));
             return;
         }
 
-        if (phoneMissing(user)) {
-            startCommand.requestPhoneNumber(bot, chatId);
-            return;
-        }
-
-        // Menu button pressed: the reply keyboard sends the button label as text.
-        String action = BotConstants.BUTTON_ACTIONS.get(text);
-        if (action != null) {
-            CallbackContext ctx = CallbackContext.builder()
-                    .bot(bot)
-                    .chatId(chatId)
-                    .telegramId(telegramId)
-                    .user(user)
-                    .data(action)
-                    .build();
-            TenantHelper.runWithTenant(user, () -> callbackRouter.route(ctx));
-            return;
-        }
-
-        // Any other typed text (messages or commands): never acted on — just
-        // re-show the menu so users interact with buttons instead.
-        sendMessage(bot, chatId, "Use the menu buttons below — there's nothing to type.");
-        TenantHelper.runWithTenant(user, () -> menuService.showMenu(bot, update, user));
+        // Nothing else is a command: point back to the registration steps
+        // instead of answering text that is not part of them.
+        sendMessage(bot, chatId, text.t("nothing_to_type"));
     }
 
-    private boolean phoneMissing(User user) {
-        return user.getPhoneNumber() == null || user.getPhoneNumber().isBlank();
-    }
-
-    private void sendMessage(BingoTelegramBot bot, Long chatId, String text) {
+    private void sendMessage(BingoTelegramBot bot, Long chatId, String body) {
         try {
-            SendMessage message = SendMessage.builder()
+            bot.execute(SendMessage.builder()
                     .chatId(chatId.toString())
-                    .text(text)
-                    .build();
-            bot.execute(message);
+                    .text(body)
+                    .parseMode("Markdown")
+                    .build());
         } catch (Exception e) {
             log.error("Failed to send message to {}: {}", chatId, e.getMessage());
         }

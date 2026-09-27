@@ -1,0 +1,118 @@
+{
+  "welcome_back": {
+    "en": "👋 Welcome back!",
+    "am": "👋 አንኳን ደህና መጡ!"
+  },
+  "registered_admin": {
+    "en": "🎉 Welcome to BingoPlus! You have been registered as an Admin.",
+    "am": "🎉 አንኳን ደህና መጡ ወደ BingoPlus! እንደ አስተዳዳሪ ተመዝግበዋል።"
+  },
+  "registered_player": {
+    "en": "🎉 Welcome to BingoPlus! You have been registered as a Player.",
+    "am": "🎉 አንኳን ደህና መጡ ወደ BingoPlus! እንደ ተጫወት ተመዝግበዋል።"
+  },
+  "super_admin_welcome": {
+    "en": "✅ Welcome Super Admin! You have full platform access.",
+    "am": "✅ እንኳን ደህና መጡ ንጉሥ አስተዳዳሪ! ሙሉ የመድረክ መዳረሻ አለዎት።"
+  },
+  "invalid_invite": {
+    "en": "❌ Invalid invite link. Please use the link provided by your admin.",
+    "am": "❌ ትክክል ያልሆነ ሊንክ። እባክዎ አስተዳዳሪዎ የሰጠውን ሊንክ ይጠቀሙ።"
+  },
+  "registration_failed": {
+    "en": "❌ Registration failed: {reason}",
+    "am": "❌ ምዝገባው አልተሳካም: {reason}"
+  },
+  "unknown_user_need_invite": {
+    "en": "Welcome to BingoPlus! To get started, use the /start command with the invite link your admin provided.",
+    "am": "እንኳን ደህና ወደ BingoPlus መጡ! ለመጀመር አስተዳዳሪዎ የሰጠውን የገቢ ሊንክ በመጠቀም /start ትዕዛዝ ይላኩ።"
+  },
+  "unknown_user_need_invite_short": {
+    "en": "Welcome to BingoPlus! To get started, open your invite link to register.",
+    "am": "እንኳን ደህና ወደ BingoPlus መጡ! ለመመዝገብ የገቢ ሊንክዎን ይክፈቱ።"
+  },
+  "phone_request_full": {
+    "en": "📱 *One more step — verify your account*\n\nTo keep the room secure and show who you are, please **share your phone number** by tapping the button below.\n\nA username also helps admins recognize you — if you don't have one yet, set it in Telegram: *Settings → Username*.",
+    "am": "📱 *አንድ ተጨማሪ ደረጃ — መለያዎን ያረጋግጡ*\n\nክፍሉ ለመጠበቅና ማን እንደሆንት ለማሳየት፣ እባክዎ **ስልክ ቁጥርዎን ይጋሩ** በታች ያለውን አዝራር በመጫን።\n\nየተጠቃሚ ስም አስተዳዳሪዎች እርስዎን እንዲያዩም ይረዳል — ካላዎት በቴሌግራም *Settings → Username* ውስጥ ያዘጋጁ።"
+  },
+  "phone_request_short": {
+    "en": "📱 *One more step — verify your account*\n\nPlease **share your phone number** by tapping the button below.\n\nYou'll use this phone number to log into the mobile app.",
+    "am": "📱 *አንድ ተጨማሪ ደረጃ — መለያዎን ያረጋግጡ*\n\nእባክዎ **ስልክ ቁጥርዎን ይጋሩ** በታች ያለውን አዝራር በመጫን።\n\nለሞባይል አፕ ለመግባት ይህን ስልክ ቁጥር ይጠቀማሉ።"
+  },
+  "phone_read_failed": {
+    "en": "⚠️ We couldn't read your phone number. Please tap the button below again:",
+    "am": "⚠️ ስልክ ቁጥርዎን ማነበት አልቻልንም። እባክዎ ከታች ያለውን አዝራር እንደገና ይጫኑ:"
+  },
+  "phone_saved": {
+    "en": "✅ Phone number saved! Welcome to BingoPlus.",
+    "am": "✅ ስልክ ቁጥርው ተቀምጧል! እንኳን ደህና ወደ BingoPlus መጡ።"
+  },
+  "registered_with_phone": {
+    "en": "You are fully registered with phone {phone}.",
+    "am": "በ{phone} ስልክ ቁጥር ሙሉ በሙሉ ተመዝግበዋል።"
+  },
+  "username_tip": {
+    "en": "Tip: set a username in Telegram Settings so admins can identify you (Settings - Chat Settings - Username).",
+    "am": "ምክር፡ አስተዳዳሪዎች እርስዎን እንዲያዩ በቴሌግራም አዘጋጅ ውስጥ የተጠቃሚ ስም ያድርጉ (Settings - Chat Settings - Username)።"
+  },
+  "already_has_password": {
+    "en": "🔑 You already have a password for the mobile app — log in with your phone number and it.",
+    "am": "🔑 ለሞባይል አፕ የዪለፍ ቃል አለዎት — በስልክ ቁጥርዎ እና በዚህ ቃል ይግቡ።"
+  },
+  "password_prompt": {
+    "en": "📱 *To use the BingoPlus mobile app*\n\nMobile login is your phone number plus a password, so set a password once here and you can sign in from the app. You can skip this and set it later.",
+    "am": "📱 *ለBingoPlus ሞባይል አፕ እንደምጠቀሙ*\n\nበሞባይል መግባት ስልክ ቁጥርዎን የዪለፍ ቃል ጋር ያስፈልጋል፣ ስለዚህ እሚካ ግል ቃል አንድ ጊዜ ያድርጉ። ከዚያ ከአፕ ጋር መግባት ይችላሉ። አሁን መዝገብም ይችላሉ፣ ኋላ ትልቅ ማስቀመጥም ይችላሉ።"
+  },
+  "password_too_short": {
+    "en": "⚠️ Password must be at least {min} characters. Please try again:",
+    "am": "⚠️ ግል ቃሉ ቢያንስ {min} ፊደል ማለት አለበት። እባክዎ እንደገና ይሞክሩ:"
+  },
+  "password_confirm": {
+    "en": "🔁 Please type the same password again to confirm:",
+    "am": "🔁 ለማረጋገጫ ተመሳሳይውን የዪለፍ ቃል እንደገና ይታይሩ:"
+  },
+  "password_mismatch": {
+    "en": "❌ The passwords did not match. Type your new password (at least {min} characters):",
+    "am": "❌ ግል ቃላቱ አልተመሳሰሉም። አዲስ ግል ቃልዎን ይታይሩ (ቢያንስ {min} ፊደል)፦"
+  },
+  "password_type_new": {
+    "en": "🔐 Type your new password (at least {min} characters):",
+    "am": "🔐 አዲስ የዪለፍ ቃልዎን ይቀይሩ (ቢያንስ {min} ፊደል)፦"
+  },
+  "password_saved": {
+    "en": "✅ Password saved! You can now log into the BingoPlus mobile app with your phone number and this password.",
+    "am": "✅ የዪለፍ ቃሉ ተቀምጧል! አሁን በስልክ ቁጥርዎና በዚህ ግል ቃል ወደ BingoPlus ሞባይል አፕ መግባት ይችላሉ።"
+  },
+  "password_save_failed": {
+    "en": "❌ Failed to save password. Please try again.",
+    "am": "❌ የዪለፍ ቃሉን ማስቀመጥ አልተቻለም። እባክዎ እንደገና ይሞክሩ።"
+  },
+  "password_skipped": {
+    "en": "No problem! You can set a password any time from this bot if you want to use the mobile app.",
+    "am": "ምንም አይደለም! ሞባይል አፕን ለመጠቀም ከዚህ ቦት በማለት የዪለፍ ቃል ማዘጋጀት ይችላሉ።"
+  },
+  "account_not_found": {
+    "en": "Account not found. Please /start with your invite link.",
+    "am": "መለያ አልተገኘም። እባክዎ በገቢ ሊንክዎ ጋር /start ይላኩ።"
+  },
+  "nothing_to_type": {
+    "en": "Use the buttons below — there's nothing to type.",
+    "am": "ከታች ያሉትን አዝራሮች ይጠቀሙ — ምንም ለመታየት አያስፈልግም።"
+  },
+  "error_generic": {
+    "en": "Something went wrong. Please try again.",
+    "am": "ለማንኛውም ነገር ተሳስተሃል። እባክዎ እንደገና ይሞክሩ።"
+  },
+  "btn_share_phone": {
+    "en": "📱 Share Phone / ስልክ ቁጥር ይጋሩ",
+    "am": "📱 Share Phone / ስልክ ቁጥር ይጋሩ"
+  },
+  "btn_create_password": {
+    "en": "🔑 Create Password",
+    "am": "🔑 ግል ቃል ይፍጠሩ"
+  },
+  "btn_skip_password": {
+    "en": "Skip for now",
+    "am": "አሁን ይዝሉ"
+  }
+}
