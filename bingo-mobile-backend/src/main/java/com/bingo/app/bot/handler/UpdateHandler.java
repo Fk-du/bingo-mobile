@@ -5,12 +5,14 @@ import com.bingo.app.master.service.UserService;
 import com.bingo.app.bot.BotConstants;
 import com.bingo.app.bot.callback.CallbackContext;
 import com.bingo.app.bot.callback.CallbackRouter;
+import com.bingo.app.bot.onboarding.PasswordOnboardingService;
 import com.bingo.app.bot.service.MenuService;
 import com.bingo.app.infrastructure.persistence.TenantHelper;
 import com.bingo.app.bot.BingoTelegramBot;
 import com.bingo.app.bot.command.StartCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -24,6 +26,10 @@ public class UpdateHandler {
     private final CallbackRouter callbackRouter;
     private final UserService userService;
     private final MenuService menuService;
+    private final PasswordOnboardingService passwordOnboarding;
+
+    @Value("${bingo.webapp.url}")
+    private String webAppUrl;
 
     public void handle(Update update, BingoTelegramBot bot) {
         if (update == null) {
@@ -80,7 +86,12 @@ public class UpdateHandler {
         if (fresh.getTelegramUsername() == null || fresh.getTelegramUsername().isBlank()) {
             sendMessage(bot, chatId, "Tip: set a username in Telegram Settings so admins can identify you (Settings - Chat Settings - Username).");
         }
-        TenantHelper.runWithTenant(fresh, () -> menuService.showMenu(bot, update, fresh));
+        // Mobile login is phone + password and the password cannot be derived
+        // from Telegram, so offer to set one before the user leaves the chat.
+        passwordOnboarding.prompt(bot, chatId, fresh);
+        if (!passwordOnboarding.isCapturing(bot, chatId)) {
+            TenantHelper.runWithTenant(fresh, () -> menuService.showMenu(bot, update, fresh));
+        }
     }
 
     private void handleCallbackQuery(Update update, BingoTelegramBot bot) {
@@ -93,12 +104,18 @@ public class UpdateHandler {
         User user = userService.findByTelegramId(telegramId);
         if (user == null) {
             log.warn("User not found for telegramId: {}", telegramId);
-            sendMessage(bot, chatId, "User not found. Please use /start to register.");
+            sendMessage(bot, chatId, "User not found. Please /start to register.");
             return;
         }
 
         if (phoneMissing(user)) {
             startCommand.requestPhoneNumber(bot, chatId);
+            return;
+        }
+
+        // The password panel is part of registration and must win over the game
+        // menu, which is only shown once the user is actually playing.
+        if (passwordOnboarding.handleCallback(bot, update)) {
             return;
         }
 
@@ -127,7 +144,15 @@ public class UpdateHandler {
         }
 
         if (text.equalsIgnoreCase("/app") || text.equalsIgnoreCase("/open") || text.equalsIgnoreCase("/launch")) {
-            sendMessage(bot, chatId, "Open BingoPlus here: [BingoPlus](https://nowbingoplus.lol)");
+            // Sourced from config: this used to hardcode a domain, which can end
+            // up pointing at an unrelated site once DNS or hosting changes.
+            sendMessage(bot, chatId, "Open BingoPlus here: [BingoPlus](" + webAppUrl + ")");
+            return;
+        }
+
+        // A half-typed password is never menu input — answer it as a password.
+        if (passwordOnboarding.isCapturing(bot, chatId)) {
+            passwordOnboarding.handleText(bot, update);
             return;
         }
 

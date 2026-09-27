@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.menubutton.SetChatMenuButton;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.menubutton.MenuButtonDefault;
 import org.telegram.telegrambots.meta.api.objects.menubutton.MenuButtonWebApp;
 import org.telegram.telegrambots.meta.api.objects.webapp.WebAppInfo;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -31,6 +32,14 @@ public class BingoTelegramBot extends TelegramLongPollingBot {
 
     @Value("${bingo.webapp.url}")
     private String webAppUrl;
+
+    /**
+     * Whether the chat menu button opens the web app as a Telegram Mini App.
+     * Off by default: the game is played in the mobile app, and a Mini App
+     * button that points at a URL nothing serves is worse than no button.
+     */
+    @Value("${bingo.telegram.bot.webapp-button-enabled:false}")
+    private boolean webAppButtonEnabled;
 
     private Long botId;
 
@@ -61,13 +70,23 @@ public class BingoTelegramBot extends TelegramLongPollingBot {
 
     private void setMenuButton() {
         try {
+            if (webAppButtonEnabled) {
+                execute(SetChatMenuButton.builder()
+                        .menuButton(MenuButtonWebApp.builder()
+                                .text("Open App")
+                                .webAppInfo(new WebAppInfo(webAppUrl))
+                                .build())
+                        .build());
+                log.info("Bot menu button set to WebApp: {}", webAppUrl);
+                return;
+            }
+            // Not simply skipping: a chat menu button already handed out stays in
+            // the user's chat until it is replaced, so an existing "Open App"
+            // button pointing at a dead Mini App has to be reset explicitly.
             execute(SetChatMenuButton.builder()
-                    .menuButton(MenuButtonWebApp.builder()
-                            .text("Open App")
-                            .webAppInfo(new WebAppInfo(webAppUrl))
-                            .build())
+                    .menuButton(MenuButtonDefault.builder().build())
                     .build());
-            log.info("Bot menu button set to WebApp: {}", webAppUrl);
+            log.info("Bot menu button reset to default (web app button disabled)");
         } catch (TelegramApiException e) {
             log.error("Failed to set menu button: {}", e.getMessage());
         }

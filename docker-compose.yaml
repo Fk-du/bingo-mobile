@@ -15,6 +15,17 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD not set}
       POSTGRES_DB: ${POSTGRES_DB:-bingo_mobile}
     volumes:
+      # POSTGRES_PASSWORD is only applied while this directory is EMPTY, i.e. on
+      # the very first start. Change the password in Coolify afterwards and
+      # Postgres keeps the old one, the backend then dies on every boot with
+      # 'FATAL: password authentication failed for user "bingo"', and the proxy
+      # answers https://api.<domain> with 503 "no available server" because the
+      # backend container is restarting. To change it on an existing volume,
+      # either reset the password inside the database:
+      #   docker exec -it <postgres-container> psql -U ${POSTGRES_USER:-bingo} -d postgres \
+      #     -c "ALTER USER ${POSTGRES_USER:-bingo} WITH PASSWORD '<new>';"
+      # or drop the volume (destroys all data) so the next start re-initialises
+      # it from the environment.
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bingo} -d ${POSTGRES_DB:-bingo_mobile}"]

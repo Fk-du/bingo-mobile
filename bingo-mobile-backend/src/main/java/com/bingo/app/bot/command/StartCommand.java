@@ -7,6 +7,7 @@ import com.bingo.app.master.service.UserService;
 import com.bingo.app.bot.BotConstants;
 import com.bingo.app.bot.BingoTelegramBot;
 import com.bingo.app.bot.service.MenuService;
+import com.bingo.app.bot.onboarding.PasswordOnboardingService;
 import com.bingo.app.infrastructure.persistence.TenantHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class StartCommand {
     private final UserService userService;
     private final InviteService inviteService;
     private final MenuService menuService;
+    private final PasswordOnboardingService passwordOnboarding;
 
     @Value("${app.super-admin.telegram-id}")
     private Long superAdminTelegramId;
@@ -34,6 +36,9 @@ public class StartCommand {
         Long chatId = update.getMessage().getChatId();
 
         log.info("Start command from telegramId={}, code={}", telegramId, code);
+
+        // A fresh /start abandons any half-typed password from before.
+        passwordOnboarding.reset(bot, chatId);
 
         // Check if user exists
         User existingUser = userService.findByTelegramId(telegramId);
@@ -102,6 +107,12 @@ public class StartCommand {
         }
         if (user.getTelegramUsername() == null || user.getTelegramUsername().isBlank()) {
             sendMessage(bot, chatId, "Tip: set a username in Telegram Settings so admins can identify you (Settings - Chat Settings - Username).");
+        }
+        // Mobile login is phone + password, so a user who has a phone but no
+        // password is offered the step before the game menu takes over.
+        passwordOnboarding.prompt(bot, chatId, user);
+        if (passwordOnboarding.isCapturing(bot, chatId)) {
+            return;
         }
         menuService.showMenu(bot, update, user);
     }
