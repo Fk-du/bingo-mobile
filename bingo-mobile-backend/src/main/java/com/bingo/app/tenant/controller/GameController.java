@@ -118,7 +118,8 @@ public class GameController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         var game = gameService.startGameForAdmin(principal.getUser().getId(), id);
-        gameEngineService.scheduleGameStart(game.id(), 5);
+        gameEngineService.scheduleGameStart(game.id(), GameEngineService.COUNTDOWN_SECONDS,
+                GameEngineService.REASON_START);
         return ApiResponse.ok("Game starting", game);
     }
 
@@ -321,7 +322,8 @@ public class GameController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         var game = gameService.restartGame(id, principal.getUser().getId());
-        gameEngineService.scheduleGameStart(id, 5);
+        gameEngineService.scheduleGameStart(id, GameEngineService.COUNTDOWN_SECONDS,
+                GameEngineService.REASON_RESTART);
         return ApiResponse.ok("Game restarted with a fresh number sequence", game);
     }
 

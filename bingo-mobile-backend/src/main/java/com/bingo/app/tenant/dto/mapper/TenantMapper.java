@@ -210,6 +210,8 @@ public class TenantMapper {
                 .commissionPercent(state.getCommissionPercent())
                 .hasPlayerCard(state.isHasPlayerCard())
                 .isWinner(state.isWinner())
+                .rewardAmount(state.getRewardAmount())
+                .winnerCount(state.getWinnerCount())
                 .startTime(state.getStartTime())
                 .build();
     }

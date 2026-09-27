@@ -94,6 +94,13 @@ function handleGameEvent(event: GameEvent) {
       } else if (event.data.status !== 'STARTING') {
         store.setStartTime(null);
       }
+      // A countdown tells every player what is about to happen, so players are never
+      // left wondering why a resumed game went quiet.
+      if (event.data.status === 'STARTING') {
+        store.setStartReason((event.data.reason as string | undefined) ?? 'start');
+      } else {
+        store.setStartReason(null);
+      }
       if (event.data.status === 'IN_PROGRESS') {
         store.setClaimPending(null);
         store.setRestartNotice(null);
@@ -109,6 +116,7 @@ function handleGameEvent(event: GameEvent) {
           'The game is restarting because more than 3 players claimed Bingo at once. All registered players keep their cards and can play again — dealing a fresh set of numbers.'
       );
       store.setGameStatus(GameStatus.STARTING);
+      store.setStartReason('restart');
       store.setCalledNumbers([]);
       store.setTotalNumbersCalled(0);
       break;

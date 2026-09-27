@@ -23,6 +23,10 @@ public record GameStateResponse(
         List<PlayerCardView> playerCards,
         boolean hasPlayerCard,
         boolean isWinner,
+        /** The winner's own share of the pot; null for anyone who did not win. */
+        BigDecimal rewardAmount,
+        /** How many cards won this game, so a winner can see the pot was shared. */
+        int winnerCount,
         String fairnessHash,
         BigDecimal prizePool,
         LocalDateTime startTime

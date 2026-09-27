@@ -161,7 +161,8 @@ class GameEngineAutoReviewTest {
                 () -> assertEquals("REJECTED", c.getResult()),
                 () -> assertTrue(c.getRejectionReason().startsWith("auto: ")),
                 () -> assertTrue(c.getRejectionReason().contains("last called number")),
-                () -> assertEquals(GameStatus.IN_PROGRESS, g.getStatus(), "all claims rejected -> game resumes"),
+                () -> assertEquals(GameStatus.STARTING, g.getStatus(),
+                        "all claims rejected -> the game counts down before it resumes"),
                 () -> verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong())
         );
     }
@@ -321,7 +322,7 @@ class GameEngineAutoReviewTest {
         assertAll(
                 () -> assertEquals("REJECTED", c.getResult()),
                 () -> assertTrue(c.getRejectionReason().contains("last called number")),
-                () -> assertEquals(GameStatus.IN_PROGRESS, g.getStatus()),
+                () -> assertEquals(GameStatus.STARTING, g.getStatus()),
                 () -> verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong())
         );
     }

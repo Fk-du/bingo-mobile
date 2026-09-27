@@ -5,6 +5,8 @@ interface GameState {
   activeGameId: number | null;
   gameStatus: GameStatus | null;
   startTime: string | null;
+  /** Why the game is counting down: start | resume | restart | claim_resolved. */
+  startReason: string | null;
   calledNumbers: CalledNumberResponse[];
   totalNumbersCalled: number;
   prizePool: number;
@@ -15,6 +17,7 @@ interface GameState {
   setActiveGame: (gameId: number) => void;
   setGameStatus: (status: GameStatus) => void;
   setStartTime: (time: string | null) => void;
+  setStartReason: (reason: string | null) => void;
   addCalledNumber: (number: CalledNumberResponse) => void;
   setCalledNumbers: (numbers: CalledNumberResponse[]) => void;
   setTotalNumbersCalled: (count: number) => void;
@@ -30,6 +33,7 @@ export const useGameStore = create<GameState>((set) => ({
   activeGameId: null,
   gameStatus: null,
   startTime: null,
+  startReason: null,
   calledNumbers: [],
   totalNumbersCalled: 0,
   prizePool: 0,
@@ -40,6 +44,7 @@ export const useGameStore = create<GameState>((set) => ({
   setActiveGame: (gameId) => set({ activeGameId: gameId }),
   setGameStatus: (status) => set({ gameStatus: status }),
   setStartTime: (time) => set({ startTime: time }),
+  setStartReason: (reason) => set({ startReason: reason }),
   addCalledNumber: (number) =>
     set((state) => {
       // A reconnect can replay events, so never let the board count drift.
@@ -54,7 +59,7 @@ export const useGameStore = create<GameState>((set) => ({
   setClaimPending: (claim) => set({ claimPending: claim }),
   setRestartNotice: (message) => set({ restartNotice: message }),
   reset: () => set({
-    activeGameId: null, gameStatus: null, startTime: null, calledNumbers: [],
+    activeGameId: null, gameStatus: null, startTime: null, startReason: null, calledNumbers: [],
     totalNumbersCalled: 0, prizePool: 0, playerCards: null, claimPending: null, restartNotice: null,
   }),
 }));

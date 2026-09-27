@@ -92,6 +92,10 @@ export interface GameStateResponse {
   playerCards: PlayerCardView[] | null;
   hasPlayerCard: boolean;
   isWinner: boolean;
+  /** The winner's own share of the pot; null for anyone who did not win. */
+  rewardAmount?: number | null;
+  /** How many cards won this game, so a winner can see the pot was shared. */
+  winnerCount?: number | null;
   startTime?: string | null;
 }
 

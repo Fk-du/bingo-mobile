@@ -239,7 +239,8 @@ class GameEnginePayoutsTest {
                 () -> assertEquals("REJECTED", claim.getResult()),
                 () -> assertEquals("invalid pattern", claim.getRejectionReason()),
                 () -> assertTrue(claimedCard.isBanned(), "only the claimed card must be banned"),
-                () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.IN_PROGRESS, g.getStatus())
+                () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.STARTING, g.getStatus(),
+                        "the game counts down before it resumes")
         );
         verify(gameCardRepository).save(claimedCard);
         verify(bingoClaimRepository).save(claim);
@@ -510,7 +511,7 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("every claim rejected: no payout, the game resumes")
+    @DisplayName("every claim rejected: no payout, the game resumes after a countdown")
     void perClaimAllRejectedResumesGame() {
         Game g = game(55L, new BigDecimal("20.00"), "10.00");
         BingoClaim c = claim(1L, 101L);
@@ -529,9 +530,49 @@ class GameEnginePayoutsTest {
 
         engine.rejectClaim(g.getId(), 1L, 2L, "nope");
 
-        assertEquals(com.bingo.app.tenant.enums.GameStatus.IN_PROGRESS, g.getStatus());
+        // STARTING, not IN_PROGRESS: players are warned and get COUNTDOWN_SECONDS
+        // before the numbers start again.
+        assertEquals(com.bingo.app.tenant.enums.GameStatus.STARTING, g.getStatus());
+        assertNotNull(g.getStartTime());
         verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
         verify(walletService, never()).creditAgentCommission(anyLong(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("rejecting every claim announces a counted resume to the room")
+    void rejectAllAnnouncesCountedResume() {
+        Game g = game(58L, new BigDecimal("20.00"), "10.00");
+        BingoClaim c = claim(1L, 101L);
+        c.setGameId(g.getId());
+
+        when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
+        when(gameRepository.findById(g.getId())).thenReturn(Optional.of(g));
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(c));
+        when(bingoClaimRepository.claimForProcessing(eq(1L), eq(2L), any(LocalDateTime.class))).thenReturn(1);
+        when(bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNull(g.getId(), "VALID")).thenReturn(0L);
+        when(bingoClaimRepository.findApprovedUnpaidWinners(g.getId())).thenReturn(List.of());
+        when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameCardRepository.findById(c.getCardId())).thenReturn(Optional.of(new GameCard()));
+        when(gameCardRepository.save(any(GameCard.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LocalDateTime before = LocalDateTime.now();
+        engine.rejectClaim(g.getId(), 1L, 2L, "nope");
+
+        // The game parks in STARTING with a start time COUNTDOWN_SECONDS away, so every
+        // player sees the countdown instead of a game that silently stalled.
+        assertAll(
+                () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.STARTING, g.getStatus()),
+                () -> assertTrue(g.getStartTime().isAfter(before.plusSeconds(
+                        com.bingo.app.tenant.service.GameEngineService.COUNTDOWN_SECONDS - 1)),
+                        "countdown is at least COUNTDOWN_SECONDS long")
+        );
+
+        ArgumentCaptor<String> payload = ArgumentCaptor.forClass(String.class);
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/game/58"), payload.capture());
+        assertTrue(payload.getAllValues().stream().anyMatch(p ->
+                        p.contains("\"status\":\"STARTING\"") && p.contains("\"reason\":\"claim_resolved\"")),
+                "the resume countdown is announced with its reason");
     }
 
     @Test

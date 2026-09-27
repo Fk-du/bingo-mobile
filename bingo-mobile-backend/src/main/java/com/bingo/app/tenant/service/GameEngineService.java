@@ -103,10 +103,19 @@ public class GameEngineService {
      * (with number calling) once the countdown elapses.
      */
     public void scheduleGameStart(Long gameId, int countdownSeconds) {
+        scheduleGameStart(gameId, countdownSeconds, REASON_START);
+    }
+
+    /**
+     * @param reason why the countdown runs — {@code start}, {@code resume},
+     *               {@code restart} or {@code claim_resolved} — so every player is
+     *               told what is happening before the first number is called again.
+     */
+    public void scheduleGameStart(Long gameId, int countdownSeconds, String reason) {
         String tenantId = TenantContext.getTenant();
         Game game = gameRepository.findById(gameId).orElse(null);
         java.time.LocalDateTime startTime = game != null ? game.getStartTime() : java.time.LocalDateTime.now().plusSeconds(countdownSeconds);
-        publishGameStatusEvent(gameId, GameStatus.STARTING, startTime);
+        publishGameStatusEvent(gameId, GameStatus.STARTING, startTime, reason);
         taskScheduler.schedule(() -> {
             TenantContext.setTenant(tenantId);
             try {
@@ -120,7 +129,31 @@ public class GameEngineService {
                 TenantContext.clear();
             }
         }, Math.max(0, countdownSeconds), java.util.concurrent.TimeUnit.SECONDS);
-        log.info("Game {} starting in {} seconds", gameId, countdownSeconds);
+        log.info("Game {} starting in {} seconds ({})", gameId, countdownSeconds, reason);
+    }
+
+    /**
+     * Put a stopped game back on its feet with a visible countdown. Every way a
+     * game resumes — an admin resuming a pause, a rejected claim, a claim that
+     * timed out — goes through here, so players always get the same warning
+     * before the numbers start again instead of wondering why the game stalled.
+     */
+    public void resumeWithCountdown(Long gameId, String reason) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        resumeWithCountdown(gameId, game, reason);
+    }
+
+    private void resumeWithCountdown(Long gameId, Game game, String reason) {
+        if (game.getStatus() != GameStatus.PAUSED && game.getStatus() != GameStatus.CLAIM_PENDING
+                && game.getStatus() != GameStatus.STARTING) {
+            throw new GameProgressException("Game is not in a resumable state",
+                    "This game cannot be resumed right now.");
+        }
+        game.setStatus(GameStatus.STARTING);
+        game.setStartTime(java.time.LocalDateTime.now().plusSeconds(COUNTDOWN_SECONDS));
+        gameRepository.save(game);
+        scheduleGameStart(gameId, COUNTDOWN_SECONDS, reason);
     }
 
     private void beginCallingAfterCountdown(Long gameId) {
@@ -362,12 +395,11 @@ public class GameEngineService {
             return;
         }
 
-        locked.setStatus(GameStatus.IN_PROGRESS);
-        gameRepository.save(locked);
-        startCalling(gameId);
-        publishClaimResolvedEvent(gameId, GameStatus.IN_PROGRESS);
+        // Same courtesy as any other resume: warn every player, then count down.
+        resumeWithCountdown(gameId, locked, REASON_CLAIM_RESOLVED);
 
-        log.info("Game {}: All timed-out claims rejected, game resumed.", gameId);
+        log.info("Game {}: All timed-out claims rejected, game resuming in {} seconds.",
+                gameId, COUNTDOWN_SECONDS);
     }
 
     /**
@@ -736,6 +768,28 @@ public class GameEngineService {
      * <p>Guarded by the game row lock and by the {@code CLAIM_PENDING} status, so the
      * commission can only ever be taken and the pot only ever be paid once.
      */
+    /**
+     * Every claim of a round was rejected, so there is no winner to pay: tell the
+     * room the round is over, then bring the game back with the shared countdown so
+     * nobody is left staring at a stalled board.
+     */
+    private BingoClaimResult resumeAfterAllClaimsResolved(Game game, Long adminId) {
+        Long gameId = game.getId();
+        game.setStatus(GameStatus.CLAIM_PENDING);
+        gameRepository.save(game);
+        publishClaimResolvedEvent(gameId, GameStatus.CLAIM_PENDING);
+        resumeWithCountdown(gameId, game, REASON_CLAIM_RESOLVED);
+        log.info("Game {}: all claims rejected, game resuming in {} seconds.", gameId, COUNTDOWN_SECONDS);
+        return BingoClaimResult.builder()
+                .valid(false)
+                .pendingReview(false)
+                .gameEnded(false)
+                .approvedCount(0)
+                .rewardAmount(java.math.BigDecimal.ZERO)
+                .commission(java.math.BigDecimal.ZERO)
+                .build();
+    }
+
     private BingoClaimResult settleApprovedWinners(Game game, Long adminId) {
         return settleApprovedWinners(game, adminId,
                 bingoClaimRepository.findApprovedUnpaidWinners(game.getId()));
@@ -751,19 +805,7 @@ public class GameEngineService {
         List<BingoClaim> winners = dedupeByPlayer(approved);
         if (winners.isEmpty()) {
             // Every claim was rejected: nothing to pay, so play carries on.
-            game.setStatus(GameStatus.IN_PROGRESS);
-            gameRepository.save(game);
-            startCalling(gameId);
-            publishClaimResolvedEvent(gameId, GameStatus.IN_PROGRESS);
-            log.info("Game {}: All claims rejected, game resumed.", gameId);
-            return BingoClaimResult.builder()
-                    .valid(false)
-                    .pendingReview(false)
-                    .gameEnded(false)
-                    .approvedCount(0)
-                    .rewardAmount(java.math.BigDecimal.ZERO)
-                    .commission(java.math.BigDecimal.ZERO)
-                    .build();
+            return resumeAfterAllClaimsResolved(game, adminId);
         }
 
         int shareCount = winners.size();
@@ -877,7 +919,7 @@ public class GameEngineService {
      */
     private BingoClaimResult restartDueToTooManyClaims(Long gameId, Long adminId, int claimCount) {
         gameService.restartGame(gameId, adminId);
-        scheduleGameStart(gameId, 5);
+        scheduleGameStart(gameId, COUNTDOWN_SECONDS, REASON_RESTART);
         publishGameRestartedEvent(gameId);
         log.info("Game {}: {} simultaneous claims exceed the {} winner cap — restarted with a fresh number sequence.",
                 gameId, claimCount, MAX_SIMULTANEOUS_WINNERS);
@@ -957,6 +999,8 @@ public class GameEngineService {
         // shares now and the game ends; with no winner at all the game resumes.
         long remaining = bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNull(gameId, "VALID");
         if (remaining == 0) {
+            // No claim left to review: pay the confirmed winners, or — when the admin
+            // rejected them all — bring the game back with a countdown.
             settleApprovedWinners(game, adminId);
         } else {
             publishClaimResolvedEvent(gameId, GameStatus.CLAIM_PENDING);
@@ -1403,6 +1447,19 @@ public class GameEngineService {
                 .toList();
 
         boolean anyWinner = playerCards.stream().anyMatch(GameStateResponse.PlayerCardView::winner);
+        // The winner's own share, so their result screen can state exactly what they won.
+        // Only read once the game is over — before that a claim is not a payout.
+        BigDecimal winnerReward = anyWinner && game.getStatus() == GameStatus.ENDED
+                ? bingoClaimRepository.findByGameIdAndPlayerIdAndResult(gameId, playerId, "VALID")
+                        .map(BingoClaim::getRewardAmount)
+                        .orElse(null)
+                : null;
+
+        // Everyone who won this game, so a winner is told up front when the pot was
+        // shared with other cards rather than won outright.
+        int winnerCount = game.getStatus() == GameStatus.ENDED
+                ? (int) bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNotNull(gameId, "VALID")
+                : 0;
 
         Boolean firstCardPref = playerCards.stream()
                 .map(GameStateResponse.PlayerCardView::autoMark)
@@ -1423,6 +1480,8 @@ public class GameEngineService {
                 .playerCards(playerCards)
                 .hasPlayerCard(!playerCards.isEmpty())
                 .isWinner(anyWinner)
+                .rewardAmount(winnerReward)
+                .winnerCount(winnerCount)
                 .autoMark(autoMark)
                 .commissionPercent(game.getCommissionPercent())
                 .startTime(game.getStartTime())
@@ -1605,7 +1664,8 @@ public class GameEngineService {
     }
 
     /**
-     * Resume number calling (with 5-second countdown)
+     * Resume number calling, with the shared {@link #COUNTDOWN_SECONDS} warning first
+     * so every player can see the game is coming back before the next number.
      */
     public void resumeGame(Long gameId) {
         Game game = gameRepository.findById(gameId)
@@ -1615,43 +1675,26 @@ public class GameEngineService {
             throw new RuntimeException("Game is not paused");
         }
 
-        int countdownSeconds = 5;
-        game.setStatus(GameStatus.STARTING);
-        game.setStartTime(LocalDateTime.now().plusSeconds(countdownSeconds));
-        gameRepository.save(game);
-
-        String tenantId = TenantContext.getTenant();
-        publishGameStatusEvent(gameId, GameStatus.STARTING, game.getStartTime());
-
-        taskScheduler.schedule(() -> {
-            TenantContext.setTenant(tenantId);
-            try {
-                transactionTemplate.execute(status -> {
-                    Game g = gameRepository.findById(gameId).orElse(null);
-                    if (g == null) return null;
-                    if (g.getStatus() == GameStatus.STARTING) {
-                        g.setStatus(GameStatus.IN_PROGRESS);
-                        g.setStartTime(LocalDateTime.now());
-                        gameRepository.save(g);
-                    }
-                    if (g.getStatus() == GameStatus.IN_PROGRESS) {
-                        startCallingInternal(gameId);
-                    }
-                    return null;
-                });
-            } catch (Exception e) {
-                log.error("Failed to resume game {} after countdown: {}", gameId, e.getMessage(), e);
-            } finally {
-                TenantContext.clear();
-            }
-        }, Math.max(0, countdownSeconds), java.util.concurrent.TimeUnit.SECONDS);
-
-        log.info("Game {} resuming in {} seconds", gameId, countdownSeconds);
+        resumeWithCountdown(gameId, REASON_RESUME);
+        log.info("Game {} resuming in {} seconds", gameId, COUNTDOWN_SECONDS);
     }
 
 
     // Maximum simultaneous winners who may share the pot
     private static final int MAX_SIMULTANEOUS_WINNERS = 3;
+
+    /**
+     * Countdown every player gets before the numbers start — on the first call of a
+     * game and on every resume alike — so nobody is caught off guard by a game that
+     * suddenly starts calling again.
+     */
+    public static final int COUNTDOWN_SECONDS = 5;
+
+    // Why a game is counting down; sent to clients so they can explain it to players.
+    public static final String REASON_START = "start";
+    public static final String REASON_RESUME = "resume";
+    public static final String REASON_RESTART = "restart";
+    public static final String REASON_CLAIM_RESOLVED = "claim_resolved";
 
     // WebSocket event publishers
     private void publishEvent(Long gameId, String type, ObjectNode data) {
@@ -1676,14 +1719,22 @@ public class GameEngineService {
     }
 
     private void publishGameStatusEvent(Long gameId, GameStatus status) {
-        publishGameStatusEvent(gameId, status, null);
+        publishGameStatusEvent(gameId, status, null, null);
     }
 
     private void publishGameStatusEvent(Long gameId, GameStatus status, java.time.LocalDateTime startTime) {
+        publishGameStatusEvent(gameId, status, startTime, null);
+    }
+
+    private void publishGameStatusEvent(Long gameId, GameStatus status, java.time.LocalDateTime startTime,
+                                        String reason) {
         ObjectNode data = objectMapper.createObjectNode();
         data.put("status", status.name());
         if (startTime != null) {
             data.put("startTime", startTime.toString());
+        }
+        if (reason != null) {
+            data.put("reason", reason);
         }
         publishEvent(gameId, "GAME_STATUS_CHANGED", data);
     }
@@ -1821,6 +1872,8 @@ public class GameEngineService {
         private List<GameStateResponse.PlayerCardView> playerCards;
         private boolean hasPlayerCard;
         private boolean isWinner;
+        private BigDecimal rewardAmount;
+        private int winnerCount;
         private Boolean autoMark;
         private BigDecimal commissionPercent;
         private java.time.LocalDateTime startTime;

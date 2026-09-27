@@ -4,11 +4,14 @@ import { AppState, Pressable, RefreshControl, ScrollView, Text, View } from 'rea
 import { gamesApi } from '@/api';
 import { CardGrid } from '@/components/games/CardGrid';
 import { FairnessPanel } from '@/components/games/FairnessPanel';
+import { StartCountdownBanner } from '@/components/games/StartCountdownBanner';
+import { WinnerModal } from '@/components/games/WinnerModal';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { CardPickerModal } from '@/components/games/CardPickerModal';
 import { useNumberAnnouncer } from '@/hooks/useNumberAnnouncer';
 import { Button, Card, Screen, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useCountdown } from '@/hooks/useCountdown';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { patternProgress, patternCells, customCellsFromJson, computeProgress } from '@/lib/pattern';
 import { useGameStore } from '@/store/game.store';
@@ -31,6 +34,8 @@ export default function LiveGameScreen() {
   const totalNumbersCalled = useGameStore((s) => s.totalNumbersCalled);
   const prizePool = useGameStore((s) => s.prizePool);
   const isConnecting = useGameStore((s) => s.isConnecting);
+  const startTime = useGameStore((s) => s.startTime);
+  const startReason = useGameStore((s) => s.startReason);
   const setPlayerCards = useGameStore((s) => s.setPlayerCards);
   const setRestartNotice = useGameStore((s) => s.setRestartNotice);
 
@@ -82,6 +87,16 @@ export default function LiveGameScreen() {
       const store = useGameStore.getState();
       store.setActiveGame(gameId);
       store.setGameStatus(res.data.status);
+      store.setStartTime(res.data.startTime ?? null);
+      if (res.data.status === GameStatus.STARTING) {
+        // The poll carries no reason: a game that already called numbers is a
+        // resume, and a socket that announced one keeps its own wording.
+        store.setStartReason(
+          store.startReason ?? (res.data.totalNumbersCalled > 0 ? 'resume' : 'start')
+        );
+      } else {
+        store.setStartReason(null);
+      }
       store.setCalledNumbers(
         res.data.calledNumbers.map((n, i) => ({ id: i, gameId, number: n, sequenceIndex: i, calledAt: null }))
       );
@@ -134,6 +149,16 @@ export default function LiveGameScreen() {
     });
     return () => sub.remove();
   }, [loadState]);
+
+  // Countdown and winner result
+  const isCountingDown = gameStatus === GameStatus.STARTING;
+  const countdownSeconds = useCountdown(startTime, isCountingDown);
+  const winningCard = useMemo(
+    () => playerCards?.find((c) => c.winner) ?? null,
+    [playerCards]
+  );
+  const [winnerModalSeen, setWinnerModalSeen] = useState(false);
+  const showWinnerModal = gameStatus === GameStatus.ENDED && Boolean(state?.isWinner) && !winnerModalSeen;
 
   const isManual = state?.autoMark === false;
   const lastCalledNumber =
@@ -311,6 +336,8 @@ export default function LiveGameScreen() {
         </Card>
 
         <FairnessPanel gameId={gameId} status={game.gameStatus} liveHash={state?.fairnessHash} />
+
+        <StartCountdownBanner status={game.gameStatus} reason={startReason} seconds={countdownSeconds} />
 
         {game.gameStatus === GameStatus.ENDED && (
           <Card
@@ -536,6 +563,14 @@ export default function LiveGameScreen() {
           onRegistered={() => setRegisterSuccess(true)}
         />
       )}
+      <WinnerModal
+        visible={showWinnerModal}
+        card={winningCard}
+        calledNumbers={calledNumbers}
+        rewardAmount={state?.rewardAmount ?? null}
+        winners={state?.winnerCount ?? null}
+        onClose={() => setWinnerModalSeen(true)}
+      />
     </Screen>
   );
 }
