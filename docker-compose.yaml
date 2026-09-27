@@ -112,7 +112,16 @@ services:
       start_interval: 5s
     depends_on:
       backend:
-        condition: service_healthy
+        # service_started, NOT service_healthy: this frontend is a static
+        # nginx bundle. It never calls the backend while starting, the phone's
+        # browser does, so there is nothing to wait for. Gating on health only
+        # gave the deploy a way to fail -- "dependency failed to start:
+        # container backend-... is unhealthy" -- after ~10s, while the backend
+        # was still doing its normal ~30s Spring Boot + schema startup. The
+        # backend's own healthcheck above still reports its real state, so an
+        # unhealthy backend is still visible; it just no longer aborts the
+        # rollout of a service that does not depend on it.
+        condition: service_started
     networks:
       - backend
 

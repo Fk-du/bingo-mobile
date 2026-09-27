@@ -36,6 +36,14 @@ public class MasterDatabaseConfig {
     @Value("${master.datasource.password}")
     private String masterPassword;
 
+    // See the note in TenantDatabaseConfig: this entity manager factory is
+    // built by hand, so spring.jpa.* only reaches it through these fields.
+    @Value("${spring.jpa.show-sql:false}")
+    private boolean showSql;
+
+    @Value("${spring.jpa.properties.hibernate.format_sql:false}")
+    private boolean formatSql;
+
     @Primary
     @Bean(name = "masterDataSource")
     public DataSource masterDataSource() {
@@ -64,7 +72,7 @@ public class MasterDatabaseConfig {
 
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         vendorAdapter.setGenerateDdl(true);
-        vendorAdapter.setShowSql(true);
+        vendorAdapter.setShowSql(showSql);
         emf.setJpaVendorAdapter(vendorAdapter);
 
         Map<String, Object> properties = new HashMap<>();
@@ -72,8 +80,8 @@ public class MasterDatabaseConfig {
         properties.put("hibernate.default_schema", "public");
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.physical_naming_strategy", "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy");
-        properties.put("hibernate.show_sql", "true");
-        properties.put("hibernate.format_sql", "true");
+        properties.put("hibernate.show_sql", String.valueOf(showSql));
+        properties.put("hibernate.format_sql", String.valueOf(formatSql));
         emf.setJpaPropertyMap(properties);
 
         return emf;

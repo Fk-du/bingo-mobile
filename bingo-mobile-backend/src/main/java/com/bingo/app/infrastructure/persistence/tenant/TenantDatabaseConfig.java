@@ -38,6 +38,17 @@ public class TenantDatabaseConfig {
     @Value("${tenant.datasource.default-database:bingo_master}")
     private String defaultDatabase;
 
+    // These entity manager factories are built by hand, so Boot's
+    // spring.jpa.* properties are NOT applied to them automatically -- the
+    // values have to be read here. They used to be hardcoded to true, which
+    // silently overrode SHOW_SQL=false and wrote every statement (with its
+    // bound values) into the container logs, and slowed startup down.
+    @Value("${spring.jpa.show-sql:false}")
+    private boolean showSql;
+
+    @Value("${spring.jpa.properties.hibernate.format_sql:false}")
+    private boolean formatSql;
+
     @Bean(name = "tenantRoutingDataSource")
     public TenantRoutingDataSource tenantRoutingDataSource() {
         return new TenantRoutingDataSource(tenantBaseUrl, tenantUsername, tenantPassword, defaultDatabase);
@@ -53,15 +64,15 @@ public class TenantDatabaseConfig {
 
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         vendorAdapter.setGenerateDdl(false);
-        vendorAdapter.setShowSql(true);
+        vendorAdapter.setShowSql(showSql);
         emf.setJpaVendorAdapter(vendorAdapter);
 
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.hbm2ddl.auto", "none");
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.physical_naming_strategy", "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy");
-        properties.put("hibernate.show_sql", "true");
-        properties.put("hibernate.format_sql", "true");
+        properties.put("hibernate.show_sql", String.valueOf(showSql));
+        properties.put("hibernate.format_sql", String.valueOf(formatSql));
         emf.setJpaPropertyMap(properties);
 
         return emf;
