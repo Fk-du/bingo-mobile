@@ -63,13 +63,18 @@ class GameEnginePayoutsTest {
     GameEngineService engine;
     ObjectMapper objectMapper = new ObjectMapper();
 
+    PrizeRules prizeRules;
+
     @BeforeEach
     void setUp() {
-        when(configService.getOwnerShareRate()).thenReturn(BigDecimal.ZERO);
+        when(configService.getOwnerFeePercent()).thenReturn(BigDecimal.ZERO);
+        when(configService.getMinPrizePercent()).thenReturn(new BigDecimal("50"));
+        when(configService.getMaxPrizePercent()).thenReturn(new BigDecimal("90"));
+        prizeRules = new PrizeRules(configService);
         engine = new GameEngineService(gameRepository, calledNumberRepository, gameCardRepository,
                 bingoClaimRepository, walletService, cardService, objectMapper,
                 transactionTemplate, messagingTemplate, tenantMapper, null, userRepository,
-                null, configService, gameService);
+                null, configService, gameService, prizeRules);
         when(transactionTemplate.execute(any(TransactionCallback.class)))
                 .thenAnswer(inv -> ((TransactionCallback<?>) inv.getArgument(0)).doInTransaction(mockTransaction()));
     }
@@ -81,12 +86,17 @@ class GameEnginePayoutsTest {
     /** Holder shim so the constructor keeps its shape without the real registry bean. */
     interface TenantRegistryHolder {}
 
-    private Game game(long id, BigDecimal pot, String commission) {
+    /**
+     * A game whose admin committed to {@code prize}; their commission is whatever
+     * the pot has left. The prize chosen in each case keeps the historical 10%
+     * rake, so the expected payouts below stay readable.
+     */
+    private Game game(long id, BigDecimal pot, String prize) {
         Game g = new Game();
         g.setId(id);
         g.setAdminUserId(2L);
         g.setPrizePool(pot);
-        g.setCommissionPercent(new BigDecimal(commission));
+        g.setPrizeAmount(new BigDecimal(prize));
         g.setStatus(com.bingo.app.tenant.enums.GameStatus.CLAIM_PENDING);
         return g;
     }
@@ -115,9 +125,9 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("two shared winners: pot 20, 10% fee -> admin 2 once, winners 9 each, ENDED")
+    @DisplayName("two shared winners: pot 20, prize 18 -> admin keeps 2 once, winners 9 each, ENDED")
     void approveAllTwoWinners() throws Exception {
-        Game g = game(30L, new BigDecimal("20.00"), "10.00");
+        Game g = game(30L, new BigDecimal("20.00"), "18.00");
         BingoClaim w1 = claim(1L, 101L);
         BingoClaim w2 = claim(2L, 102L);
         stubPending(g, w1, w2);
@@ -132,7 +142,7 @@ class GameEnginePayoutsTest {
         );
         // commission credited exactly once, from the pot
         verify(walletService, times(1)).creditAgentCommission(eq(2L), eq(new BigDecimal("2.00")), eq(30L));
-        // each winner paid exactly their share of the net pool
+        // each winner paid exactly their share of the prize
         verify(walletService).creditWinnings(101L, new BigDecimal("9.00"), 30L);
         verify(walletService).creditWinnings(102L, new BigDecimal("9.00"), 30L);
         verifyNoMoreInteractions(walletService);
@@ -148,8 +158,8 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("owner share accrues as cash debt: admin keeps full 2.00 commission, owner owes 0.40, winners 9 each")
     void ownerShareAccruesAsOwnerFee() throws Exception {
-        when(configService.getOwnerShareRate()).thenReturn(new BigDecimal("20"));
-        Game g = game(33L, new BigDecimal("20.00"), "10.00");
+        when(configService.getOwnerFeePercent()).thenReturn(new BigDecimal("20"));
+        Game g = game(33L, new BigDecimal("20.00"), "18.00");
         BingoClaim w1 = claim(1L, 101L);
         BingoClaim w2 = claim(2L, 102L);
         stubPending(g, w1, w2);
@@ -170,26 +180,29 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("four simultaneous winners: approve-all restarts the round, nothing paid")
-    void approveAllRestartsBeyondCap() {
-        Game g = game(31L, new BigDecimal("40.00"), "10.00");
+    @DisplayName("no cap on winners: four simultaneous winners all share the pot equally")
+    void approveAllPaysEveryWinner() {
+        Game g = game(31L, new BigDecimal("40.00"), "36.00");
         stubPending(g, claim(1L, 101L), claim(2L, 102L), claim(3L, 103L), claim(4L, 104L));
 
         var result = engine.approveAllClaims(g.getId(), 2L);
 
         assertAll(
-                () -> assertTrue(result.isRestarted(), "over the winner cap the round is restarted"),
-                () -> assertEquals(0, result.getApprovedCount()),
-                () -> verify(gameService).restartGame(eq(31L), eq(2L))
+                () -> assertEquals(4, result.getApprovedCount()),
+                () -> assertEquals(0, new BigDecimal("9.00").compareTo(result.getRewardAmount())),
+                () -> assertTrue(result.isGameEnded()),
+                () -> verify(gameService, never()).restartGame(anyLong(), anyLong())
         );
-        verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
-        verify(walletService, never()).creditAgentCommission(anyLong(), any(), anyLong());
+        verify(walletService).creditWinnings(101L, new BigDecimal("9.00"), 31L);
+        verify(walletService).creditWinnings(102L, new BigDecimal("9.00"), 31L);
+        verify(walletService).creditWinnings(103L, new BigDecimal("9.00"), 31L);
+        verify(walletService).creditWinnings(104L, new BigDecimal("9.00"), 31L);
     }
 
     @Test
     @DisplayName("claim submission: completed line is accepted for review and pauses the game")
     void claimSubmissionAccepted() throws Exception {
-        Game g = game(32L, new BigDecimal("20.00"), "10.00");
+        Game g = game(32L, new BigDecimal("20.00"), "18.00");
         g.setWinningPattern("SINGLE_LINE");
 
         when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
@@ -218,7 +231,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("rejected claim bans only the claimed card and resumes the game")
     void rejectClaimBansPlayer() {
-        Game g = game(33L, new BigDecimal("20.00"), "10.00");
+        Game g = game(33L, new BigDecimal("20.00"), "18.00");
         BingoClaim claim = claim(7L, 101L);
         claim.setGameId(g.getId());
         GameCard claimedCard = new GameCard();
@@ -247,9 +260,9 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("single winner approval: winner takes full net pool; game ends instantly")
-    void singleWinnerApprovalTakesNetPool() throws Exception {
-        Game g = game(32L, new BigDecimal("20.00"), "10.00");
+    @DisplayName("single winner approval: winner takes the whole prize; game ends instantly")
+    void singleWinnerApprovalTakesWholePrize() throws Exception {
+        Game g = game(32L, new BigDecimal("20.00"), "18.00");
         BingoClaim w = claim(9L, 101L);
         w.setGameId(g.getId());
 
@@ -275,9 +288,9 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("game with no winner: every registered player refunded the entry fee, game ENDED")
+    @DisplayName("game with no winner: the full pot is refunded per card and the admin takes nothing")
     void refundNoWinner() {
-        Game g = game(40L, new BigDecimal("20.00"), "10.00");
+        Game g = game(40L, new BigDecimal("20.00"), "18.00");
         g.setEntryFee(new BigDecimal("10.00"));
         g.setStatus(com.bingo.app.tenant.enums.GameStatus.IN_PROGRESS);
 
@@ -294,13 +307,16 @@ class GameEnginePayoutsTest {
         assertEquals(com.bingo.app.tenant.enums.GameStatus.ENDED, g.getStatus());
         verify(walletService).refundPlayer(101L, new BigDecimal("10.00"), 40L);
         verify(walletService).refundPlayer(102L, new BigDecimal("10.00"), 40L);
+        // the whole pot went back to the players, so nobody takes a cut of it
+        verify(walletService, never()).creditAgentCommission(anyLong(), any(), anyLong());
+        verify(walletService, never()).accrueOwnerFee(any(), anyLong());
         verifyNoInteractions(userRepository);
     }
 
     @Test
-    @DisplayName("game with a winner ending early: no entry-fee refunds (winner already took the pot)")
+    @DisplayName("game with a winner ending early: no entry-fee refunds (winner already took the prize)")
     void noRefundWhenWinnerExists() {
-        Game g = game(41L, new BigDecimal("20.00"), "10.00");
+        Game g = game(41L, new BigDecimal("20.00"), "18.00");
         g.setEntryFee(new BigDecimal("10.00"));
 
         when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
@@ -336,7 +352,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("per-claim approve: first of two claims is held, nothing paid until the last is decided")
     void perClaimApproveHoldsUntilLastDecision() {
-        Game g = game(50L, new BigDecimal("20.00"), "10.00");
+        Game g = game(50L, new BigDecimal("20.00"), "18.00");
         BingoClaim c1 = claimFor(g, 1L, 101L);
         BingoClaim c2 = claimFor(g, 2L, 102L);
 
@@ -364,9 +380,9 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("two per-claim approvals: both winners share the pot equally, game ends")
+    @DisplayName("two per-claim approvals: both winners share the prize equally, game ends")
     void perClaimApproveSplitsEquallyBetweenWinners() {
-        Game g = game(51L, new BigDecimal("20.00"), "10.00");
+        Game g = game(51L, new BigDecimal("20.00"), "18.00");
         BingoClaim c1 = claimFor(g, 1L, 101L);
         BingoClaim c2 = claimFor(g, 2L, 102L);
 
@@ -402,7 +418,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("three per-claim approvals: pot split three ways, cent-perfect")
     void perClaimApproveSplitsThreeWays() {
-        Game g = game(52L, new BigDecimal("10.00"), "10.00");
+        Game g = game(52L, new BigDecimal("10.00"), "9.00");
         BingoClaim c1 = claimFor(g, 1L, 101L);
         BingoClaim c2 = claimFor(g, 2L, 102L);
         BingoClaim c3 = claimFor(g, 3L, 103L);
@@ -430,16 +446,16 @@ class GameEnginePayoutsTest {
         var result = engine.approveClaim(g.getId(), 3L, 2L);
 
         assertEquals(3, result.getApprovedCount());
-        // 10.00 pot - 10% commission = 9.00 net, three winners -> 3.00 each
+        // 10.00 pot, 9.00 prize, three winners -> 3.00 each
         verify(walletService).creditWinnings(101L, new BigDecimal("3.00"), 52L);
         verify(walletService).creditWinnings(102L, new BigDecimal("3.00"), 52L);
         verify(walletService).creditWinnings(103L, new BigDecimal("3.00"), 52L);
     }
 
     @Test
-    @DisplayName("approve then reject: the confirmed winner takes the whole net pool")
+    @DisplayName("approve then reject: the confirmed winner takes the whole prize")
     void perClaimApproveThenRejectPaysTheOnlyWinner() {
-        Game g = game(53L, new BigDecimal("20.00"), "10.00");
+        Game g = game(53L, new BigDecimal("20.00"), "18.00");
         BingoClaim good = claimFor(g, 1L, 101L);
         BingoClaim bad = claimFor(g, 2L, 102L);
         bad.setGameId(g.getId());
@@ -469,7 +485,7 @@ class GameEnginePayoutsTest {
                 () -> assertTrue(badCard.isBanned()),
                 () -> assertEquals(com.bingo.app.tenant.enums.GameStatus.ENDED, g.getStatus())
         );
-        // the single confirmed winner takes the whole net pool — nobody else shares it
+        // the single confirmed winner takes the whole prize — nobody else shares it
         verify(walletService).creditWinnings(101L, new BigDecimal("18.00"), 53L);
         verify(walletService, never()).creditWinnings(eq(102L), any(), anyLong());
     }
@@ -477,7 +493,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("one player claiming with two cards wins a single share, the second card is voided")
     void perClaimApproveGivesOnePlayerOneShare() {
-        Game g = game(54L, new BigDecimal("20.00"), "10.00");
+        Game g = game(54L, new BigDecimal("20.00"), "18.00");
         BingoClaim first = claimFor(g, 1L, 101L);
         BingoClaim second = claimFor(g, 2L, 101L);
         second.setGameId(g.getId());
@@ -513,7 +529,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("every claim rejected: no payout, the game resumes after a countdown")
     void perClaimAllRejectedResumesGame() {
-        Game g = game(55L, new BigDecimal("20.00"), "10.00");
+        Game g = game(55L, new BigDecimal("20.00"), "18.00");
         BingoClaim c = claim(1L, 101L);
         c.setGameId(g.getId());
 
@@ -541,7 +557,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("rejecting every claim announces a counted resume to the room")
     void rejectAllAnnouncesCountedResume() {
-        Game g = game(58L, new BigDecimal("20.00"), "10.00");
+        Game g = game(58L, new BigDecimal("20.00"), "18.00");
         BingoClaim c = claim(1L, 101L);
         c.setGameId(g.getId());
 
@@ -576,17 +592,22 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("per-claim approve beyond the simultaneous-winner cap restarts the round")
-    void perClaimApproveRestartsBeyondCap() {
-        Game g = game(56L, new BigDecimal("40.00"), "10.00");
-        stubPending(g, claim(1L, 101L), claim(2L, 102L), claim(3L, 103L), claim(4L, 104L));
+    @DisplayName("per-claim approve with many pending claims pays the winner instead of restarting")
+    void perClaimApprovePaysWithoutCap() {
+        Game g = game(30L, new BigDecimal("40.00"), "36.00");
+        BingoClaim first = claim(1L, 101L);
+        stubPending(g, first, claim(2L, 102L), claim(3L, 103L), claim(4L, 104L));
+        when(bingoClaimRepository.findById(1L)).thenReturn(Optional.of(first));
+        when(bingoClaimRepository.countByGameIdAndResultAndValidatedAtIsNull(30L, "VALID"))
+                .thenReturn(3L);
 
         var result = engine.approveClaim(g.getId(), 1L, 2L);
 
         assertAll(
-                () -> assertTrue(result.isRestarted()),
-                () -> assertEquals(0, result.getApprovedCount()),
-                () -> verify(gameService).restartGame(eq(56L), eq(2L))
+                () -> assertFalse(result.isRestarted(), "there is no winner cap left to trip"),
+                () -> assertTrue(result.isPendingReview(),
+                        "the other claims still have to be reviewed before the pot is shared"),
+                () -> verify(gameService, never()).restartGame(anyLong(), anyLong())
         );
         verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
     }
@@ -594,7 +615,7 @@ class GameEnginePayoutsTest {
     @Test
     @DisplayName("a claim that is no longer pending cannot be approved twice")
     void perClaimApproveRejectsAlreadyProcessedClaim() {
-        Game g = game(57L, new BigDecimal("20.00"), "10.00");
+        Game g = game(57L, new BigDecimal("20.00"), "18.00");
         BingoClaim c = claim(1L, 101L);
 
         when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));

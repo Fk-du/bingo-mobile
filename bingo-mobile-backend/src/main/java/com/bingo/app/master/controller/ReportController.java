@@ -8,7 +8,7 @@ import com.bingo.app.master.enums.Role;
 import com.bingo.app.master.repository.TenantRegistryRepository;
 import com.bingo.app.master.repository.UserRepository;
 import com.bingo.app.master.service.DashboardService;
-import com.bingo.app.tenant.dto.response.GameResponse;
+import com.bingo.app.tenant.dto.response.AdminGameResponse;
 import com.bingo.app.tenant.service.GameService;
 import com.bingo.app.tenant.service.WalletService;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +59,7 @@ public class ReportController {
 
     @GetMapping("/games")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public ApiResponse<List<GameResponse>> gameHistory(@AuthenticationPrincipal UserPrincipal principal) {
+    public ApiResponse<List<AdminGameResponse>> gameHistory(@AuthenticationPrincipal UserPrincipal principal) {
         var user = principal.getUser();
         var games = switch (user.getRole()) {
             case ADMIN -> gameService.getAllGamesForAdmin(user.getId());
@@ -68,8 +68,8 @@ public class ReportController {
         return ApiResponse.ok(games);
     }
 
-    private List<GameResponse> aggregateGamesAcrossTenants() {
-        List<GameResponse> all = new ArrayList<>();
+    private List<AdminGameResponse> aggregateGamesAcrossTenants() {
+        List<AdminGameResponse> all = new ArrayList<>();
         eachTenant(() -> all.addAll(gameService.findAllGames()));
         return all;
     }

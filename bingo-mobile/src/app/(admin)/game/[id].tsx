@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
-import { Button, Card, Screen, Title } from '@/components/ui';
+import { Button, Card, Screen } from '@/components/ui';
 import { CardGrid } from '@/components/games/CardGrid';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { useTranslate } from '@/hooks/useTranslate';
@@ -98,6 +98,7 @@ export default function AdminLiveGameScreen() {
   }, [state?.calledNumbers, liveCalledNumbers]);
 
   const pool = state?.prizePool ?? 0;
+  const prize = state?.prizeAmount ?? null;
   const awaiting = claims.length;
 
   // What each winner actually walks away with. A player can only ever hold one
@@ -106,19 +107,19 @@ export default function AdminLiveGameScreen() {
     if (!state || claims.length === 0) return null;
     const winners = new Set(claims.map((c) => c.playerId)).size;
     if (winners === 0) return null;
-    const commissionRate = state.commissionPercent ?? 0;
-    const commission = round2(pool * (commissionRate / 100));
-    const net = round2(pool - commission);
+    // The admin committed to a prize; their cut is whatever the pot has left.
+    const totalPrize = prize ?? 0;
+    const commission = round2(pool - totalPrize);
     return {
       winners,
       pot: money(pool),
       commission: money(commission),
-      net: money(net),
+      prize: money(totalPrize),
       // display only: the server settles the split to the cent when the last
       // claim is decided, and earlier winners absorb the odd cent
-      share: money(round2(net / winners)),
+      share: money(round2(totalPrize / winners)),
     };
-  }, [state, claims, pool]);
+  }, [state, claims, pool, prize]);
 
   const run = async (fn: () => Promise<unknown>) => {
     if (busyRef.current) return;
@@ -137,9 +138,14 @@ export default function AdminLiveGameScreen() {
 
   return (
     <Screen>
-      <Title className="text-xl">
-        {t('admin.adgTitle', { id: String(gameId) }) ?? `Game #${gameId}`}
-      </Title>
+      <View className="pb-1">
+        <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+          {t('admin.adgEyebrow') ?? 'Live game'}
+        </Text>
+        <Text className="mt-1 text-2xl font-bold text-bp-textPrimary">
+          {t('admin.adgTitle', { id: String(gameId) }) ?? `Game #${gameId}`}
+        </Text>
+      </View>
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor="#6B5BFF" />}
@@ -166,8 +172,14 @@ export default function AdminLiveGameScreen() {
         />
 
         <Card>
-          <Text className="text-bp-textSecondary text-xs">{t('admin.prizePoolLabel') ?? 'Prize pool'}</Text>
+          <Text className="text-bp-textSecondary text-xs">{t('admin.prizePoolLabel') ?? 'Collected'}</Text>
           <Text className="text-bp-textPrimary font-bold text-2xl">{pool}</Text>
+          {split && (
+            <Text className="text-bp-textSecondary text-xs">
+              {t('admin.prizeAndCut', { prize: split.prize, commission: split.commission }) ??
+                `Prize ${split.prize} · your cut ${split.commission}`}
+            </Text>
+          )}
           <Text className="text-bp-textSecondary text-xs">
             {t('admin.pendingClaimsToReview', { count: awaiting })}
           </Text>
@@ -215,10 +227,10 @@ export default function AdminLiveGameScreen() {
               {t('admin.equalSplitMath', {
                 pot: split.pot,
                 commission: split.commission,
-                net: split.net,
+                prize: split.prize,
                 share: split.share,
               }) ??
-                `Pot ${split.pot} − ${split.commission} commission = ${split.net} net → ${split.share} each`}
+                `Prize ${split.prize} from ${split.pot} collected, you keep ${split.commission} → ${split.share} each`}
             </Text>
             {split.winners > 3 && (
               <Text className="text-bp-danger text-xs">
@@ -261,7 +273,7 @@ export default function AdminLiveGameScreen() {
                 {split && (
                   <Text className="text-bp-successInk text-xs">
                     {t('admin.claimShare', { share: split.share }) ??
-                      `If confirmed: ${split.share} share of the pot`}
+                      `If confirmed: ${split.share} share of the prize`}
                   </Text>
                 )}
                 <View className="flex-row gap-2">

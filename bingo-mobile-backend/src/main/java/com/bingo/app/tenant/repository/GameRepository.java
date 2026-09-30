@@ -20,6 +20,9 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     @Query("SELECT g FROM Game g WHERE g.adminUserId = :adminUserId AND g.status IN :statuses")
     List<Game> findAllByAdminUserIdAndStatusIn(@Param("adminUserId") Long adminUserId, @Param("statuses") List<GameStatus> statuses);
 
+    @Query("SELECT g FROM Game g WHERE g.adminUserId = :adminUserId AND g.status IN :statuses ORDER BY g.createdAt DESC")
+    List<Game> findAllByAdminUserIdAndStatusInOrderByCreatedAtDesc(@Param("adminUserId") Long adminUserId, @Param("statuses") List<GameStatus> statuses);
+
     List<Game> findAllByAdminUserIdOrderByCreatedAtDesc(Long adminUserId);
 
     List<Game> findAllByOrderByCreatedAtDesc();

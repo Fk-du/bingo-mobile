@@ -14,7 +14,7 @@ import com.bingo.app.master.enums.Role;
 import com.bingo.app.master.repository.AdminWarningRepository;
 import com.bingo.app.master.repository.TenantRegistryRepository;
 import com.bingo.app.master.repository.UserRepository;
-import com.bingo.app.tenant.dto.response.GameResponse;
+import com.bingo.app.tenant.dto.response.AdminGameResponse;
 import com.bingo.app.tenant.enums.GameStatus;
 import com.bingo.app.tenant.service.GameService;
 import com.bingo.app.tenant.service.PlayerService;
@@ -320,7 +320,7 @@ public class UserService {
         TenantContext.setTenant(tenantId);
         try {
             List<Long> openGameIds = gameService.findOpenGamesForAdmin(adminUserId).stream()
-                    .map(GameResponse::id)
+                    .map(AdminGameResponse::id)
                     .toList();
             for (Long gameId : openGameIds) {
                 try {

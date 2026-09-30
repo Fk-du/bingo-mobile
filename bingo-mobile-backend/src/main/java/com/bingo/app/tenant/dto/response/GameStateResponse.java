@@ -19,16 +19,20 @@ public record GameStateResponse(
         String customPatternName,
         String customPatternCells,
         boolean autoMark,
-        java.math.BigDecimal commissionPercent,
+        /**
+         * Total the winners of this game share. Public — it is the advertised
+         * payout. The pot it came out of, and the admin's cut of what is left,
+         * are not sent to players.
+         */
+        java.math.BigDecimal prizeAmount,
         List<PlayerCardView> playerCards,
         boolean hasPlayerCard,
         boolean isWinner,
-        /** The winner's own share of the pot; null for anyone who did not win. */
+        /** The winner's own share of the prize; null for anyone who did not win. */
         BigDecimal rewardAmount,
-        /** How many cards won this game, so a winner can see the pot was shared. */
+        /** How many cards won this game, so a winner can see the prize was shared. */
         int winnerCount,
         String fairnessHash,
-        BigDecimal prizePool,
         LocalDateTime startTime
 ) {
     /**

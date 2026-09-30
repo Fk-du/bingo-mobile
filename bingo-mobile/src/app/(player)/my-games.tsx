@@ -5,7 +5,7 @@ import { gamesApi } from '@/api';
 import { Button, Card, EmptyState, Screen, ScreenHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
-import { GameResponse } from '@/types';
+import { PlayerGameResponse } from '@/types';
 
 export default function PlayerMyGamesScreen() {
   const t = useTranslate();
@@ -16,7 +16,7 @@ export default function PlayerMyGamesScreen() {
     queryFn: () => gamesApi.getPlayerHistory(),
   });
 
-  const games: GameResponse[] = data?.data ?? [];
+  const games: PlayerGameResponse[] = data?.data ?? [];
 
   return (
     <Screen>
@@ -56,10 +56,11 @@ export default function PlayerMyGamesScreen() {
                   {t('admin.entryFee') ?? 'Entry'}: {item.entryFee}
                 </Text>
                 <Text className="text-bp-textSecondary text-sm">
-                  {t('player.jackpotPool') ?? 'Pool'}: {item.prizePool}
+                  {t('mobile.jackpotPrize') ?? 'Prize'}:{' '}
+                  {item.prizeAmount == null ? '—' : item.prizeAmount}
                 </Text>
                 <Text className="text-bp-textSecondary text-sm">
-                  {item.registeredPlayers ?? 0}/{item.maxPlayers}
+                  {t('admin.maxPlayers') ?? 'Max'}: {item.maxPlayers}
                 </Text>
               </View>
               <View className="flex-row justify-between items-center">

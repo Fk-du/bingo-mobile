@@ -40,6 +40,41 @@ public final class SchemaMigrationHelper {
 
         dropIndexIfExists(conn, "idx_tenant_registry_agent");
         createIndexIfNotExists(conn, "idx_tenant_registry_admin", "tenant_registry", "admin_user_id");
+
+        migrateOwnerShareRateToOwnerFee(conn);
+    }
+
+    /**
+     * The owner's cut of each admin's commission is now {@code ownerFeePercent},
+     * defaulting to 30%. It was {@code ownerShareRate} at 20%; the super admin
+     * can change it from the app's config screen either way.
+     */
+    private static void migrateOwnerShareRateToOwnerFee(Connection conn) throws SQLException {
+        if (!tableExists(conn, "platform_config")) {
+            return;
+        }
+        try (var ps = conn.prepareStatement("""
+                UPDATE platform_config SET value = '30' WHERE key = 'ownerShareRate'
+                """)) {
+            ps.executeUpdate();
+        }
+        try (var ps = conn.prepareStatement("DELETE FROM platform_config WHERE key = 'ownerShareRate'")) {
+            ps.executeUpdate();
+        }
+        upsertConfig(conn, "ownerFeePercent", "30");
+        upsertConfig(conn, "minPrizePercent", "50");
+        upsertConfig(conn, "maxPrizePercent", "90");
+    }
+
+    private static void upsertConfig(Connection conn, String key, String value) throws SQLException {
+        try (var ps = conn.prepareStatement("""
+                INSERT INTO platform_config (key, value) VALUES (?, ?)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+                """)) {
+            ps.setString(1, key);
+            ps.setString(2, value);
+            ps.executeUpdate();
+        }
     }
 
     public static void runTenantMigrations(Connection conn) throws SQLException {
@@ -61,7 +96,7 @@ public final class SchemaMigrationHelper {
                     entry_fee DECIMAL(19,2),
                     max_players INTEGER,
                     call_interval INTEGER,
-                    commission_percent DECIMAL(19,2),
+                    rake_percent DECIMAL(19,2),
                     winning_pattern VARCHAR(50),
                     custom_pattern_name VARCHAR(255),
                     custom_pattern_cells TEXT,
@@ -78,6 +113,38 @@ public final class SchemaMigrationHelper {
         // Auto claim review (auto approve/reject) opt-in and grace window.
         addColumnIfNotExists(conn, "automation_config", "auto_review", "BOOLEAN NOT NULL DEFAULT FALSE");
         addColumnIfNotExists(conn, "automation_config", "review_grace_seconds", "INTEGER NOT NULL DEFAULT 2");
+
+        // The per-game commission percentage is replaced by an admin-chosen prize.
+        // These two run after the SQL scripts (V7 / V16) and before the data
+        // migration below, so the new columns exist even on a fresh tenant.
+        addColumnIfNotExists(conn, "games", "prize_amount", "NUMERIC(12,2)");
+        addColumnIfNotExists(conn, "automation_config", "rake_percent", "DECIMAL(19,2)");
+        migrateCommissionToPrize(conn);
+    }
+
+    /**
+     * Carry live games onto the prize model at the same effective payout, so an
+     * in-flight game does not change what its winners receive. Finished games are
+     * left alone: they are history, and the old column recorded what they paid.
+     */
+    private static void migrateCommissionToPrize(Connection conn) throws SQLException {
+        if (columnExists(conn, "games", "commission_percent")) {
+            execute(conn, """
+                    UPDATE games
+                    SET prize_amount = ROUND(prize_pool * (1 - commission_percent / 100.0), 2)
+                    WHERE prize_amount IS NULL
+                      AND commission_percent IS NOT NULL
+                      AND status IN ('REGISTRATION_OPEN', 'STARTING', 'IN_PROGRESS', 'PAUSED', 'CLAIM_PENDING')
+                    """);
+            execute(conn, "ALTER TABLE games DROP COLUMN IF EXISTS commission_percent");
+            log.info("Migrated games.commission_percent to games.prize_amount");
+        }
+
+        if (tableExists(conn, "automation_config") && columnExists(conn, "automation_config", "commission_percent")) {
+            execute(conn, "UPDATE automation_config SET rake_percent = commission_percent WHERE rake_percent IS NULL");
+            execute(conn, "ALTER TABLE automation_config DROP COLUMN IF EXISTS commission_percent");
+            log.info("Migrated automation_config.commission_percent to rake_percent");
+        }
     }
 
     static void createTableIfNotExists(Connection conn, String createSql) throws SQLException {

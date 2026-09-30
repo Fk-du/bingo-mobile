@@ -2,7 +2,9 @@ import apiClient from './client';
 import {
   AdminGameStateResponse,
   ApiResponse,
-  GameResponse,
+  AdminGameResponse,
+  PlayerGameResponse,
+  PrizeSuggestion,
   GameStateResponse,
   BingoClaimResponse,
   BingoClaimResultResponse,
@@ -19,11 +21,11 @@ import {
 
 export const gamesApi = {
   create: async (data: CreateGameRequest) => {
-    const res = await apiClient.post<ApiResponse<GameResponse>>('/games', data);
+    const res = await apiClient.post<ApiResponse<AdminGameResponse>>('/games', data);
     return res.data;
   },
   updateSettings: async (id: number, data: GameSettingsUpdateRequest) => {
-    const res = await apiClient.patch<ApiResponse<GameResponse>>(`/games/${id}/settings`, data);
+    const res = await apiClient.patch<ApiResponse<AdminGameResponse>>(`/games/${id}/settings`, data);
     return res.data;
   },
   callNext: async (id: number) => {
@@ -35,7 +37,7 @@ export const gamesApi = {
     return res.data;
   },
   start: async (id: number) => {
-    const res = await apiClient.post<ApiResponse<GameResponse>>(`/games/${id}/start`);
+    const res = await apiClient.post<ApiResponse<AdminGameResponse>>(`/games/${id}/start`);
     return res.data;
   },
   cancel: async (id: number) => {
@@ -55,7 +57,7 @@ export const gamesApi = {
     return res.data;
   },
   getActive: async () => {
-    const res = await apiClient.get<ApiResponse<GameResponse[]>>('/games/active');
+    const res = await apiClient.get<ApiResponse<AdminGameResponse[]>>('/games/active');
     return res.data;
   },
   register: async (id: number, count: number) => {
@@ -112,19 +114,23 @@ export const gamesApi = {
     return res.data;
   },
   restartGame: async (id: number) => {
-    const res = await apiClient.post<ApiResponse<GameResponse>>(`/games/${id}/restart`);
+    const res = await apiClient.post<ApiResponse<AdminGameResponse>>(`/games/${id}/restart`);
     return res.data;
   },
   audit: async (id: number) => {
-    const res = await apiClient.get<ApiResponse<GameResponse>>(`/games/${id}/audit`);
+    const res = await apiClient.get<ApiResponse<AdminGameResponse>>(`/games/${id}/audit`);
     return res.data;
   },
   getHistory: async () => {
-    const res = await apiClient.get<ApiResponse<GameResponse[]>>('/games/history');
+    const res = await apiClient.get<ApiResponse<AdminGameResponse[]>>('/games/history');
+    return res.data;
+  },
+  getPrizeSuggestion: async (id: number) => {
+    const res = await apiClient.get<ApiResponse<PrizeSuggestion>>(`/games/${id}/prize-suggestion`);
     return res.data;
   },
   getPlayerHistory: async () => {
-    const res = await apiClient.get<ApiResponse<GameResponse[]>>('/games/player/history');
+    const res = await apiClient.get<ApiResponse<PlayerGameResponse[]>>('/games/player/history');
     return res.data;
   },
   getPlayerCardHistory: async () => {

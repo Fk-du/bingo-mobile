@@ -15,10 +15,11 @@ import java.util.List;
 public class TenantMapper {
 
     private final ObjectMapper objectMapper;
+    private final com.bingo.app.tenant.service.PrizeRules prizeRules;
 
-    public GameResponse toDto(Game game) {
+    public AdminGameResponse toDto(Game game) {
         if (game == null) return null;
-        return GameResponse.builder()
+        return AdminGameResponse.builder()
                 .id(game.getId())
                 .adminUserId(game.getAdminUserId())
                 .status(game.getStatus())
@@ -27,11 +28,36 @@ public class TenantMapper {
                 .currentCallIndex(game.getCurrentCallIndex())
                 .totalNumbersCalled(game.getTotalNumbersCalled())
                 .prizePool(game.getPrizePool())
+                .prizeAmount(game.getPrizeAmount())
                 .winningPattern(game.getWinningPattern())
                 .customPatternName(game.getCustomPatternName())
                 .customPatternCells(game.getCustomPatternCells())
                 .callInterval(game.getCallInterval())
-                .commissionPercent(game.getCommissionPercent())
+                .autoMark(Boolean.TRUE.equals(game.getAutoMark()))
+                .minPrize(prizeRules.minPrizeFor(game.getPrizePool()))
+                .maxPrize(prizeRules.maxPrizeFor(game.getPrizePool()))
+                .startTime(game.getStartTime())
+                .endTime(game.getEndTime())
+                .createdAt(game.getCreatedAt())
+                .build();
+    }
+
+    /** The same game narrowed to what a PLAYER is allowed to see. */
+    public PlayerGameResponse toPlayerDto(Game game) {
+        if (game == null) return null;
+        return PlayerGameResponse.builder()
+                .id(game.getId())
+                .adminUserId(game.getAdminUserId())
+                .status(game.getStatus())
+                .entryFee(game.getEntryFee())
+                .maxPlayers(game.getMaxPlayers())
+                .currentCallIndex(game.getCurrentCallIndex())
+                .totalNumbersCalled(game.getTotalNumbersCalled())
+                .prizeAmount(game.getPrizeAmount())
+                .winningPattern(game.getWinningPattern())
+                .customPatternName(game.getCustomPatternName())
+                .customPatternCells(game.getCustomPatternCells())
+                .callInterval(game.getCallInterval())
                 .autoMark(Boolean.TRUE.equals(game.getAutoMark()))
                 .startTime(game.getStartTime())
                 .endTime(game.getEndTime())
@@ -204,10 +230,9 @@ public class TenantMapper {
                 .customPatternName(state.getCustomPatternName())
                 .customPatternCells(state.getCustomPatternCells())
                 .fairnessHash(state.getFairnessHash())
-                .prizePool(state.getPrizePool())
+                .prizeAmount(state.getPrizeAmount())
                 .playerCards(state.getPlayerCards())
                 .autoMark(Boolean.TRUE.equals(state.getAutoMark()))
-                .commissionPercent(state.getCommissionPercent())
                 .hasPlayerCard(state.isHasPlayerCard())
                 .isWinner(state.isWinner())
                 .rewardAmount(state.getRewardAmount())
@@ -230,11 +255,13 @@ public class TenantMapper {
                 .currentCallIndex(game.getCurrentCallIndex())
                 .totalNumbersCalled(game.getTotalNumbersCalled())
                 .prizePool(game.getPrizePool())
+                .prizeAmount(game.getPrizeAmount())
+                .minPrize(prizeRules.minPrizeFor(game.getPrizePool()))
+                .maxPrize(prizeRules.maxPrizeFor(game.getPrizePool()))
                 .winningPattern(game.getWinningPattern())
                 .customPatternName(game.getCustomPatternName())
                 .customPatternCells(game.getCustomPatternCells())
                 .callInterval(game.getCallInterval())
-                .commissionPercent(game.getCommissionPercent())
                 .autoMark(Boolean.TRUE.equals(game.getAutoMark()))
                 .startTime(game.getStartTime())
                 .endTime(game.getEndTime())

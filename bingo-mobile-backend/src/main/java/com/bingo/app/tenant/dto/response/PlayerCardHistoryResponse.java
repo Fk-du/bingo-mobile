@@ -8,7 +8,8 @@ import java.util.List;
 
 @Builder
 public record PlayerCardHistoryResponse(
-        GameResponse game,
+        /** The player's own view of the game; the pot and the admin's cut stay out. */
+        PlayerGameResponse game,
         List<Card> cards,
         BigDecimal bet,
         BigDecimal win,

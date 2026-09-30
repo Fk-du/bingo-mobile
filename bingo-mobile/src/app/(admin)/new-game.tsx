@@ -16,7 +16,7 @@ const DEFAULTS = {
   entryFee: '10',
   maxPlayers: '50',
   callInterval: '5',
-  commissionPercent: '10',
+  rakePercent: '10',
   registrationWindow: '180',
   cooldown: '15',
 };
@@ -62,7 +62,7 @@ function AutomationCard({
     entryFee: String(automation?.entryFee ?? DEFAULTS.entryFee),
     maxPlayers: String(automation?.maxPlayers ?? DEFAULTS.maxPlayers),
     callInterval: String(automation?.callInterval ?? DEFAULTS.callInterval),
-    commissionPercent: String(automation?.commissionPercent ?? DEFAULTS.commissionPercent),
+    rakePercent: String(automation?.rakePercent ?? DEFAULTS.rakePercent),
     autoMark: automation?.autoMark ?? true,
     registrationWindowSeconds: String(automation?.registrationWindowSeconds ?? DEFAULTS.registrationWindow),
     cooldownSeconds: String(automation?.cooldownSeconds ?? DEFAULTS.cooldown),
@@ -73,7 +73,7 @@ function AutomationCard({
     entryFee: Number(form.entryFee) || 10,
     maxPlayers: Number(form.maxPlayers) || 50,
     callInterval: Number(form.callInterval) || 5,
-    commissionPercent: Number(form.commissionPercent) || 10,
+    rakePercent: Number(form.rakePercent) || 10,
     autoMark: form.autoMark,
     registrationWindowSeconds: Number(form.registrationWindowSeconds) || 180,
     cooldownSeconds: Number(form.cooldownSeconds) || 15,
@@ -152,13 +152,17 @@ function AutomationCard({
               keyboardType="numeric"
             />
           </FieldRow>
-          <FieldRow label={t('admin.commission') ?? 'Commission %'}>
+          <FieldRow label={t('admin.rakePercent') ?? 'Preferred rake %'}>
             <AppTextInput
-              value={form.commissionPercent}
-              onChangeText={(v) => setForm((f) => ({ ...f, commissionPercent: v }))}
+              value={form.rakePercent}
+              onChangeText={(v) => setForm((f) => ({ ...f, rakePercent: v }))}
               keyboardType="numeric"
             />
           </FieldRow>
+          <Text className="text-bp-textSecondary text-xs">
+            {t('admin.rakePercentHint') ??
+              'Used to suggest a prize for automated games. You still set the prize on each game before it starts.'}
+          </Text>
           <Pressable
             onPress={() => setForm((f) => ({ ...f, autoMark: !f.autoMark }))}
             className="flex-row items-center gap-2"
@@ -218,7 +222,6 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
   const [entryFee, setEntryFee] = useState(DEFAULTS.entryFee);
   const [maxPlayers, setMaxPlayers] = useState(DEFAULTS.maxPlayers);
   const [callInterval, setCallInterval] = useState(DEFAULTS.callInterval);
-  const [commission, setCommission] = useState(DEFAULTS.commissionPercent);
   const [winningPattern, setWinningPattern] = useState('SINGLE_LINE');
   const [autoMark, setAutoMark] = useState(true);
   const [showPattern, setShowPattern] = useState(false);
@@ -234,7 +237,6 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
       entryFee: Number(entryFee),
       maxPlayers: Number(maxPlayers),
       callInterval: Number(callInterval),
-      commissionPercent: Number(commission),
       winningPattern,
       autoMark,
     };
@@ -270,9 +272,6 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
       </FieldRow>
       <FieldRow label={t('admin.callInterval') ?? 'Call interval (s)'}>
         <AppTextInput value={callInterval} onChangeText={setCallInterval} keyboardType="numeric" />
-      </FieldRow>
-      <FieldRow label={t('admin.commission') ?? 'Commission %'}>
-        <AppTextInput value={commission} onChangeText={setCommission} keyboardType="numeric" />
       </FieldRow>
       <FieldRow label={t('admin.winningPattern') ?? 'Winning pattern'}>
         <Pressable onPress={() => setShowPattern(true)} className="active:opacity-80">

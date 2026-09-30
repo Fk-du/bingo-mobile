@@ -112,12 +112,12 @@ function handleGameEvent(event: GameEvent) {
       store.setRestartNotice(
         localized ??
           (event.data.message as string) ??
-          translateClientMessage('ws.game.restarted.multiClaim') ??
-          'The game is restarting because more than 3 players claimed Bingo at once. All registered players keep their cards and can play again — dealing a fresh set of numbers.'
+          translateClientMessage('ws.game.restarted') ??
+          'The game is restarting with a fresh number sequence. All registered players keep their cards and can play again.'
       );
       store.setGameStatus(GameStatus.STARTING);
       store.setStartReason('restart');
-      store.setCalledNumbers([]);
+      store.clearCalledNumbers();
       store.setTotalNumbersCalled(0);
       break;
     }

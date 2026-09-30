@@ -12,7 +12,7 @@ public record AutomationConfigResponse(
         BigDecimal entryFee,
         Integer maxPlayers,
         Integer callInterval,
-        BigDecimal commissionPercent,
+        BigDecimal rakePercent,
         String winningPattern,
         String customPatternName,
         String customPatternCells,

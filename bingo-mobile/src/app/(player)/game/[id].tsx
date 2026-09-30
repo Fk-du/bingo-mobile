@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
@@ -15,13 +16,13 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { patternProgress, patternCells, customCellsFromJson, computeProgress } from '@/lib/pattern';
 import { useGameStore } from '@/store/game.store';
-import { GameResponse, GameStateResponse, GameStatus, PlayerCardView } from '@/types';
-import { netPrize } from '@/lib/prize';
+import { PlayerGameResponse, GameStateResponse, GameStatus, PlayerCardView } from '@/types';
 
 export default function LiveGameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const gameId = Number(id);
   const t = useTranslate();
+  const qc = useQueryClient();
 
   // Subscribe per-field. Selecting the whole store re-renders this entire
   // screen (every CardGrid) on any store write, including the ones the
@@ -32,7 +33,7 @@ export default function LiveGameScreen() {
   const claimPending = useGameStore((s) => s.claimPending);
   const restartNotice = useGameStore((s) => s.restartNotice);
   const totalNumbersCalled = useGameStore((s) => s.totalNumbersCalled);
-  const prizePool = useGameStore((s) => s.prizePool);
+  const prizeAmount = useGameStore((s) => s.prizeAmount);
   const isConnecting = useGameStore((s) => s.isConnecting);
   const startTime = useGameStore((s) => s.startTime);
   const startReason = useGameStore((s) => s.startReason);
@@ -47,7 +48,7 @@ export default function LiveGameScreen() {
       claimPending,
       restartNotice,
       totalNumbersCalled,
-      prizePool,
+      prizeAmount,
       setPlayerCards,
       setRestartNotice,
     }),
@@ -58,13 +59,13 @@ export default function LiveGameScreen() {
       claimPending,
       restartNotice,
       totalNumbersCalled,
-      prizePool,
+      prizeAmount,
       setPlayerCards,
       setRestartNotice,
     ]
   );
   const [state, setState] = useState<GameStateResponse | null>(null);
-  const [meta, setMeta] = useState<GameResponse | null>(null);
+  const [meta, setMeta] = useState<PlayerGameResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [report, setReport] = useState<{ message: string; kind: 'win' | 'pending' | 'banned' | 'error' } | null>(null);
@@ -100,7 +101,7 @@ export default function LiveGameScreen() {
       store.setCalledNumbers(
         res.data.calledNumbers.map((n, i) => ({ id: i, gameId, number: n, sequenceIndex: i, calledAt: null }))
       );
-      store.setPrizePool(res.data.prizePool);
+      store.setPrizeAmount(res.data.prizeAmount ?? null);
       store.setTotalNumbersCalled(res.data.totalNumbersCalled);
       store.setPlayerCards(res.data.playerCards);
       if (res.data.playerCards?.length && !marksSeeded.current) {
@@ -220,7 +221,7 @@ export default function LiveGameScreen() {
 
   const calledNumbers = game.calledNumbers.map((c) => c.number);
   const { muted, toggleMuted } = useNumberAnnouncer(calledNumbers);
-  const pool = state?.prizePool ?? game.prizePool;
+  const prize = state?.prizeAmount ?? game.prizeAmount;
   const winningPattern = state?.winningPattern ?? null;
   const patternCellsSet = winningPattern
     ? winningPattern === 'CUSTOM'
@@ -315,16 +316,16 @@ export default function LiveGameScreen() {
 
         <Card className="items-center overflow-hidden py-4">
           <Text className="text-[10px] uppercase tracking-wider text-bp-textSecondary">
-            {t('mobile.jackpotPool') ?? 'Jackpot Pool'}
+            {t('mobile.jackpotPrize') ?? 'Prize'}
           </Text>
           <Text className="mt-1 text-3xl font-black text-bp-goldInk">
-            {netPrize(pool, state?.commissionPercent).toLocaleString()}
+            {(prize == null ? '—' : prize.toLocaleString())}
           </Text>
           <View className="mt-1 flex-row items-center gap-2">
-            {state?.commissionPercent ? (
+            {state?.winnerCount && state.winnerCount > 1 ? (
               <Text className="text-[10px] text-bp-textSecondary">
-                {t('game.collectedAfterFee', { collected: pool.toLocaleString(), percent: String(state.commissionPercent) }) ??
-                  `${pool.toLocaleString()} collected · ${state.commissionPercent}% fee`}
+                {t('game.prizeShared', { count: String(state.winnerCount) }) ??
+                  `shared between ${state.winnerCount} winners`}
               </Text>
             ) : (
               <Text className="text-[10px] text-bp-textSecondary">{t('game.coins') ?? 'birr'}</Text>
@@ -560,7 +561,12 @@ export default function LiveGameScreen() {
           gameId={gameId}
           entryFee={entryFee ?? 0}
           onClose={() => setPickerOpen(false)}
-          onRegistered={() => setRegisterSuccess(true)}
+          onRegistered={() => {
+            setRegisterSuccess(true);
+            // Registering from inside a game charges the entry fee too, so the
+            // lobby balance card must not keep showing the pre-registration total.
+            void qc.invalidateQueries({ queryKey: ['wallet'] });
+          }}
         />
       )}
       <WinnerModal
@@ -571,6 +577,7 @@ export default function LiveGameScreen() {
         winners={state?.winnerCount ?? null}
         onClose={() => setWinnerModalSeen(true)}
       />
+
     </Screen>
   );
 }

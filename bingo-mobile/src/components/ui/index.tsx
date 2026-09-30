@@ -100,7 +100,7 @@ export function Card({
 
 export function Screen({ children, className = '', ...rest }: ViewProps & { className?: string }) {
   return (
-    <View className={`flex-1 bg-bp-background px-4 ${className}`} {...rest}>
+    <View className={`flex-1 bg-bp-background px-4 pt-4 ${className}`} {...rest}>
       {children}
     </View>
   );
@@ -139,11 +139,34 @@ export function AppTextInput(props: TextInputProps & { className?: string }) {
   );
 }
 
-export function ScreenHeader({ title, right }: { title: string; right?: ReactNode }) {
+/**
+ * The label every screen starts with: a quiet uppercase eyebrow naming the
+ * area, then the page title. Keeping it on every screen means content never
+ * begins flush against the top edge with nothing to orient the reader.
+ */
+export function ScreenHeader({
+  title,
+  eyebrow,
+  description,
+  right,
+}: {
+  title: string;
+  /** Defaults to the app name, so a screen with only a title still gets a label. */
+  eyebrow?: string;
+  description?: string;
+  right?: ReactNode;
+}) {
+  const t = useTranslate();
   return (
-    <View className="flex-row items-center justify-between py-4">
-      <Title>{title}</Title>
-      {right}
+    <View className="flex-row items-start gap-3 pt-3 pb-5">
+      <View className="min-w-0 flex-1">
+        <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+          {eyebrow ?? t('common.appName') ?? 'BingoPlus'}
+        </Text>
+        <Title className="mt-1">{title}</Title>
+        {description ? <Subtitle className="mt-1 text-sm">{description}</Subtitle> : null}
+      </View>
+      {right ? <View className="shrink-0">{right}</View> : null}
     </View>
   );
 }

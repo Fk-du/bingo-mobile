@@ -33,9 +33,9 @@ public class AutomationConfigRequest {
     private Integer callInterval;
 
     @NotNull
-    @DecimalMin(value = "0", message = "Commission must be at least 0%")
-    @DecimalMax(value = "90", message = "Commission cannot exceed 90%")
-    private BigDecimal commissionPercent;
+    @DecimalMin(value = "0", message = "Preferred rake must be at least 0%")
+    @DecimalMax(value = "90", message = "Preferred rake cannot exceed 90%")
+    private BigDecimal rakePercent;
 
     private String winningPattern;
     private String customPatternName;

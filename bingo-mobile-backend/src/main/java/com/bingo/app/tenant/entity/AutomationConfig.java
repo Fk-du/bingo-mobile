@@ -39,8 +39,8 @@ public class AutomationConfig {
     private Integer maxPlayers;
     @Column(name = "call_interval")
     private Integer callInterval;
-    @Column(name = "commission_percent")
-    private BigDecimal commissionPercent;
+    @Column(name = "rake_percent")
+    private BigDecimal rakePercent;
 
     @Column(name = "winning_pattern")
     private String winningPattern;

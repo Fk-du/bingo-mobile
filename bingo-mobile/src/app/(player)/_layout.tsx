@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Tabs } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationsApi } from '@/api';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
@@ -17,54 +18,58 @@ export default function PlayerLayout() {
   });
   const unread = unreadData?.data.count ?? 0;
 
+  // The tabs have no native header, so the top inset is applied here once
+  // rather than on every screen inside.
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.borderInactive },
-        tabBarActiveTintColor: '#6B5BFF',
-        tabBarInactiveTintColor: colors.textInactive,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: label('mobile.navLobby', 'Lobby'),
-          tabBarIcon: ({ color }) => <IconLobby color={color} size={20} />,
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.borderInactive },
+          tabBarActiveTintColor: '#6B5BFF',
+          tabBarInactiveTintColor: colors.textInactive,
         }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: label('mobile.navHistory', 'History'),
-          tabBarIcon: ({ color }) => <IconHistory color={color} size={20} />,
-        }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{
-          title: label('mobile.navWallet', 'Wallet'),
-          tabBarIcon: ({ color }) => <IconWallet color={color} size={20} />,
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: label('mobile.notifications', 'Alerts'),
-          tabBarIcon: ({ color }) => <IconBell color={color} size={20} />,
-          tabBarBadge: unread > 0 ? unread : undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: label('mobile.navProfile', 'Profile'),
-          tabBarIcon: ({ color }) => <IconProfile color={color} size={20} />,
-        }}
-      />
-      <Tabs.Screen name="game/[id]" options={{ href: null }} />
-      <Tabs.Screen name="my-games" options={{ href: null }} />
-      <Tabs.Screen name="withdraw" options={{ href: null }} />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: label('mobile.navLobby', 'Lobby'),
+            tabBarIcon: ({ color }) => <IconLobby color={color} size={20} />,
+          }}
+        />
+        <Tabs.Screen
+          name="history"
+          options={{
+            title: label('mobile.navHistory', 'History'),
+            tabBarIcon: ({ color }) => <IconHistory color={color} size={20} />,
+          }}
+        />
+        <Tabs.Screen
+          name="wallet"
+          options={{
+            title: label('mobile.navWallet', 'Wallet'),
+            tabBarIcon: ({ color }) => <IconWallet color={color} size={20} />,
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            title: label('mobile.notifications', 'Alerts'),
+            tabBarIcon: ({ color }) => <IconBell color={color} size={20} />,
+            tabBarBadge: unread > 0 ? unread : undefined,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: label('mobile.navProfile', 'Profile'),
+            tabBarIcon: ({ color }) => <IconProfile color={color} size={20} />,
+          }}
+        />
+        <Tabs.Screen name="game/[id]" options={{ href: null }} />
+        <Tabs.Screen name="my-games" options={{ href: null }} />
+        <Tabs.Screen name="withdraw" options={{ href: null }} />
+      </Tabs>
+    </SafeAreaView>
   );
 }

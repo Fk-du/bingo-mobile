@@ -4,7 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { agentsApi, cardsApi, reportsApi } from '@/api';
 import { Button, Card, EmptyState, Metric, Screen, SectionHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
-import { AgentResponse, CardRequestResponse, GameResponse, GameStatus } from '@/types';
+import { AgentResponse, CardRequestResponse, AdminGameResponse, GameStatus } from '@/types';
 
 const BAR_HEIGHT = 128;
 
@@ -21,7 +21,7 @@ export default function SuperAdminDashboardScreen() {
   });
 
   const agents: AgentResponse[] = agentsQuery.data?.data ?? [];
-  const games: GameResponse[] = gamesQuery.data?.data ?? [];
+  const games: AdminGameResponse[] = gamesQuery.data?.data ?? [];
   const cardRequests: CardRequestResponse[] = cardsQuery.data?.data ?? [];
 
   const activeAgents = agents.filter((a) => a.active);

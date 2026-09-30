@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import type { TextStyle } from 'react-native';
 import { useTranslate } from '@/hooks/useTranslate';
 
 const RANGES = [
@@ -9,13 +10,19 @@ const RANGES = [
   { letter: 'O', min: 61, max: 75 },
 ] as const;
 
+// `chip` is constant per column, so it is safe to keep in className. The called
+// state is expressed as literal colours instead of a swapped className: see the
+// note in CardGrid for why a className change here crashes the app.
 const TONES = [
-  { chip: 'border-cyan-500/40 bg-cyan-400/15 text-cyan-500', called: 'border-cyan-600 bg-cyan-600' },
-  { chip: 'border-emerald-500/40 bg-emerald-400/15 text-emerald-500', called: 'border-emerald-600 bg-emerald-600' },
-  { chip: 'border-blue-500/40 bg-blue-400/15 text-blue-500', called: 'border-blue-600 bg-blue-600' },
-  { chip: 'border-amber-500/40 bg-amber-400/15 text-amber-500', called: 'border-amber-600 bg-amber-600' },
-  { chip: 'border-rose-500/40 bg-rose-400/15 text-rose-500', called: 'border-rose-600 bg-rose-600' },
+  { chip: 'border-cyan-500/40 bg-cyan-400/15 text-cyan-500', calledBorder: '#0891b2', calledBackground: '#0891b2' },
+  { chip: 'border-emerald-500/40 bg-emerald-400/15 text-emerald-500', calledBorder: '#059669', calledBackground: '#059669' },
+  { chip: 'border-blue-500/40 bg-blue-400/15 text-blue-500', calledBorder: '#2563eb', calledBackground: '#2563eb' },
+  { chip: 'border-amber-500/40 bg-amber-400/15 text-amber-500', calledBorder: '#d97706', calledBackground: '#d97706' },
+  { chip: 'border-rose-500/40 bg-rose-400/15 text-rose-500', calledBorder: '#e11d48', calledBackground: '#e11d48' },
 ];
+
+const LAST_BORDER = 'rgba(252, 211, 77, 0.9)';
+const LAST_BACKGROUND = '#fbbf24';
 
 export function NumberBoard({
   calledNumbers,
@@ -72,26 +79,27 @@ export function NumberBoard({
               {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => {
                 const isCalled = called.has(n);
                 const isLast = n === lastCalledNumber;
+                const cellStyle = isLast
+                  ? {
+                      borderColor: LAST_BORDER,
+                      backgroundColor: LAST_BACKGROUND,
+                      boxShadow: '0 0 10px rgba(242,201,76,0.55)',
+                    }
+                  : isCalled
+                    ? { borderColor: tone.calledBorder, backgroundColor: tone.calledBackground }
+                    : undefined;
+                const inkStyle: TextStyle | undefined = isLast
+                  ? { color: '#000000', fontWeight: '900' }
+                  : isCalled
+                    ? { color: '#ffffff', fontWeight: '700' }
+                    : undefined;
                 return (
                   <View
                     key={n}
-                    className={`flex-1 items-center justify-center rounded-md border ${
-                      isLast
-                        ? 'border-amber-300/90 bg-amber-400'
-                        : isCalled
-                          ? tone.called
-                          : 'border-bp-borderInactive bg-bp-surfaceAlt'
-                    }`}
-                    style={{
-                      height: 24,
-                      ...(isLast ? { boxShadow: '0 0 10px rgba(242,201,76,0.55)' } : {}),
-                    }}
+                    className="flex-1 items-center justify-center rounded-md border border-bp-borderInactive bg-bp-surfaceAlt"
+                    style={{ height: 24, ...cellStyle }}
                   >
-                    <Text
-                      className={`text-[9px] tracking-tight ${
-                        isLast ? 'text-black font-black' : isCalled ? 'text-white font-bold' : 'text-bp-textSecondary'
-                      }`}
-                    >
+                    <Text className="text-[9px] tracking-tight text-bp-textSecondary" style={inkStyle}>
                       {n}
                     </Text>
                   </View>

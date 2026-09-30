@@ -12,7 +12,6 @@ public record BingoClaimResultResponse(
         boolean gameEnded,
         int approvedCount,
         BigDecimal rewardAmount,
-        BigDecimal commission,
         boolean banned,
         boolean restarted
 ) {}

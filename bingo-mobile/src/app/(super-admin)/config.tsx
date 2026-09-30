@@ -6,25 +6,27 @@ import { AppTextInput, Button, Card, EmptyState, FieldLabel, Screen, SectionHead
 import { useTranslate } from '@/hooks/useTranslate';
 
 const LABEL_MAP: Record<string, string> = {
-  maxWinners: 'labelMaxWinners',
   cardSize: 'labelCardSize',
   numberRange: 'labelNumberRange',
   autoCallInterval: 'labelAutoCallInterval',
   entryFee: 'labelEntryFee',
   maxPlayers: 'labelMaxPlayers',
   minWithdrawal: 'labelMinWithdrawal',
-  ownerShareRate: 'labelOwnerShareRate',
+  ownerFeePercent: 'labelOwnerFeePercent',
+  minPrizePercent: 'labelMinPrizePercent',
+  maxPrizePercent: 'labelMaxPrizePercent',
 };
 
 const HINT_MAP: Record<string, string> = {
-  maxWinners: 'hintMaxWinners',
   cardSize: 'hintCardSize',
   numberRange: 'hintNumberRange',
   autoCallInterval: 'hintAutoCallInterval',
   entryFee: 'hintEntryFee',
   maxPlayers: 'hintMaxPlayers',
   minWithdrawal: 'hintMinWithdrawal',
-  ownerShareRate: 'hintOwnerShareRate',
+  ownerFeePercent: 'hintOwnerFeePercent',
+  minPrizePercent: 'hintMinPrizePercent',
+  maxPrizePercent: 'hintMaxPrizePercent',
 };
 
 export default function SuperAdminConfigScreen() {

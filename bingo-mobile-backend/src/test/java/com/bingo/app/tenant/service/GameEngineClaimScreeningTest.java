@@ -75,11 +75,14 @@ class GameEngineClaimScreeningTest {
 
     @BeforeEach
     void setUp() {
-        when(configService.getOwnerShareRate()).thenReturn(java.math.BigDecimal.ZERO);
+        when(configService.getOwnerFeePercent()).thenReturn(java.math.BigDecimal.ZERO);
         engine = new GameEngineService(gameRepository, calledNumberRepository, gameCardRepository,
                 bingoClaimRepository, walletService, cardService, objectMapper,
                 realTransactionTemplate(), messagingTemplate, tenantMapper,
-                null, userRepository, notificationService, configService, gameService);
+                null, userRepository, notificationService, configService, gameService,
+                new PrizeRules(configService));
+        when(configService.getMinPrizePercent()).thenReturn(new java.math.BigDecimal("50"));
+        when(configService.getMaxPrizePercent()).thenReturn(new java.math.BigDecimal("90"));
         when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
         when(bingoClaimRepository.save(any(BingoClaim.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -108,7 +111,7 @@ class GameEngineClaimScreeningTest {
         g.setId(GAME_ID);
         g.setAdminUserId(2L);
         g.setPrizePool(new java.math.BigDecimal("20.00"));
-        g.setCommissionPercent(new java.math.BigDecimal("10.00"));
+        g.setPrizeAmount(new java.math.BigDecimal("18.00"));
         g.setCallInterval(3600);
         g.setStatus(GameStatus.IN_PROGRESS);
         return g;

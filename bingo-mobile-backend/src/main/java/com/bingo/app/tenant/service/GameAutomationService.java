@@ -82,8 +82,8 @@ public class GameAutomationService {
         config.setEntryFee(request.getEntryFee() != null ? request.getEntryFee() : BigDecimal.TEN);
         config.setMaxPlayers(request.getMaxPlayers() != null ? request.getMaxPlayers() : 50);
         config.setCallInterval(request.getCallInterval() != null ? request.getCallInterval() : 5);
-        config.setCommissionPercent(request.getCommissionPercent() != null
-                ? request.getCommissionPercent() : new BigDecimal("10.00"));
+        config.setRakePercent(request.getRakePercent() != null
+                ? request.getRakePercent() : new BigDecimal("10.00"));
         config.setAutoMark(request.getAutoMark() == null || request.getAutoMark());
         config.setRegistrationWindowSeconds(request.getRegistrationWindowSeconds() != null
                 ? request.getRegistrationWindowSeconds() : DEFAULT_REGISTRATION_WINDOW_SECONDS);
@@ -309,8 +309,9 @@ public class GameAutomationService {
                 .entryFee(config.getEntryFee() != null ? config.getEntryFee() : BigDecimal.TEN)
                 .maxPlayers(config.getMaxPlayers() != null ? config.getMaxPlayers() : 50)
                 .callInterval(config.getCallInterval() != null ? config.getCallInterval() : 5)
-                .commissionPercent(config.getCommissionPercent() != null
-                        ? config.getCommissionPercent() : new BigDecimal("10.00"))
+                // No prize here: the pot is empty until players register, and the
+                // prize is what the admin decides once they can see the room. Their
+                // preferred rake pre-fills a suggestion on the game screen.
                 .autoMark(config.getAutoMark() == null || config.getAutoMark())
                 .winningPattern(pattern)
                 .build();
@@ -366,7 +367,7 @@ public class GameAutomationService {
                 .entryFee(config.getEntryFee())
                 .maxPlayers(config.getMaxPlayers())
                 .callInterval(config.getCallInterval())
-                .commissionPercent(config.getCommissionPercent())
+                .rakePercent(config.getRakePercent())
                 .winningPattern(config.getWinningPattern())
                 .customPatternName(config.getCustomPatternName())
                 .customPatternCells(config.getCustomPatternCells())
@@ -388,7 +389,7 @@ public class GameAutomationService {
                 .entryFee(BigDecimal.TEN)
                 .maxPlayers(50)
                 .callInterval(5)
-                .commissionPercent(new BigDecimal("10.00"))
+                .rakePercent(new BigDecimal("10.00"))
                 .winningPattern("SINGLE_LINE")
                 .autoMark(true)
                 .registrationWindowSeconds(DEFAULT_REGISTRATION_WINDOW_SECONDS)

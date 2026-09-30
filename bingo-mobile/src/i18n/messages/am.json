@@ -97,7 +97,8 @@
     "invalidInput": "የስልክ ቁጥርዎን እና የይለፍ ቃልዎን ያረጋግጡ",
     "noPasswordTitle": "እስካሁን የይለፍ ቃል የለም",
     "noPasswordHint": "ይህ መለያ የይለፍ ቃል የለውም። የቢንጎ ፕላስ ቦትን በቴሌግራም ይክፈቱ፣ የግብዣ ሊንክዎን ይንኩ፣ እና “የይለፍ ቃል ይፍጠሩ” የሚለውን ተጠቅመው የይለፍ ቃል ያዘጋጁ — ከዚያ እዚህ ይግቡ።",
-    "openBot": "የቴሌግራም ቦትን ይክፈቱ"
+    "openBot": "የቴሌግራም ቦትን ይክፈቱ",
+    "loginEyebrow": "እንደምን አለህ"
   },
   "roles": {
     "ADMIN": "አስተዳዳሪ",
@@ -139,8 +140,8 @@
     "request_already_processed": "ይህ ጥያቄ ቀድሞውኑ ተከናውኗል።"
   },
   "ws": {
-    "gameRestarted": "ቢንጎ በአንድ ጊዜ ከ3 በላይ ተጫዋቾች ስለጠየቁ ጨዋታው እንደገና እየተጀመረ ነው። የተመዘገቡ ተጫዋቾች ሁሉ ካርዳቸውን ጠብቀው እንደገና መጫወት ይችላሉ — አዲስ የቁጥር ቅደም ተከተል በመዘጋጀት ላይ።",
-    "game.restarted.multiClaim": "ቢንጎ በአንድ ጊዜ ከ3 በላይ ተጫዋቾች ስለጨረሱ ጨዋታው እንደገና እየተጀመረ ነው። የተመዘገቡ ተጫዋቾች ሁሉ ካርዳቸውን ጠብቀው እንደገና መጫወት ይችላሉ — አዲስ የቁጥር ቅደም ተከተል በመዘጋጀት ላይ።"
+    "gameRestarted": "ጨዋታው በአዲስ የቁጥር ቅደም እንደገና እየተጀመረ ነው። የተመዘገቡ ተጫዋቾች ሁሉ ካርዳቸውን ጠብቀው እንደገና መጫወት ይችላሉ።",
+    "game.restarted": "ጨዋታው በአዲስ የቁጥር ቅደም እንደገና እየተጀመረ ነው። የተመዘገቡ ተጫዋቾች ሁሉ ካርዳቸውን ጠብቀው እንደገና መጫወት ይችላሉ።"
   },
   "notify": {
     "win": "ያሸነፉት {amount} ብር!",
@@ -215,7 +216,6 @@
     "jackpotPool": "የተጠራቀመ ገንዘብ",
     "live": "{count} በቀጥታ",
     "gamesAvailable": "{count} ጨዋታዎች ይገኛሉ",
-    "totalPool": "ጠቅላላ ገንዘብ",
     "open": "ክፍት",
     "myGames": "የእኔ ጨዋታዎች",
     "myGamesTitle": "የእኔ ጨዋታዎች",
@@ -381,10 +381,9 @@
     "winnerModalCard": "የዎች አሸናፊ ካርድ",
     "winningPattern": "ማሸነፍያ ቅርጽ",
     "calledNumbers": "የተጠሩ ቁጥሮች",
-    "lastCalled": "የመጨረሻ",
+    "lastCalled": "የመጨረሻ ጥሪ",
     "noNumbersCalled": "ገና ምንም ቁጥር አልተጠራም",
-    "prizePool": "የሽልማት ገንዘብ",
-    "collectedAfterFee": "ሽልማቱ ከ{percent}% የቤት ክፍያ በኋላ የሚታይ ነው · {collected} ተሰብስቧል",
+    "prizePool": "ሽልማት",
     "coins": "ብር",
     "called": "የተጠሩ",
     "connecting": "ወደ ጨዋታ አገልጋይ በመገናኘት ላይ...",
@@ -394,7 +393,6 @@
     "gameStarting": "ጨዋታ በመጀመር ላይ — መልካም እድል!",
     "registrationClosed": "በመጀመር ላይ — ምዝገባ ተዘግቷል።",
     "paused": "⏸ ጨዋታ ቆሟል — አስተዳዳሪው እስኪቀጥለው ድረስ በመጠበቅ ላይ",
-    "lastCalled": "የመጨረሻ ጥሪ",
     "unmuteAria": "የቁጥር ማሳወቂያ ድምፅ አብራ",
     "muteAria": "የቁጥር ማሳወቂያ ድምፅ አጥፋ",
     "soundOff": "ድምፅ ጠፍቷል",
@@ -453,8 +451,6 @@
     "noGamesAvailable": "ምንም ጨዋታዎች የሉም",
     "noGamesAvailableDesc": "ወኪልዎ ምዝገባ ሲከፍት አዲስ ጨዋታዎች እዚህ ይታያሉ።",
     "fee": "ክፍያ {fee}",
-    "pool": "ገንዘብ {pool} → {net}",
-    "commission": "ኮሚሽን {percent}%",
     "players": "ተጫዋቾች {count}/{max}",
     "cancel": "ሰርዝ",
     "endGame": "ጨዋታ አግድ",
@@ -472,7 +468,8 @@
     "joining": "✦ በመቀላቀል ላይ…",
     "register": "✦ ይመዝገቡ",
     "startingIn": "⏳ በ{seconds}ሰከንድ ይጀምራል…",
-    "patternCells": "የሚፈለጉ ሴሎች"
+    "patternCells": "የሚፈለጉ ሴሎች",
+    "prizeShared": "በ{count} አሸናፊዎች የተጋራ"
   },
   "admin": {
     "welcomeBack": "እንኳን ደህና መጡ፣",
@@ -647,14 +644,13 @@
     "saving": "እያስቀመጠ...",
     "save": "አስቀምጥ",
     "failedToSave": "ማስቀመጥ አልተሳካም",
-    "adgEyebrow": "የጥያቄ ግምገማ",
+    "adgEyebrow": "ቀጥታ ጨዋታ",
     "adgTitle": "ጨዋታ #{id}",
     "adgDesc": "በመጠባበቅ ላይ ያሉ የቢንጎ ጥያቄዎችን ይገምግሙ፣ አሸናፊዎችን ያረጋግጡ እና ወሰን ሲደረስ ጠረጴዛውን ይዝጉ።",
     "connectingServer": "ከጨዋታ አገልጋይ ጋር በመገናኘት ላይ...",
     "status": "ሁኔታ",
     "progress": "እድገት",
-    "prizePoolLabel": "የሽልማት ገንዘብ",
-    "prizePoolAfterFee": "የሽልማት ገንዘብ (ከ{pct}% ክፍያ በኋላ)",
+    "prizePoolLabel": "የተሰበሰበ",
     "collected": "የተሰበሰበ {amount}",
     "winners": "አሸናፊዎች",
     "awaitingReview": "{count} በመጠባበቅ ላይ ነው",
@@ -679,9 +675,9 @@
     "loadingClaims": "ጥያቄዎችን በመጫን ላይ...",
     "noPendingClaims": "ምንም በመጠባበቅ ላይ ያሉ ጥያቄዎች የሉም። ጨዋታው {status} ነው።",
     "equalSplitTitle": "እኩል ምርጫ: {count} አሸናፊዎች",
-    "equalSplitMath": "ገንዘብ {pot} \u2212 {commission} ኮሚሽን = {net} ንጹሕ \u2192 ለእያንዳንዱ {share}",
+    "equalSplitMath": "ከ{pot} ተሰብስቧ {prize} ሽልማት፣ {commission} ይቆያሉ፣ ለእያንዳንዱ {share}",
     "equalSplitCapWarning": "ከ{max} በላይ ጥያቄዎች: ማጽደቅ ጨዋታውን በአዲስ ቁጥሮች ዳግሞ ይጀምራል።",
-    "claimShare": "ከተረጋገጠ: የገንዘብ ምንድር {share} ይገኛል",
+    "claimShare": "ከተረጋገጠ፦ {share} የሽልማት ድርሻ",
     "approveClaim": "ይህን ጥያቄ ፍቀድ",
     "claimCalledCount": "ከዚህ ካርድ {count} ቁጥሮች ተጠርተዋል።",
     "liveSyncError": "የቀጥታ ማሻሻያ አልተሳካም",
@@ -717,8 +713,7 @@
     "maxPlayers": "ከፍተኛ ተጫዋቾች",
     "callInterval": "የመደወያ ክፍተት",
     "callIntervalHint": "በራስ-ሰር ጥሪዎች መካከል ያለ ሰከንዶች",
-    "commission": "ኮሚሽን %",
-    "commissionHint": "የሽልማት ገንዘብ ድርሻዎ (0–90)",
+    "commission": "የእርስዎ ድርሻ",
     "winningPattern": "ማሸነፍያ ቅርጽ",
     "autoMark": "ቁጥሮችን በራስ-ሰር ምልክት አድርግ",
     "creating": "እየፈጠረ ነው...",
@@ -762,7 +757,18 @@
     "fundPlayer": "ተጫዋቹን ገንዘብ አቅርብ",
     "balanceCoins": "{name} · ቀሪ ሂሳብ፡ {balance} ብር",
     "enterCoinAmount": "የብር መጠን ያስገቡ",
-    "funding": "እያቀረበ ነው..."
+    "funding": "እያቀረበ ነው...",
+    "rakePercent": "የሚመለክተው ክፍያ %",
+    "rakePercentHint": "ለበራሽ ጨዋታዎች የሽልማት ምክር ለመስጠት ይጠቀማል። ጨዋቱ ከመጀመሩ በፊት ሽልማቱን ሁልጊዜ ይሞላሉ።",
+    "prizeAndCut": "ሽልማት {prize} · የእርስዎ ድርሻ {commission}",
+    "prizeAmount": "ለአሸናፊዎች የሚሰጥ ሽልማት",
+    "prizeRange": "({min} – {max})",
+    "prizeOutOfRange": "በ{min} እና {max} መካከል ሽልማት ያስገቡ።",
+    "prizeAfterFirstPlayer": "መጀመሪያው ተጫዋች ከገበ በኋላ ሽልማቱን ማስቀመጥ ይችላሉ።",
+    "useSuggestion": "ምክር",
+    "savePrize": "ሽልማት አስቀምጥ",
+    "prizeSaved": "ሽልማት ተስቀምጧል",
+    "setPrizeFirst": "ለመጀመር ሽልማት ያስቀምጡ"
   },
   "super": {
     "dbEyebrow": "ዳሽቦርድ",
@@ -884,22 +890,18 @@
     "saveConfig": "ቅንብር አስቀምጥ",
     "configUpdated": "ቅንብሩ በተሳካ ሁኔታ ተዘምኗል።",
     "configUpdateFailed": "ቅንብሩን ማዘመን አልተሳካም።",
-    "labelMaxWinners": "ከፍተኛ አሸናፊዎች",
     "labelCardSize": "የካርድ መጠን",
     "labelNumberRange": "የቁጥር ክልል",
     "labelAutoCallInterval": "አውቶ ጥሪ ክፍተት (ms)",
     "labelEntryFee": "ነባሪ የመግቢያ ክፍያ",
     "labelMaxPlayers": "ነባሪ ከፍተኛ ተጫዋቾች",
     "labelMinWithdrawal": "ዝቅተኛ ማውጫ",
-    "labelOwnerShareRate": "የባለቤት ድርሻ ተመን (%)",
-    "hintMaxWinners": "በአንድ ጨዋታ ከፍተኛ አሸናፊዎች",
     "hintCardSize": "በካርድ ቁጥሮች (ለምሳሌ 25)",
     "hintNumberRange": "የቁጥር ክልል (ለምሳሌ 75)",
     "hintAutoCallInterval": "አውቶ ጥሪ ክፍተት በሚሊሰከንድ (ለምሳሌ 5000)",
     "hintEntryFee": "በአንድ ጨዋታ ነባሪ የመግቢያ ክፍያ",
     "hintMaxPlayers": "በአንድ ጨዋታ ነባሪ ከፍተኛ ተጫዋቾች",
     "hintMinWithdrawal": "ተጫዋች ለማውጣት የሚጠይቀው ዝቅተኛ መጠን",
-    "hintOwnerShareRate": "ወደ እርስዎ የሚደርሰው የአድሚን የጨዋታ ኮሚሽን % (0-100)",
     "rpEyebrow": "ሪፖርቶች",
     "rpTitle": "ገቢ እና የጨዋታ ታሪክ",
     "rpDesc": "በመላ መድረኩ የተገኘ ገቢ እና የተጠናቀቁ ጨዋታዎች መዝገብ።",
@@ -918,7 +920,13 @@
     "entryFee": "የመግቢያ ክፍያ",
     "maxPlayers": "ከፍተኛ ተጫዋቾች",
     "created": "የተፈጠረ",
-    "prizePool": "የሽልማት ገንዘብ"
+    "prizePool": "የሽልማት ገንዘብ",
+    "labelOwnerFeePercent": "ከአድሚኖች የሚወሰድ የባለቤት ክፍያ (%)",
+    "hintOwnerFeePercent": "ከየአድሚን ድርሻ ወደ ባለቤት የሚሄደው ድርሻ (0-100)። ነባሪው 30 ነው።",
+    "labelMinPrizePercent": "ዝቅተኛ ሽልማት (% ከተሰብስቧ)",
+    "hintMinPrizePercent": "አድሚኑ ተጫዋቾች የፈለጉትን ድርሻ ከዚህ በታች ሽልማት ማየት አይችሉም።",
+    "labelMaxPrizePercent": "ከፍተኛ ሽልማት (% ከተሰብስቧ)",
+    "hintMaxPrizePercent": "አድሚኑ ተጫዋቾች የፈለጉትን ድርሻ ከዚህ በላይ ሽልማት ማየት አይችሉም።"
   },
   "mobile": {
     "navLobby": "ሎቢ",
@@ -927,7 +935,6 @@
     "notifications": "ማሳወቂያዎች",
     "noNotifications": "እስካሁን ምንም ማሳወቂያ የለም",
     "jackpotPool": "የጃክፖት ድምር",
-    "netPrize": "የተጣራ ሽልማት",
     "myGames": "የእኔ ጨዋታዎች",
     "noGames": "አሁን ምንም ጨዋታ የለም",
     "yourBalance": "የእርስዎ ቀሪ ሂሳብ",
@@ -965,6 +972,7 @@
     "noRequests": "ገና ጥያቄዎች የሉም",
     "topUpRequest": "የቶፕ-አፕ ጥያቄ",
     "withdrawalRequest": "የወጪ ጥያቄ",
-    "navProfile": "መገለጫ"
+    "navProfile": "መገለጫ",
+    "jackpotPrize": "ሽልማት"
   }
 }

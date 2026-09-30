@@ -30,7 +30,7 @@ public class TenantManagementService {
             "db/migration/V4__add_withdrawal_rejection_reason.sql",
             "db/migration/V5__add_bingo_claim_validated_by.sql",
             "db/migration/V6__add_bingo_claim_rejection_reason.sql",
-            "db/migration/V7__add_game_commission_percent.sql",
+            "db/migration/V7__add_automation_rake_percent.sql",
             "db/migration/V8__add_game_fairness_hash.sql",
             "db/migration/V9__add_game_auto_mark.sql",
             "db/migration/V10__add_game_card_marked_numbers.sql",
@@ -38,7 +38,8 @@ public class TenantManagementService {
             "db/migration/V12__add_game_custom_pattern.sql",
             "db/migration/V13__add_game_card_auto_mark.sql",
             "db/migration/V14__add_game_cards_game_card_unique.sql",
-            "db/migration/V15__fix_multi_card_constraints.sql"
+            "db/migration/V15__fix_multi_card_constraints.sql",
+            "db/migration/V16__game_prize_amount.sql"
     );
 
     private final TenantRegistryRepository tenantRegistryRepository;

@@ -1,4 +1,4 @@
-import { GameResponse } from './game';
+import { AdminGameResponse } from './game';
 
 export interface RevenueReportResponse {
   totalGames: number;
@@ -15,7 +15,7 @@ export interface DashboardSummaryResponse {
   recentPlayers: PlayerSummary[];
   totalGames: number;
   pendingClaimsCount: number;
-  recentGames: GameResponse[];
+  recentGames: AdminGameResponse[];
   pendingCoinRequests: number;
   pendingWithdrawals: number;
   balance: number;

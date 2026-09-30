@@ -8,14 +8,14 @@ import { Button, Card, Screen, ScreenHeader, Subtitle, Title } from '@/component
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
-import { GameResponse, GameStatus } from '@/types';
+import { PlayerGameResponse, GameStatus } from '@/types';
 
 export default function PlayerLobbyScreen() {
   const t = useTranslate();
   const router = useRouter();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'mine'>('all');
-  const [pickerGame, setPickerGame] = useState<GameResponse | null>(null);
+  const [pickerGame, setPickerGame] = useState<PlayerGameResponse | null>(null);
 
   // Games open/close without the player doing anything, and this tab stays
   // mounted, so poll and re-check on focus. Without this the lobby keeps
@@ -38,22 +38,24 @@ export default function PlayerLobbyScreen() {
     }, [refreshGames])
   );
 
-  const games: GameResponse[] = gamesQuery.data?.data ?? [];
+  const games: PlayerGameResponse[] = gamesQuery.data?.data ?? [];
 
   const visible = filter === 'mine'
     ? games.filter((g) => g.registered || g.activeGameId === g.id)
     : games;
 
-  const goGame = (g: GameResponse) => {
+  const goGame = (g: PlayerGameResponse) => {
     router.push({ pathname: '/(player)/game/[id]', params: { id: String(g.id) } });
   };
 
-  const register = async (g: GameResponse) => {
+  const register = async (g: PlayerGameResponse) => {
     setPickerGame(g);
   };
 
   const handleRegistered = async () => {
-    await gamesQuery.refetch();
+    // Registering charges the entry fee, so the balance card is stale until
+    // the wallet query is refetched. Games and wallet are separate caches.
+    await Promise.all([gamesQuery.refetch(), qc.invalidateQueries({ queryKey: ['wallet'] })]);
   };
 
   // A rejected registration usually means our copy of the lobby is out of date
@@ -64,7 +66,10 @@ export default function PlayerLobbyScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title={t('common.appName') ?? 'BingoPlus'} right={<ThemeToggleButton />} />
+      <ScreenHeader
+        title={t('common.appName') ?? 'BingoPlus'}
+        right={<ThemeToggleButton />}
+      />
 
       <View className="flex-row items-center justify-between mb-4 bg-bp-surface rounded-2xl border border-bp-borderInactive p-4">
         <View>
@@ -129,6 +134,7 @@ export default function PlayerLobbyScreen() {
           onFailed={handleRegisterFailed}
         />
       )}
+
     </Screen>
   );
 }
@@ -139,7 +145,7 @@ function GameCard({
   onRegister,
   t,
 }: {
-  game: GameResponse;
+  game: PlayerGameResponse;
   onOpen: () => void;
   onRegister: () => void;
   t: ReturnType<typeof useTranslate>;
@@ -164,10 +170,11 @@ function GameCard({
               'Entry'}: {game.entryFee}
           </Text>
           <Text className="text-bp-textSecondary">
-            {t('player.jackpotPool') ?? 'Pool'}: {game.prizePool.toLocaleString()}
+            {t('mobile.jackpotPrize') ?? 'Prize'}:{' '}
+            {game.prizeAmount == null ? '—' : game.prizeAmount.toLocaleString()}
           </Text>
           <Text className="text-bp-textSecondary">
-            {game.registeredPlayers ?? 0}/{game.maxPlayers}
+            {t('admin.maxPlayers') ?? 'Max'}: {game.maxPlayers}
           </Text>
         </View>
         {open && (

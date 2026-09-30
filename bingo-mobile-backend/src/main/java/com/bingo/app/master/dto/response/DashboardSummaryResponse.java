@@ -1,6 +1,6 @@
 package com.bingo.app.master.dto.response;
 
-import com.bingo.app.tenant.dto.response.GameResponse;
+import com.bingo.app.tenant.dto.response.AdminGameResponse;
 import com.bingo.app.tenant.dto.response.PlayerResponse;
 import lombok.Builder;
 
@@ -13,7 +13,7 @@ public record DashboardSummaryResponse(
         List<PlayerResponse> recentPlayers,
         long totalGames,
         long pendingClaimsCount,
-        List<GameResponse> recentGames,
+        List<AdminGameResponse> recentGames,
         long pendingCoinRequests,
         long pendingWithdrawals,
         BigDecimal balance

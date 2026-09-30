@@ -48,8 +48,14 @@ public class Game {
     private String customPatternCells;
     @Column(name = "call_interval")
     private Integer callInterval;
-    @Column(name = "commission_percent")
-    private BigDecimal commissionPercent = new BigDecimal("10.00");
+    /**
+     * Total awarded to the winners, chosen by the admin once enough players have
+     * registered. Null until they set it, and locked from the moment the game
+     * leaves REGISTRATION_OPEN. The admin's cut is whatever the pot has left
+     * over, so this is bounded by the platform's min/maxPrizePercent config.
+     */
+    @Column(name = "prize_amount")
+    private BigDecimal prizeAmount;
 
     /** When false players must daub (mark) called numbers themselves before claiming. */
     private Boolean autoMark = true;

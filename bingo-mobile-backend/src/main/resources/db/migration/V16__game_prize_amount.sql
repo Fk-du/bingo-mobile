@@ -1,0 +1,14 @@
+-- The admin now sets an absolute prize once they can see how many players
+-- registered, instead of choosing a commission percentage up front. The admin's
+-- cut becomes the remainder: commission = prize_pool - prize_amount.
+--
+-- This script runs once per TENANT database, so it must only touch tenant
+-- tables. The platform fee rates (ownerFeePercent, minPrizePercent,
+-- maxPrizePercent) live in platform_config in the MASTER database and are
+-- migrated by SchemaMigrationHelper.runMasterMigrations.
+--
+-- Only the DDL lives here. Backfilling live games from their old commission
+-- percentage needs a column check the script runner cannot do (it splits on
+-- semicolons, so it cannot run a DO block), so SchemaMigrationHelper carries
+-- that step and drops games.commission_percent afterwards.
+ALTER TABLE games ADD COLUMN IF NOT EXISTS prize_amount NUMERIC(12,2);

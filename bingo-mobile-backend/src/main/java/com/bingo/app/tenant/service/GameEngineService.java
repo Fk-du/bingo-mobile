@@ -62,10 +62,8 @@ public class GameEngineService {
     private final NotificationService notificationService;
     private final ConfigService configService;
     private final GameService gameService;
+    private final PrizeRules prizeRules;
 
-
-    @Value("${bingo.fees.admin-commission-percent:10}")
-    private BigDecimal defaultAdminCommissionPercent;
 
     @Value("${bingo.game.claim-timeout-seconds:300}")
     private int claimTimeoutSeconds;
@@ -637,8 +635,8 @@ public class GameEngineService {
 
     /**
      * Approve ALL pending claims as simultaneous winners (same call state).
-     * Up to {@link #MAX_SIMULTANEOUS_WINNERS} players share the net pool
-     * equally; the game ends and every winner's card is marked.
+     * The pot is shared equally between however many distinct players claimed;
+     * there is no cap on winners. The game ends and every winner's card is marked.
      */
     @Transactional(transactionManager = "tenantTransactionManager")
     public BingoClaimResult approveAllClaims(Long gameId, Long adminId) {
@@ -649,13 +647,6 @@ public class GameEngineService {
         if (pending.isEmpty()) {
             throw new GameProgressException("No pending claims for game " + gameId,
                     "There are no claims waiting for review.");
-        }
-        if (pending.size() > MAX_SIMULTANEOUS_WINNERS) {
-            // More than the cap of simultaneous winners claimed at once — no claimant can be
-            // trusted to have the only valid Bingo. Abandon the round: void the claims (no bans),
-            // deal a freshly shuffled number sequence, restart the countdown and tell every player
-            // that a fresh game is starting.
-            return restartDueToTooManyClaims(gameId, adminId, pending.size());
         }
 
         // Atomically lock every claim — any that lose a race are dropped.
@@ -701,10 +692,6 @@ public class GameEngineService {
             throw new GameProgressException("No pending claims for game " + gameId,
                     "There are no claims waiting for review.");
         }
-        if (pending.size() > MAX_SIMULTANEOUS_WINNERS) {
-            return restartDueToTooManyClaims(gameId, adminId, pending.size());
-        }
-
         BingoClaim claim = bingoClaimRepository.findById(claimId)
                 .orElseThrow(() -> new RuntimeException("Claim not found"));
         if (!claim.getGameId().equals(gameId)) {
@@ -753,21 +740,11 @@ public class GameEngineService {
                     .gameEnded(false)
                     .approvedCount(1)
                     .rewardAmount(java.math.BigDecimal.ZERO)
-                    .commission(java.math.BigDecimal.ZERO)
                     .build();
         }
         return settleApprovedWinners(game, adminId);
     }
 
-    /**
-     * Pay out the confirmed winners of a game and end it. Every approved claim is
-     * one simultaneous winner and they take the net pool in equal shares, no matter
-     * how many cards claimed: two claimants split the pot two ways, three split it
-     * three ways. With no approved winner the game simply resumes.
-     *
-     * <p>Guarded by the game row lock and by the {@code CLAIM_PENDING} status, so the
-     * commission can only ever be taken and the pot only ever be paid once.
-     */
     /**
      * Every claim of a round was rejected, so there is no winner to pay: tell the
      * room the round is over, then bring the game back with the shared countdown so
@@ -786,7 +763,6 @@ public class GameEngineService {
                 .gameEnded(false)
                 .approvedCount(0)
                 .rewardAmount(java.math.BigDecimal.ZERO)
-                .commission(java.math.BigDecimal.ZERO)
                 .build();
     }
 
@@ -796,6 +772,15 @@ public class GameEngineService {
     }
 
     /**
+     * Pay out the confirmed winners of a game and end it. Every approved claim is
+     * one simultaneous winner and they take the game's prize in equal shares, no
+     * matter how many cards claimed: two claimants split the prize two ways, three
+     * split it three ways. The admin keeps the rest of the pot as commission, and
+     * the owner a share of that. With no approved winner the game simply resumes.
+     *
+     * <p>Guarded by the game row lock and by the {@code CLAIM_PENDING} status, so the
+     * commission can only ever be taken and the prize only ever be paid once.
+     *
      * @param approved the confirmed winners of this game. Callers that just locked the
      *                 claims pass them in directly; callers that resolve a claim in a
      *                 later transaction re-read the confirmed winners instead.
@@ -810,15 +795,17 @@ public class GameEngineService {
 
         int shareCount = winners.size();
         BigDecimal prizePool = game.getPrizePool();
+        // The admin committed to a prize, not to a percentage, so the winners get
+        // that figure and the admin keeps the rest of the pot as commission.
+        BigDecimal prize = prizeRules.prizeFor(game);
         BigDecimal grossCommission = commissionFor(game);
         BigDecimal ownerShare = ownerShareFor(grossCommission);
-        BigDecimal netPool = prizePool.subtract(grossCommission);
         walletService.creditAgentCommission(game.getAdminUserId(), grossCommission, gameId);
         if (ownerShare.signum() > 0) {
             walletService.accrueOwnerFee(ownerShare, gameId);
         }
 
-        BigDecimal[] shares = splitEvenly(netPool, shareCount);
+        BigDecimal[] shares = splitEvenly(prize, shareCount);
         for (int i = 0; i < shareCount; i++) {
             BingoClaim winner = winners.get(i);
             winner.setRewardAmount(shares[i]);
@@ -839,9 +826,9 @@ public class GameEngineService {
         stopCalling(gameId);
         publishGameStatusEvent(gameId, GameStatus.ENDED);
 
-        log.info("Game {}: Admin {} settled {} simultaneous winner(s) from a pot of {}, "
+        log.info("Game {}: Admin {} settled {} simultaneous winner(s): prize {} from a pot of {}, "
                         + "each paid {}. Game ended.",
-                gameId, adminId, shareCount, prizePool, shares[0]);
+                gameId, adminId, shareCount, prize, prizePool, shares[0]);
 
         return BingoClaimResult.builder()
                 .valid(true)
@@ -849,7 +836,6 @@ public class GameEngineService {
                 .gameEnded(true)
                 .approvedCount(shareCount)
                 .rewardAmount(shares[0])
-                .commission(grossCommission)
                 .build();
     }
 
@@ -909,28 +895,6 @@ public class GameEngineService {
         log.info("Game {}: claim {} voided as a duplicate claim. Reason: {}",
                 game.getId(), claimId, reason);
         return settleApprovedWinners(game, adminId);
-    }
-
-    /**
-     * Too many players claimed at once (more than the simultaneous-winner cap). All the
-     * claims are discarded without bans and the round is abandoned: a freshly shuffled
-     * number sequence is committed, the countdown restarts, and players are told a fresh
-     * game is starting. Nothing is paid and no one is penalised.
-     */
-    private BingoClaimResult restartDueToTooManyClaims(Long gameId, Long adminId, int claimCount) {
-        gameService.restartGame(gameId, adminId);
-        scheduleGameStart(gameId, COUNTDOWN_SECONDS, REASON_RESTART);
-        publishGameRestartedEvent(gameId);
-        log.info("Game {}: {} simultaneous claims exceed the {} winner cap — restarted with a fresh number sequence.",
-                gameId, claimCount, MAX_SIMULTANEOUS_WINNERS);
-        return BingoClaimResult.builder()
-                .valid(false)
-                .pendingReview(false)
-                .gameEnded(false)
-                .approvedCount(0)
-                .rewardAmount(java.math.BigDecimal.ZERO)
-                .restarted(true)
-                .build();
     }
 
     /** Exact cent-perfect even split; earlier winners absorb the rounding remainder. */
@@ -1173,12 +1137,12 @@ public class GameEngineService {
         log.info("Game {} ended without winner. Reason: {}", gameId, reason);
     }
 
-    /** Admin commission for a game: per-game percentage, falling back to the configured default. */
+    /**
+     * Admin commission for a game: whatever the pot has left after the prize the
+     * admin committed to. See {@link PrizeRules} for the bounds on that prize.
+     */
     private BigDecimal commissionFor(Game game) {
-        BigDecimal pct = game.getCommissionPercent() != null
-                ? game.getCommissionPercent() : defaultAdminCommissionPercent;
-        return game.getPrizePool().multiply(pct)
-                .divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
+        return prizeRules.commissionFor(game);
     }
 
     /**
@@ -1187,7 +1151,7 @@ public class GameEngineService {
      * amount only accrues as a cash debt the agent settles with the owner.
      */
     private BigDecimal ownerShareFor(BigDecimal grossCommission) {
-        BigDecimal rate = configService.getOwnerShareRate();
+        BigDecimal rate = configService.getOwnerFeePercent();
         return grossCommission.multiply(rate)
                 .divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
     }
@@ -1476,14 +1440,13 @@ public class GameEngineService {
                 .currentCallIndex(game.getCurrentCallIndex())
                 .totalNumbersCalled(game.getTotalNumbersCalled())
                 .calledNumbers(calledNumbers)
-                .prizePool(game.getPrizePool())
+                .prizeAmount(game.getPrizeAmount())
                 .playerCards(playerCards)
                 .hasPlayerCard(!playerCards.isEmpty())
                 .isWinner(anyWinner)
                 .rewardAmount(winnerReward)
                 .winnerCount(winnerCount)
                 .autoMark(autoMark)
-                .commissionPercent(game.getCommissionPercent())
                 .startTime(game.getStartTime())
                 .winningPattern(game.getWinningPattern())
                 .customPatternName(game.getCustomPatternName())
@@ -1680,9 +1643,6 @@ public class GameEngineService {
     }
 
 
-    // Maximum simultaneous winners who may share the pot
-    private static final int MAX_SIMULTANEOUS_WINNERS = 3;
-
     /**
      * Countdown every player gets before the numbers start — on the first call of a
      * game and on every resume alike — so nobody is caught off guard by a game that
@@ -1762,11 +1722,11 @@ public class GameEngineService {
     }
 
     /** Tell every player in the game that the round was voided and a fresh game starts over. */
-    private void publishGameRestartedEvent(Long gameId) {
+    public void publishGameRestartedEvent(Long gameId) {
         ObjectNode data = objectMapper.createObjectNode();
-        data.put("message", "The game is restarting because more than 3 players claimed Bingo at once. "
-                + "All registered players keep their cards and can play again — dealing a fresh set of numbers.");
-        data.put("messageKey", "game.restarted.multiClaim");
+        data.put("message", "The game is restarting with a fresh number sequence. "
+                + "All registered players keep their cards and can play again.");
+        data.put("messageKey", "game.restarted");
         publishEvent(gameId, "GAME_RESTARTED", data);
     }
 
@@ -1855,7 +1815,6 @@ public class GameEngineService {
         private boolean gameEnded;
         private int approvedCount;
         private BigDecimal rewardAmount;
-        private BigDecimal commission;
         private boolean banned;
         private boolean restarted;
     }
@@ -1868,14 +1827,13 @@ public class GameEngineService {
         private Integer currentCallIndex;
         private Integer totalNumbersCalled;
         private List<Integer> calledNumbers;
-        private BigDecimal prizePool;
+        private BigDecimal prizeAmount;
         private List<GameStateResponse.PlayerCardView> playerCards;
         private boolean hasPlayerCard;
         private boolean isWinner;
         private BigDecimal rewardAmount;
         private int winnerCount;
         private Boolean autoMark;
-        private BigDecimal commissionPercent;
         private java.time.LocalDateTime startTime;
         private String winningPattern;
         private String customPatternName;

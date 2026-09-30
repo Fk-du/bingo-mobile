@@ -6,7 +6,7 @@ import com.bingo.app.master.repository.UserRepository;
 import com.bingo.app.tenant.entity.Transaction;
 import com.bingo.app.tenant.enums.GameStatus;
 import com.bingo.app.tenant.enums.TransactionType;
-import com.bingo.app.tenant.dto.response.GameResponse;
+import com.bingo.app.tenant.dto.response.AdminGameResponse;
 import com.bingo.app.tenant.repository.TransactionRepository;
 import com.bingo.app.tenant.service.GameService;
 import com.bingo.app.tenant.service.PlayerService;
@@ -101,7 +101,7 @@ public class DashboardService {
     }
 
     /** Attach the actual commission credited to the agent for a game (0 if it was refunded/no-winner). */
-    private GameResponse withCommissionEarned(GameResponse game) {
+    private AdminGameResponse withCommissionEarned(AdminGameResponse game) {
         BigDecimal commission = commissionForGame(game.id());
         return game.toBuilder().commissionEarned(commission).build();
     }

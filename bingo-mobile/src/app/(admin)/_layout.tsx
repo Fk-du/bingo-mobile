@@ -38,7 +38,13 @@ export default function AdminLayout() {
           ),
         }}
       />
-      <Stack.Screen name="game/[id]" options={{ title: '', headerBackTitle: 'Back' }} />
+      <Stack.Screen
+        name="game/[id]"
+        options={{
+          title: t('admin.adgEyebrow') ?? 'Live game',
+          headerBackTitle: t('common.back') ?? 'Back',
+        }}
+      />
       <Stack.Screen name="players" options={{ title: t('admin.playersTitle') ?? 'Players' }} />
       <Stack.Screen name="cards" options={{ title: t('admin.cardsTitle') ?? 'Card pool' }} />
       <Stack.Screen name="coins" options={{ title: t('admin.topUpTitle') ?? 'Top-up approvals' }} />

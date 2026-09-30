@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -19,9 +20,6 @@ import java.util.stream.Collectors;
 public class ConfigService {
 
     private final PlatformConfigRepository configRepository;
-
-    @Value("${bingo.max-winners:3}")
-    private int defaultMaxWinners;
 
     @Value("${bingo.card-size:25}")
     private int defaultCardSize;
@@ -41,8 +39,14 @@ public class ConfigService {
     @Value("${app.game.min-withdrawal:10}")
     private int defaultMinWithdrawal;
 
-    @Value("${bingo.fees.owner-share-rate-percent:20}")
-    private BigDecimal defaultOwnerShareRate;
+    @Value("${bingo.fees.owner-fee-percent:30}")
+    private BigDecimal defaultOwnerFeePercent;
+
+    @Value("${bingo.fees.min-prize-percent:50}")
+    private BigDecimal defaultMinPrizePercent;
+
+    @Value("${bingo.fees.max-prize-percent:90}")
+    private BigDecimal defaultMaxPrizePercent;
 
     @Value("${app.telegram.registration-bot.username:}")
     private String registrationBotUsername;
@@ -99,18 +103,35 @@ public class ConfigService {
                 log.info("Seeded default config: {}={}", entry.getKey(), entry.getValue());
             }
         }
+
+        // Settings a later release retired would otherwise linger in the table and keep
+        // showing up in the super-admin screen, since getAll() returns every stored row.
+        for (String retired : RETIRED_KEYS) {
+            if (existingKeys.contains(retired)) {
+                configRepository.deleteById(retired);
+                log.info("Removed retired config: {}", retired);
+            }
+        }
     }
+
+    /**
+     * Config keys that no longer drive anything. {@code maxWinners} went away when the
+     * simultaneous-winner cap was dropped: the pot is now shared between however many
+     * distinct players claimed, so there is no limit left to configure.
+     */
+    private static final List<String> RETIRED_KEYS = List.of("maxWinners");
 
     private Map<String, String> defaults() {
         return Map.of(
-                "maxWinners", String.valueOf(defaultMaxWinners),
                 "cardSize", String.valueOf(defaultCardSize),
                 "numberRange", String.valueOf(defaultNumberRange),
                 "autoCallInterval", String.valueOf(defaultAutoCallInterval),
                 "entryFee", String.valueOf(defaultEntryFee),
                 "maxPlayers", String.valueOf(defaultMaxPlayers),
                 "minWithdrawal", String.valueOf(defaultMinWithdrawal),
-                "ownerShareRate", String.valueOf(defaultOwnerShareRate)
+                "ownerFeePercent", String.valueOf(defaultOwnerFeePercent),
+                "minPrizePercent", String.valueOf(defaultMinPrizePercent),
+                "maxPrizePercent", String.valueOf(defaultMaxPrizePercent)
         );
     }
 
@@ -138,32 +159,52 @@ public class ConfigService {
 
     private Map<String, Object> getDefaultMap() {
         return Map.of(
-                "maxWinners", defaultMaxWinners,
                 "cardSize", defaultCardSize,
                 "numberRange", defaultNumberRange,
                 "autoCallInterval", defaultAutoCallInterval,
                 "entryFee", defaultEntryFee,
                 "maxPlayers", defaultMaxPlayers,
                 "minWithdrawal", defaultMinWithdrawal,
-                "ownerShareRate", defaultOwnerShareRate
+                "ownerFeePercent", defaultOwnerFeePercent,
+                "minPrizePercent", defaultMinPrizePercent,
+                "maxPrizePercent", defaultMaxPrizePercent
         );
     }
 
     /**
-     * Share (in %) the super admin takes from each admin's per-game commission.
-     * The agent keeps (100 - ownerShareRate)% of their own commission; the owner
-     * gets credited a PLATFORM_FEE for every settled game.
+     * Share (in %) the super admin takes out of each admin's per-game commission
+     * (the pot minus the prize). The agent keeps the rest; the owner gets a
+     * PLATFORM_FEE ledger row for every settled game. Editable by the super admin
+     * from the app's config screen, so the default is only a starting point.
      */
-    public BigDecimal getOwnerShareRate() {
+    public BigDecimal getOwnerFeePercent() {
+        return percent("ownerFeePercent", defaultOwnerFeePercent);
+    }
+
+    /**
+     * Floor for the prize an admin may set, as a % of the pot collected so far.
+     * The prize is chosen by the admin, so this is what stops a game paying out a
+     * token amount and keeping the rest.
+     */
+    public BigDecimal getMinPrizePercent() {
+        return percent("minPrizePercent", defaultMinPrizePercent);
+    }
+
+    /** Ceiling for the prize an admin may set, as a % of the pot collected so far. */
+    public BigDecimal getMaxPrizePercent() {
+        return percent("maxPrizePercent", defaultMaxPrizePercent);
+    }
+
+    private BigDecimal percent(String key, BigDecimal fallback) {
         try {
-            Object value = getAll().get("ownerShareRate");
+            Object value = getAll().get(key);
             if (value instanceof Number number) {
                 return BigDecimal.valueOf(number.doubleValue());
             }
         } catch (Exception e) {
-            log.warn("Failed to read ownerShareRate config, using default: {}", e.getMessage());
+            log.warn("Failed to read {} config, using default: {}", key, e.getMessage());
         }
-        return defaultOwnerShareRate;
+        return fallback;
     }
 
     private Object parseValue(String raw) {

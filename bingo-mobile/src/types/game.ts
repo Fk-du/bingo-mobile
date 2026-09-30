@@ -8,7 +8,6 @@ export interface CreateGameRequest {
   customPatternName?: string;
   customPatternCells?: string;
   callInterval?: number;
-  commissionPercent?: number;
   autoMark?: boolean;
 }
 
@@ -18,11 +17,13 @@ export interface GameSettingsUpdateRequest {
   winningPattern?: string;
   customPatternName?: string;
   customPatternCells?: string;
-  commissionPercent?: number;
+  /** Total the winners share. The admin sets it once players have registered. */
+  prizeAmount?: number;
   autoMark?: boolean;
 }
 
-export interface GameResponse {
+/** A game as its ADMIN sees it: the full financial picture. */
+export interface AdminGameResponse {
   id: number;
   adminUserId: number;
   status: GameStatus;
@@ -31,19 +32,49 @@ export interface GameResponse {
   currentCallIndex: number;
   totalNumbersCalled: number;
   prizePool: number;
+  /** Total the winners share. Null until the admin sets it. */
+  prizeAmount?: number | null;
   winningPattern: string | null;
   customPatternName?: string | null;
   customPatternCells?: string | null;
   autoMark: boolean;
   callInterval: number | null;
-  commissionPercent?: number;
   commissionEarned?: number | null;
+  /** Lowest / highest prize the admin may set for the current pot. */
+  minPrize?: number | null;
+  maxPrize?: number | null;
   startTime: string | null;
   endTime: string | null;
   createdAt: string;
   registered?: boolean;
   activeGameId?: number | null;
   registeredPlayers?: number;
+}
+
+/**
+ * A game as a PLAYER sees it. The pot, the admin's cut and the number of other
+ * players are deliberately absent — the backend does not send them.
+ */
+export interface PlayerGameResponse {
+  id: number;
+  adminUserId: number;
+  status: GameStatus;
+  entryFee: number;
+  maxPlayers: number;
+  currentCallIndex: number;
+  totalNumbersCalled: number;
+  /** The advertised payout. Public, because it is what the player plays for. */
+  prizeAmount?: number | null;
+  winningPattern: string | null;
+  customPatternName?: string | null;
+  customPatternCells?: string | null;
+  autoMark: boolean;
+  callInterval: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  createdAt: string;
+  registered?: boolean;
+  activeGameId?: number | null;
 }
 
 export interface CalledNumberResponse {
@@ -82,19 +113,19 @@ export interface GameStateResponse {
   customPatternName?: string | null;
   customPatternCells?: string | null;
   autoMark: boolean;
-  commissionPercent?: number | null;
   fairnessHash?: string | null;
   currentCallIndex: number;
   totalNumbersCalled: number;
   calledNumbers: number[];
   calledNumbersLabeled?: string[];
-  prizePool: number;
+  /** The advertised payout. The pot it came from is not sent to players. */
+  prizeAmount?: number | null;
   playerCards: PlayerCardView[] | null;
   hasPlayerCard: boolean;
   isWinner: boolean;
-  /** The winner's own share of the pot; null for anyone who did not win. */
+  /** The winner's own share of the prize; null for anyone who did not win. */
   rewardAmount?: number | null;
-  /** How many cards won this game, so a winner can see the pot was shared. */
+  /** How many cards won this game, so a winner can see the prize was shared. */
   winnerCount?: number | null;
   startTime?: string | null;
 }
@@ -131,7 +162,6 @@ export interface BingoClaimResultResponse {
   gameEnded?: boolean;
   approvedCount?: number;
   rewardAmount: number;
-  commission?: number;
   banned: boolean;
   restarted?: boolean;
 }
@@ -155,7 +185,9 @@ export interface AdminGameStateResponse {
   customPatternCells?: string | null;
   autoMark: boolean;
   callInterval: number | null;
-  commissionPercent?: number;
+  prizeAmount?: number | null;
+  minPrize?: number | null;
+  maxPrize?: number | null;
   startTime: string | null;
   endTime: string | null;
   createdAt: string;
@@ -164,13 +196,24 @@ export interface AdminGameStateResponse {
   playerCount: number;
 }
 
+/** What the admin needs to choose a prize: the pot, the allowed band, a suggestion. */
+export interface PrizeSuggestion {
+  collected: number;
+  minPrize: number;
+  maxPrize: number;
+  suggestedPrize: number;
+  suggestedCommission: number;
+  currentPrize?: number | null;
+}
+
 export interface AutomationConfig {
   adminUserId: number;
   enabled: boolean;
   entryFee: number;
   maxPlayers: number;
   callInterval: number;
-  commissionPercent: number;
+  /** The rake this admin prefers, used to pre-fill the suggested prize. */
+  rakePercent: number;
   winningPattern: string | null;
   customPatternName?: string | null;
   customPatternCells?: string | null;
@@ -186,7 +229,7 @@ export interface AutomationConfigRequest {
   entryFee: number;
   maxPlayers: number;
   callInterval: number;
-  commissionPercent: number;
+  rakePercent: number;
   winningPattern?: string;
   customPatternName?: string;
   customPatternCells?: string;
@@ -218,7 +261,7 @@ export interface PlayerCardHistoryCard {
 }
 
 export interface PlayerCardHistory {
-  game: GameResponse;
+  game: PlayerGameResponse;
   cards: PlayerCardHistoryCard[];
   bet: number;
   win: number;

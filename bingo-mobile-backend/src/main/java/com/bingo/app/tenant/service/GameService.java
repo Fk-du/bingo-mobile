@@ -2,8 +2,9 @@ package com.bingo.app.tenant.service;
 
 import com.bingo.app.tenant.dto.CreateGameRequest;
 import com.bingo.app.tenant.dto.mapper.TenantMapper;
-import com.bingo.app.tenant.dto.response.GameResponse;
+import com.bingo.app.tenant.dto.response.AdminGameResponse;
 import com.bingo.app.tenant.dto.response.PlayerCardHistoryResponse;
+import com.bingo.app.tenant.dto.response.PlayerGameResponse;
 import com.bingo.app.tenant.repository.BingoClaimRepository;
 import com.bingo.app.tenant.entity.BingoClaim;
 import com.bingo.app.tenant.entity.CalledNumber;
@@ -48,9 +49,11 @@ public class GameService {
     private final TransactionRepository transactionRepository;
     private final PlayerService playerService;
     private final TenantMapper tenantMapper;
+    private final PrizeRules prizeRules;
+    private final com.bingo.app.tenant.repository.AutomationConfigRepository automationConfigRepository;
 
     @Transactional(transactionManager = "tenantTransactionManager")
-    public GameResponse createGameWithEntryFee(Long adminUserId, CreateGameRequest request) {
+    public AdminGameResponse createGameWithEntryFee(Long adminUserId, CreateGameRequest request) {
         if (gameRepository.hasActiveGame(adminUserId)) {
             throw new GameProgressException("Admin already has an active game",
                     "You already have an active game. Finish it before creating a new one.");
@@ -66,7 +69,9 @@ public class GameService {
                 .prizePool(BigDecimal.ZERO)
                 .autoMark(request.getAutoMark() == null || request.getAutoMark())
                 .callInterval(request.getCallInterval() != null ? request.getCallInterval() : 5)
-                .commissionPercent(request.getCommissionPercent() != null ? request.getCommissionPercent() : new BigDecimal("10.00"))
+                // Left null on purpose: the admin sets the prize once they can see
+                // how many players registered, and cannot start without it.
+                .prizeAmount(null)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -78,19 +83,19 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public Optional<GameResponse> findAdminWaitingGame(Long adminUserId) {
+    public Optional<AdminGameResponse> findAdminWaitingGame(Long adminUserId) {
         return gameRepository.findByAdminUserIdAndStatus(adminUserId, GameStatus.REGISTRATION_OPEN)
                 .map(tenantMapper::toDto);
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public Optional<GameResponse> findAdminStartedGame(Long adminUserId) {
+    public Optional<AdminGameResponse> findAdminStartedGame(Long adminUserId) {
         return gameRepository.findByAdminUserIdAndStatus(adminUserId, GameStatus.IN_PROGRESS)
                 .map(tenantMapper::toDto);
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public Optional<GameResponse> findCurrentGameForAdmin(Long adminUserId) {
+    public Optional<AdminGameResponse> findCurrentGameForAdmin(Long adminUserId) {
         return gameRepository.findAllByAdminUserIdAndStatusIn(adminUserId,
                 List.of(GameStatus.STARTING, GameStatus.IN_PROGRESS,
                         GameStatus.PAUSED, GameStatus.CLAIM_PENDING))
@@ -99,7 +104,7 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public List<GameResponse> findOpenGamesForAdmin(Long adminUserId) {
+    public List<AdminGameResponse> findOpenGamesForAdmin(Long adminUserId) {
         return gameRepository.findAllByAdminUserIdAndStatusIn(adminUserId,
                 List.of(GameStatus.REGISTRATION_OPEN, GameStatus.STARTING, GameStatus.IN_PROGRESS,
                         GameStatus.PAUSED, GameStatus.CLAIM_PENDING))
@@ -110,8 +115,13 @@ public class GameService {
                 .toList();
     }
 
+    /**
+     * A player's view of the admin's open tables. Uses {@link PlayerGameResponse},
+     * so the pot, the admin's cut and how many other players are in the room are
+     * not sent — the player gets the published prize and their own registration.
+     */
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public List<GameResponse> findOpenGamesForPlayer(Long adminUserId, Long playerId) {
+    public List<PlayerGameResponse> findOpenGamesForPlayer(Long adminUserId, Long playerId) {
         Long activeGameId = gameCardRepository.findByPlayerIdAndActiveGames(playerId).stream()
                 .findFirst()
                 .map(GameCard::getGameId)
@@ -121,24 +131,27 @@ public class GameService {
                 List.of(GameStatus.REGISTRATION_OPEN, GameStatus.STARTING, GameStatus.IN_PROGRESS,
                         GameStatus.PAUSED, GameStatus.CLAIM_PENDING))
                 .stream()
-                .map(game -> tenantMapper.toDto(game).toBuilder()
+                .map(game -> tenantMapper.toPlayerDto(game).toBuilder()
                         .registered(gameCardRepository.existsByGameIdAndPlayerId(game.getId(), playerId))
-                        .registeredPlayers((int) gameCardRepository.countDistinctPlayersByGameId(game.getId()))
                         .activeGameId(activeGameId)
                         .build())
                 .toList();
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public Optional<GameResponse> findCurrentGameForPlayer(Long adminUserId, Long playerId) {
-        return findCurrentGameForAdmin(adminUserId)
-                .map(game -> game.toBuilder()
-                        .registered(gameCardRepository.existsByGameIdAndPlayerId(game.id(), playerId))
+    public Optional<PlayerGameResponse> findCurrentGameForPlayer(Long adminUserId, Long playerId) {
+        return gameRepository.findAllByAdminUserIdAndStatusInOrderByCreatedAtDesc(adminUserId,
+                        List.of(GameStatus.REGISTRATION_OPEN, GameStatus.STARTING, GameStatus.IN_PROGRESS,
+                                GameStatus.PAUSED, GameStatus.CLAIM_PENDING))
+                .stream()
+                .findFirst()
+                .map(game -> tenantMapper.toPlayerDto(game).toBuilder()
+                        .registered(gameCardRepository.existsByGameIdAndPlayerId(game.getId(), playerId))
                         .build());
     }
 
     @Transactional(transactionManager = "tenantTransactionManager")
-    public GameResponse startGameForAdmin(Long adminUserId, Long gameId) {
+    public AdminGameResponse startGameForAdmin(Long adminUserId, Long gameId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new GameProgressException("Game not found", "Game not found."));
 
@@ -158,6 +171,10 @@ public class GameService {
                     "Game needs at least 2 players to start. Currently: " + playerCount,
                     "At least 2 registered players are needed to start. Currently: " + playerCount);
         }
+
+        // No agreed prize, no game. Re-checked here because the pot grew after the
+        // admin set it, which can move it outside the allowed percentage range.
+        prizeRules.requirePrizeSet(game);
 
         List<Integer> sequence = generateSealedNumberSequence();
         saveNumberSequence(gameId, sequence);
@@ -204,7 +221,7 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager")
-    public GameResponse endGameManually(Long gameId, Long adminUserId) {
+    public AdminGameResponse endGameManually(Long gameId, Long adminUserId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new GameProgressException("Game not found", "Game not found."));
 
@@ -228,12 +245,12 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public Optional<GameResponse> getGameById(Long gameId) {
+    public Optional<AdminGameResponse> getGameById(Long gameId) {
         return gameRepository.findById(gameId).map(tenantMapper::toDto);
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public List<GameResponse> getAllGamesForAdmin(Long adminUserId) {
+    public List<AdminGameResponse> getAllGamesForAdmin(Long adminUserId) {
         return gameRepository.findAllByAdminUserIdOrderByCreatedAtDesc(adminUserId).stream()
                 .map(tenantMapper::toDto)
                 .toList();
@@ -252,14 +269,14 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public List<GameResponse> findAllGames() {
+    public List<AdminGameResponse> findAllGames() {
         return gameRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(tenantMapper::toDto)
                 .toList();
     }
 
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
-    public List<GameResponse> getGamesForPlayer(Long playerId) {
+    public List<PlayerGameResponse> getGamesForPlayer(Long playerId) {
         List<Long> gameIds = gameCardRepository.findByPlayerIdOrderByCreatedAtDesc(playerId).stream()
                 .map(GameCard::getGameId)
                 .distinct()
@@ -268,7 +285,7 @@ public class GameService {
                 .map(gameRepository::findById)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
-                .map(tenantMapper::toDto)
+                .map(tenantMapper::toPlayerDto)
                 .toList();
     }
 
@@ -343,7 +360,7 @@ public class GameService {
             BigDecimal refund = m != null && m[2] != null ? m[2] : BigDecimal.ZERO;
             Game game = gamesById.get(gameId);
             result.add(PlayerCardHistoryResponse.builder()
-                    .game(tenantMapper.toDto(game))
+                    .game(tenantMapper.toPlayerDto(game))
                     .cards(cards)
                     .bet(bet)
                     .win(win)
@@ -372,7 +389,7 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager")
-    public GameResponse updateGameSettings(Long gameId, Long adminUserId, Integer maxPlayers, Integer callInterval, String winningPattern, String customPatternName, String customPatternCells, java.math.BigDecimal commissionPercent, Boolean autoMark) {
+    public AdminGameResponse updateGameSettings(Long gameId, Long adminUserId, Integer maxPlayers, Integer callInterval, String winningPattern, String customPatternName, String customPatternCells, java.math.BigDecimal prizeAmount, Boolean autoMark) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new GameProgressException("Game not found", "Game not found."));
 
@@ -395,19 +412,49 @@ public class GameService {
         if (winningPattern != null) {
             applyPattern(game, winningPattern, customPatternName, customPatternCells);
         }
-        if (commissionPercent != null) {
-            if (commissionPercent.compareTo(java.math.BigDecimal.ZERO) < 0
-                    || commissionPercent.compareTo(new java.math.BigDecimal("90")) > 0) {
-                throw new GameProgressException("Invalid commission",
-                        "Commission must be between 0% and 90%.");
-            }
-            game.setCommissionPercent(commissionPercent);
+        if (prizeAmount != null) {
+            // Validated against the pot collected so far; the admin's cut is
+            // whatever is left, so this is where their margin is actually set.
+            prizeRules.applyPrize(game, prizeAmount);
+            log.info("Game {}: admin {} set the prize to {} for a pot of {}",
+                    gameId, adminUserId, game.getPrizeAmount(), game.getPrizePool());
         }
         if (autoMark != null) {
             game.setAutoMark(autoMark);
         }
 
         return tenantMapper.toDto(gameRepository.save(game));
+    }
+
+    /**
+     * How much has been collected, the range the platform allows as a prize, and
+     * a suggestion from the admin's preferred rake. The pot keeps growing while
+     * registration is open, so this is worth re-reading as players join.
+     */
+    @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
+    public com.bingo.app.tenant.dto.response.PrizeSuggestionResponse getPrizeSuggestion(Long gameId, Long adminUserId) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new GameProgressException("Game not found", "Game not found."));
+
+        if (!game.getAdminUserId().equals(adminUserId)) {
+            throw new GameProgressException("Game does not belong to this admin",
+                    "This game does not belong to you.");
+        }
+
+        java.math.BigDecimal rake = automationConfigRepository.findByAdminUserId(adminUserId)
+                .map(com.bingo.app.tenant.entity.AutomationConfig::getRakePercent)
+                .orElse(null);
+        java.math.BigDecimal suggested = prizeRules.suggestedPrize(game.getPrizePool(),
+                rake != null ? rake : new java.math.BigDecimal("10.00"));
+
+        return com.bingo.app.tenant.dto.response.PrizeSuggestionResponse.builder()
+                .collected(game.getPrizePool())
+                .minPrize(prizeRules.minPrizeFor(game.getPrizePool()))
+                .maxPrize(prizeRules.maxPrizeFor(game.getPrizePool()))
+                .suggestedPrize(suggested)
+                .suggestedCommission(game.getPrizePool().subtract(suggested))
+                .currentPrize(game.getPrizeAmount())
+                .build();
     }
 
     /**
@@ -443,7 +490,7 @@ public class GameService {
      * fair-play commitment and go back to the 5s starting countdown.
      */
     @Transactional(transactionManager = "tenantTransactionManager")
-    public GameResponse restartGame(Long gameId, Long adminUserId) {
+    public AdminGameResponse restartGame(Long gameId, Long adminUserId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new GameProgressException("Game not found", "Game not found."));
 

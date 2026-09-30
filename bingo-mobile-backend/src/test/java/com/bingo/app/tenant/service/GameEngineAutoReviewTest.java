@@ -70,11 +70,14 @@ class GameEngineAutoReviewTest {
 
     @BeforeEach
     void setUp() {
-        when(configService.getOwnerShareRate()).thenReturn(java.math.BigDecimal.ZERO);
+        when(configService.getOwnerFeePercent()).thenReturn(java.math.BigDecimal.ZERO);
         engine = new GameEngineService(gameRepository, calledNumberRepository, gameCardRepository,
                 bingoClaimRepository, walletService, cardService, objectMapper,
                 realTransactionTemplate(), messagingTemplate, tenantMapper,
-                null, userRepository, notificationService, configService, gameService);
+                null, userRepository, notificationService, configService, gameService,
+                new PrizeRules(configService));
+        when(configService.getMinPrizePercent()).thenReturn(new java.math.BigDecimal("50"));
+        when(configService.getMaxPrizePercent()).thenReturn(new java.math.BigDecimal("90"));
         when(gameRepository.save(any(Game.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -102,7 +105,7 @@ class GameEngineAutoReviewTest {
         g.setId(id);
         g.setAdminUserId(2L);
         g.setPrizePool(new java.math.BigDecimal("20.00"));
-        g.setCommissionPercent(new java.math.BigDecimal("10.00"));
+        g.setPrizeAmount(new java.math.BigDecimal("18.00"));
         g.setCallInterval(3600);
         g.setWinningPattern(pattern);
         g.setStatus(GameStatus.CLAIM_PENDING);
@@ -275,8 +278,8 @@ class GameEngineAutoReviewTest {
     }
 
     @Test
-    @DisplayName("more than the winner cap is NOT auto-restarted: every claim waits for the admin")
-    void tooManyClaimsNoLongerAutoReset() {
+    @DisplayName("many simultaneous claims are NOT auto-restarted: every claim waits for the admin")
+    void manyClaimsNoAutoReset() {
         Game g = game(30L, "SINGLE_LINE");
         BingoClaim a = claim(1L, 101L, 1000L, WIN_CARD, List.of(1, 2, 3, 4, 5));
         BingoClaim b = claim(2L, 102L, 1001L, WIN_CARD, List.of(1, 2, 3, 4, 5));

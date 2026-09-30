@@ -67,7 +67,10 @@ export default function LoginScreen() {
         className="gap-6"
       >
         <View>
-          <Title>{t('common.appName') ?? 'BingoPlus'}</Title>
+          <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+            {t('auth.loginEyebrow') ?? 'Welcome back'}
+          </Text>
+          <Title className="mt-1">{t('common.appName') ?? 'BingoPlus'}</Title>
           <Subtitle>{t('auth.mobileLogin') ?? 'Log in with your phone number and password'}</Subtitle>
         </View>
 

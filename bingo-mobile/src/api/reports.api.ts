@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { ApiResponse, DashboardSummaryResponse, GameResponse, RevenueReportResponse } from '@/types';
+import { ApiResponse, DashboardSummaryResponse, AdminGameResponse, RevenueReportResponse } from '@/types';
 
 export const reportsApi = {
   revenue: async () => {
@@ -7,7 +7,7 @@ export const reportsApi = {
     return res.data;
   },
   games: async () => {
-    const res = await apiClient.get<ApiResponse<GameResponse[]>>('/reports/games');
+    const res = await apiClient.get<ApiResponse<AdminGameResponse[]>>('/reports/games');
     return res.data;
   },
   dashboard: async () => {

@@ -9,6 +9,17 @@ const LETTER_COLORS = [
   'bg-rose-400/20 border-rose-400/40 text-rose-500',
 ];
 
+// State colours live here rather than in swapped classNames. Tailwind compiles
+// shadow-lg to a `--tw-shadow` variable and every `bp-*` colour to another
+// variable, so a cell whose className changed when a number was called made
+// NativeWind try to "upgrade" the component onto a variable it never declared.
+// That upgrade path throws while stringifying props and takes the app down the
+// first time a number is called. Inline styles skip the CSS interop entirely.
+const GOLD = '#F2C94C';
+const DANGER = '#FF5C6C';
+const DANGER_BORDER = '#FF5C6C99';
+const LAST_INK = '#241a00';
+
 interface CardGridProps {
   numbers: number[][];
   called?: number[];
@@ -52,30 +63,28 @@ export function CardGrid({
             const isLast = !isFree && lastCalledNumber != null && n === lastCalledNumber;
             const isDaubed = isFree ? false : markedSet.has(n) || calledSet.has(n);
             const display = isFree ? '★' : n;
+            const cellStyle = isFree
+              ? { backgroundColor: GOLD, borderColor: GOLD }
+              : isLast
+                ? { backgroundColor: GOLD, borderColor: GOLD, boxShadow: '0 6px 14px rgba(0,0,0,0.35)' }
+                : isDaubed
+                  ? { backgroundColor: DANGER, borderColor: DANGER_BORDER }
+                  : undefined;
+            const inkStyle =
+              isFree || isLast
+                ? { color: LAST_INK }
+                : isDaubed
+                  ? { color: '#ffffff' }
+                  : undefined;
             return (
               <Pressable
                 key={`${r}-${c}`}
                 disabled={!interactive}
                 onPress={() => interactive && onToggle?.(n)}
-                className={`flex-1 aspect-square items-center justify-center rounded border ${
-                  isFree
-                    ? 'bg-bp-gold border-bp-gold'
-                    : isLast
-                      ? 'bg-bp-gold border-bp-gold shadow-lg'
-                      : isDaubed
-                        ? 'bg-bp-danger border-bp-danger60'
-                        : 'bg-bp-surface border-bp-borderInactive'
-                }`}
+                className="flex-1 aspect-square items-center justify-center rounded border bg-bp-surface border-bp-borderInactive"
+                style={cellStyle}
               >
-                <Text
-                  className={`font-semibold text-[10px] ${
-                    isFree || isLast
-                      ? 'text-[#241a00]'
-                      : isDaubed
-                        ? 'text-white'
-                        : 'text-bp-textSecondary'
-                  }`}
-                >
+                <Text className="font-semibold text-[10px] text-bp-textSecondary" style={inkStyle}>
                   {display}
                 </Text>
               </Pressable>

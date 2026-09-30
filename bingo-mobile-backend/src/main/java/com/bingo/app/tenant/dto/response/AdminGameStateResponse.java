@@ -16,11 +16,15 @@ public record AdminGameStateResponse(
         Integer currentCallIndex,
         Integer totalNumbersCalled,
         BigDecimal prizePool,
+        BigDecimal prizeAmount,
+        /** Lowest prize this admin may set for the current pot. */
+        BigDecimal minPrize,
+        /** Highest prize this admin may set for the current pot. */
+        BigDecimal maxPrize,
         String winningPattern,
         String customPatternName,
         String customPatternCells,
         Integer callInterval,
-        BigDecimal commissionPercent,
         boolean autoMark,
         LocalDateTime startTime,
         LocalDateTime endTime,

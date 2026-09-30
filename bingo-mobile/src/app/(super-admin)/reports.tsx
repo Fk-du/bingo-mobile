@@ -4,7 +4,7 @@ import { reportsApi } from '@/api';
 import { EmptyState, Metric, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
-import { GameResponse, GameStatus } from '@/types';
+import { AdminGameResponse, GameStatus } from '@/types';
 
 export default function SuperAdminReportsScreen() {
   const t = useTranslate();
@@ -18,7 +18,7 @@ export default function SuperAdminReportsScreen() {
     queryFn: () => reportsApi.games(),
   });
 
-  const games: GameResponse[] = gamesQuery.data?.data ?? [];
+  const games: AdminGameResponse[] = gamesQuery.data?.data ?? [];
   const revenue = revenueQuery.data?.data;
   const endedGames = games.filter((g) => g.status === GameStatus.ENDED);
   const totalFees = endedGames.reduce((sum, g) => sum + g.entryFee, 0);

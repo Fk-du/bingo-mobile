@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { gamesApi, reportsApi } from '@/api';
-import { Button, Card, Screen, ScreenHeader, Subtitle, Title } from '@/components/ui';
+import { AppTextInput, Button, Card, FieldLabel, Screen, ScreenHeader, Subtitle, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
-import { GameResponse, GameStatus } from '@/types';
+import { AdminGameResponse, GameStatus } from '@/types';
 
 export default function AdminDashboardScreen() {
   const t = useTranslate();
@@ -16,7 +16,7 @@ export default function AdminDashboardScreen() {
   const gamesQuery = useQuery({ queryKey: ['admin/games'], queryFn: () => gamesApi.getActive() });
   const metricsQuery = useQuery({ queryKey: ['admin/metrics'], queryFn: () => reportsApi.dashboard() });
 
-  const games: GameResponse[] = gamesQuery.data?.data ?? [];
+  const games: AdminGameResponse[] = gamesQuery.data?.data ?? [];
   const metrics = metricsQuery.data?.data as
     | Record<string, unknown>
     | undefined;
@@ -33,6 +33,23 @@ export default function AdminDashboardScreen() {
       await gamesQuery.refetch();
     } catch (e) {
       Alert.alert((e as { userMessage?: string }).userMessage ?? 'Failed to start');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /**
+   * Registration is open, so the pot keeps growing. The admin picks the prize
+   * here, once they can see who actually turned up, and Start stays locked
+   * until they have.
+   */
+  const savePrize = async (id: number, amount: number) => {
+    setBusyId(id);
+    try {
+      await gamesApi.updateSettings(id, { prizeAmount: amount });
+      await gamesQuery.refetch();
+    } catch (e) {
+      Alert.alert((e as { userMessage?: string }).userMessage ?? 'Failed to save the prize');
     } finally {
       setBusyId(null);
     }
@@ -175,22 +192,41 @@ export default function AdminDashboardScreen() {
                 <Text className="text-bp-accentInk">{t(`status.${item.status}`) ?? item.status}</Text>
               </View>
               {open ? (
-                <View className="flex-row justify-between">
-                  <Subtitle>
-                    {t('admin.entryFee') ?? 'Entry'}: {item.entryFee}
-                  </Subtitle>
-                  <Subtitle>
-                    {t('player.jackpotPool') ?? 'Pool'}: {item.prizePool}
-                  </Subtitle>
-                  <Subtitle>
-                    {item.registeredPlayers ?? 0}/{item.maxPlayers}
-                  </Subtitle>
-                </View>
+                <>
+                  <View className="flex-row justify-between">
+                    <Subtitle>
+                      {t('admin.entryFee') ?? 'Entry'}: {item.entryFee}
+                    </Subtitle>
+                    <Subtitle>
+                      {t('admin.prizePoolLabel') ?? 'Collected'}: {item.prizePool}
+                    </Subtitle>
+                    <Subtitle>
+                      {item.registeredPlayers ?? 0}/{item.maxPlayers}
+                    </Subtitle>
+                  </View>
+                  <PrizeEditor
+                    gameId={item.id}
+                    pool={item.prizePool}
+                    minPrize={item.minPrize}
+                    maxPrize={item.maxPrize}
+                    currentPrize={item.prizeAmount}
+                    busy={busyId != null}
+                    onSave={savePrize}
+                  />
+                </>
               ) : null}
               <View className="flex-row gap-2">
                 {open && (
-                  <Button variant="primary" onPress={() => void start(item.id)} disabled={busyId != null}>
-                    {busyId === item.id ? t('admin.working') ?? 'Working…' : t('admin.start') ?? 'Start Game'}
+                  <Button
+                    variant="primary"
+                    onPress={() => void start(item.id)}
+                    disabled={busyId != null || item.prizeAmount == null}
+                  >
+                    {busyId === item.id
+                      ? (t('admin.working') ?? 'Working…')
+                      : item.prizeAmount == null
+                        ? (t('admin.setPrizeFirst') ?? 'Set the prize to start')
+                        : (t('admin.start') ?? 'Start Game')}
                   </Button>
                 )}
                 <Button
@@ -205,6 +241,104 @@ export default function AdminDashboardScreen() {
         }}
       />
     </Screen>
+  );
+}
+
+/**
+ * Set the prize for a game whose registration is still open. The platform caps
+ * the band, so the input is pre-filled from a suggestion that respects both the
+ * cap and the admin's preferred rake.
+ */
+function PrizeEditor({
+  gameId,
+  pool,
+  minPrize,
+  maxPrize,
+  currentPrize,
+  busy,
+  onSave,
+}: {
+  gameId: number;
+  pool: number;
+  minPrize?: number | null;
+  maxPrize?: number | null;
+  currentPrize?: number | null;
+  busy: boolean;
+  onSave: (id: number, amount: number) => Promise<void>;
+}) {
+  const t = useTranslate();
+  const [amount, setAmount] = useState(currentPrize == null ? '' : String(currentPrize));
+  const [suggestion, setSuggestion] = useState<{ min: number; max: number; prize: number } | null>(null);
+
+  // The band moves as players keep joining, so it is re-read whenever the
+  // collected amount changes rather than pinned when the card first rendered.
+  useEffect(() => {
+    let cancelled = false;
+    gamesApi
+      .getPrizeSuggestion(gameId)
+      .then((res) => {
+        if (cancelled) return;
+        setSuggestion({ min: res.data.minPrize, max: res.data.maxPrize, prize: res.data.suggestedPrize });
+      })
+      .catch(() => {
+        /* the band is advisory here; the server is the authority on save */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, pool]);
+
+  const min = suggestion?.min ?? minPrize ?? 0;
+  const max = suggestion?.max ?? maxPrize ?? 0;
+  const parsed = Number(amount);
+  const valid = amount.trim() !== '' && Number.isFinite(parsed) && parsed >= min && parsed <= max;
+  const saved = currentPrize != null && Number(currentPrize) === parsed;
+
+  if (min === 0 && max === 0) {
+    // Nothing has been collected yet, so there is no band to set a prize in.
+    return (
+      <Text className="text-bp-textSecondary text-xs">
+        {t('admin.prizeAfterFirstPlayer') ?? 'The prize can be set once the first player joins.'}
+      </Text>
+    );
+  }
+
+  return (
+    <View className="gap-2 rounded-xl border border-bp-border p-3">
+      <FieldLabel>
+        {t('admin.prizeAmount') ?? 'Prize for the winners'}{' '}
+        {t('admin.prizeRange', { min: String(min), max: String(max) }) ?? `(${min} – ${max})`}
+      </FieldLabel>
+      <View className="flex-row items-center gap-2">
+        <AppTextInput
+          className="flex-1"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder={String(suggestion?.prize ?? min)}
+        />
+        <Button
+          variant="outline"
+          disabled={busy || suggestion == null}
+          onPress={() => setAmount(String(suggestion?.prize ?? min))}
+        >
+          {t('admin.useSuggestion') ?? 'Suggest'}
+        </Button>
+      </View>
+      {!valid && amount.trim() !== '' ? (
+        <Text className="text-bp-danger text-xs">
+          {t('admin.prizeOutOfRange', { min: String(min), max: String(max) }) ??
+            `Enter a prize between ${min} and ${max}.`}
+        </Text>
+      ) : null}
+      <Button
+        variant="secondary"
+        disabled={!valid || saved || busy}
+        onPress={() => void onSave(gameId, parsed)}
+      >
+        {saved ? (t('admin.prizeSaved') ?? 'Prize set') : (t('admin.savePrize') ?? 'Set prize')}
+      </Button>
+    </View>
   );
 }
 

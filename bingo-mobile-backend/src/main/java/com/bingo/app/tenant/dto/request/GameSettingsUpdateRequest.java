@@ -1,9 +1,8 @@
 package com.bingo.app.tenant.dto.request;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
@@ -17,9 +16,13 @@ public record GameSettingsUpdateRequest(
         String winningPattern,
         String customPatternName,
         String customPatternCells,
-        @DecimalMin(value = "1", message = "Commission must be at least 1%")
-        @DecimalMax(value = "90", message = "Commission cannot exceed 90%")
-        BigDecimal commissionPercent,
+        /**
+         * Total the winners share, chosen by the admin while registration is open.
+         * Must sit inside the platform's min/maxPrizePercent of the pot collected
+         * so far; a null value leaves the current prize untouched.
+         */
+        @Positive(message = "Prize must be greater than 0")
+        BigDecimal prizeAmount,
         Boolean autoMark
 ) {
 }
