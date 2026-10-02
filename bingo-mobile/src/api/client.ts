@@ -39,13 +39,26 @@ apiClient.interceptors.response.use(
   }
 );
 
+/**
+ * Pick the most specific error text available.
+ *
+ * `errors.<code>` translations are a coarse bucket ("Wallet operation failed.").
+ * When the server sent a `userMessage` that says more than its own `message` --
+ * e.g. "Your balance is 4 coins, but this card costs 10 coins. You need 6 more
+ * coins." -- that detail is what the player actually needs, so it wins. The
+ * localized bucket is only used when the server had nothing extra to say, which
+ * keeps localized wording for auth and validation failures.
+ */
 export function getApiErrorMessage(error: unknown): string {
-  const e = error as { userMessage?: string; code?: string };
+  const e = error as { userMessage?: string; message?: string; code?: string };
+  const userMessage = e?.userMessage?.trim();
+
   if (e?.code) {
     const localized = translateClientMessage(`errors.${e.code}`);
-    if (localized) return localized;
+    const serverHadDetail = Boolean(userMessage) && userMessage !== e?.message;
+    if (localized && !serverHadDetail) return localized;
   }
-  return e?.userMessage ?? 'Something went wrong';
+  return userMessage || e?.message || 'Something went wrong';
 }
 
 export default apiClient;

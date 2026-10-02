@@ -8,6 +8,7 @@ import com.bingo.app.tenant.entity.Game;
 import com.bingo.app.tenant.entity.GameCard;
 import com.bingo.app.tenant.exception.GameProgressException;
 import com.bingo.app.tenant.repository.BingoClaimRepository;
+import com.bingo.app.tenant.repository.CardPreviewRepository;
 import com.bingo.app.tenant.repository.CalledNumberRepository;
 import com.bingo.app.tenant.repository.GameCardRepository;
 import com.bingo.app.tenant.repository.GameRepository;
@@ -49,6 +50,7 @@ class GameEnginePayoutsTest {
     @Mock GameRepository gameRepository;
     @Mock CalledNumberRepository calledNumberRepository;
     @Mock GameCardRepository gameCardRepository;
+    @Mock CardPreviewRepository cardPreviewRepository;
     @Mock BingoClaimRepository bingoClaimRepository;
     @Mock WalletService walletService;
     @Mock CardService cardService;
@@ -72,7 +74,7 @@ class GameEnginePayoutsTest {
         when(configService.getMaxPrizePercent()).thenReturn(new BigDecimal("90"));
         prizeRules = new PrizeRules(configService);
         engine = new GameEngineService(gameRepository, calledNumberRepository, gameCardRepository,
-                bingoClaimRepository, walletService, cardService, objectMapper,
+                cardPreviewRepository, bingoClaimRepository, walletService, cardService, objectMapper,
                 transactionTemplate, messagingTemplate, tenantMapper, null, userRepository,
                 null, configService, gameService, prizeRules);
         when(transactionTemplate.execute(any(TransactionCallback.class)))

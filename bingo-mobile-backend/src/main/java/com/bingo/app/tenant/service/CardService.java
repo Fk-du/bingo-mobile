@@ -3,6 +3,7 @@ package com.bingo.app.tenant.service;
 import com.bingo.app.tenant.dto.mapper.TenantMapper;
 import com.bingo.app.tenant.dto.response.CardResponse;
 import com.bingo.app.tenant.dto.response.GameCardResponse;
+import com.bingo.app.tenant.dto.response.PreviewCardResponse;
 import com.bingo.app.tenant.entity.*;
 import com.bingo.app.tenant.enums.GameStatus;
 import com.bingo.app.tenant.exception.PlayerActionException;
@@ -32,6 +33,7 @@ public class CardService {
     private final CardRepository cardRepository;
     private final GameCardRepository gameCardRepository;
     private final GameRepository gameRepository;
+    private final com.bingo.app.tenant.repository.CardPreviewRepository cardPreviewRepository;
     private final PlayerService playerService;
     private final WalletService walletService;
     private final ObjectMapper objectMapper;
@@ -212,12 +214,6 @@ public class CardService {
                     "You are already registered for an active game. Finish it before joining another.");
         }
 
-        // Check max players limit
-        long currentPlayers = gameCardRepository.countByGameId(gameId);
-        if (currentPlayers >= game.getMaxPlayers()) {
-            throw new PlayerActionException("Game is full", "This game is full. Please wait for the next one.");
-        }
-
         Card card = resolveCard(cardId);
 
         // Create game card entry for the chosen card
@@ -276,6 +272,181 @@ public class CardService {
             result.add(assignCard(gameId, playerId, card.getId()));
         }
         return result;
+    }
+
+    /**
+     * Hold {@code count} free cards for the player to look at. Nothing is charged
+     * and the cards are not registered -- the player registers the ones they
+     * actually want with {@link #registerPreviewedCard}.
+     *
+     * <p>Previewed cards are held rather than merely displayed, so a card the
+     * player is looking at cannot be dealt to somebody else in the meantime.
+     * Requesting a preview again tops the holding up to {@code count} rather
+     * than dealing a second batch, which keeps a player from filling the pool
+     * with previews they never intend to buy.
+     */
+    @Transactional(transactionManager = "tenantTransactionManager")
+    public List<PreviewCardResponse> previewCards(Long gameId, Long playerId, int count) {
+        Game game = requireRegistrationOpen(gameId);
+        requireNoOtherActiveGame(gameId, playerId);
+
+        int wanted = Math.max(1, count);
+        long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
+        if (held >= wanted) {
+            // Already holding at least this many: just show what is on hold.
+            return heldPreviews(gameId, playerId);
+        }
+        int missing = (int) (wanted - held);
+
+        List<Card> free = cardRepository.findRandomAvailable(LIVE_STATUS_NAMES, missing);
+        if (free.size() < missing) {
+            // The player asked to see this many cards, so they are told how many
+            // there really are instead of being shown a smaller set.
+            throw new PlayerActionException("Not enough free cards",
+                    "Only " + free.size() + (free.size() == 1 ? " card is" : " cards are")
+                            + " still available. Please ask for a smaller number of cards,"
+                            + " or tell your agent to request more cards from the platform.");
+        }
+        for (Card card : free) {
+            cardPreviewRepository.save(CardPreview.builder()
+                    .gameId(gameId)
+                    .playerId(playerId)
+                    .card(card)
+                    .build());
+        }
+        log.info("Game {}: player {} previewing {} card(s)", gameId, playerId, free.size());
+        return heldPreviews(gameId, playerId);
+    }
+
+    private List<PreviewCardResponse> heldPreviews(Long gameId, Long playerId) {
+        return cardPreviewRepository.findByGameIdAndPlayerIdOrderByCreatedAtAsc(gameId, playerId).stream()
+                .map(cp -> PreviewCardResponse.builder()
+                        .cardId(cp.getCard().getId())
+                        .numbers(parseNumbers(cp.getCard().getNumbers()))
+                        .build())
+                .toList();
+    }
+
+    /**
+     * Turn one previewed card into a real registration: take the entry fee, add
+     * it to the pot and deal the card to the player.
+     */
+    @Transactional(transactionManager = "tenantTransactionManager")
+    public GameCardResponse registerPreviewedCard(Long gameId, Long playerId, Long cardId) {
+        Game game = requireRegistrationOpen(gameId);
+        // Holding a preview is not a registration, so the one-active-game guard is
+        // not applied when the card is previewed. It has to be applied here
+        // instead, or a player could preview their way past it.
+        requireNoOtherActiveGame(gameId, playerId);
+
+        CardPreview preview = cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(gameId, playerId, cardId)
+                .orElseThrow(() -> new PlayerActionException("Card not held",
+                        "This card is not one of the cards you are holding. Request a new set of cards."));
+        Card card = preview.getCard();
+
+        // The hold keeps other players out, but the row is re-checked so a card
+        // that was registered by somebody else meanwhile is not dealt twice. This
+        // player's own preview is excluded: holding it is the whole point here.
+        if (cardRepository.isCardOccupiedByOthers(cardId, gameId, playerId, GameStatus.ACTIVE)) {
+            throw new PlayerActionException("Card already taken",
+                    "This card was just taken by another player. Please pick another.");
+        }
+
+        BigDecimal fee = game.getEntryFee();
+        BigDecimal balance = playerService.getBalance(playerId);
+        if (balance.compareTo(fee) < 0) {
+            throw new WalletException("Insufficient balance",
+                    "Your balance is " + balance.stripTrailingZeros().toPlainString()
+                            + " coins, but this card costs " + fee.stripTrailingZeros().toPlainString()
+                            + " coins. You need " + fee.subtract(balance).stripTrailingZeros().toPlainString()
+                            + " more coins. Please request more coins from your agent.");
+        }
+
+        cardPreviewRepository.delete(preview);
+        walletService.deductBet(playerId, fee, gameId);
+
+        game.setPrizePool(game.getPrizePool().add(fee));
+        gameRepository.save(game);
+
+        card.setUsageCount(card.getUsageCount() + 1);
+        cardRepository.save(card);
+
+        GameCard gameCard = gameCardRepository.save(GameCard.builder()
+                .gameId(gameId)
+                .playerId(playerId)
+                .card(card)
+                .winner(false)
+                .build());
+        log.info("Game {}: player {} registered previewed card {}", gameId, playerId, cardId);
+        return tenantMapper.toDto(gameCard);
+    }
+
+    /**
+     * Drop a card from the player's view.
+     *
+     * <p>A preview that was never registered is simply released back to the
+     * pool. A registered card is unregistered: the entry fee goes back to the
+     * player's balance and comes back out of the pot, because the pot may only
+     * hold money from cards that are actually in play.
+     *
+     * @return what happened, so the client can word it correctly
+     */
+    @Transactional(transactionManager = "tenantTransactionManager")
+    public UnregisterResult unregisterCard(Long gameId, Long playerId, Long cardId) {
+        requireRegistrationOpen(gameId);
+
+        var preview = cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(gameId, playerId, cardId);
+        if (preview.isPresent()) {
+            cardPreviewRepository.delete(preview.get());
+            log.info("Game {}: player {} released previewed card {}", gameId, playerId, cardId);
+            return new UnregisterResult(false, BigDecimal.ZERO);
+        }
+
+        GameCard gameCard = gameCardRepository.findAllByGameIdAndPlayerId(gameId, playerId).stream()
+                .filter(gc -> gc.getCard().getId().equals(cardId))
+                .findFirst()
+                .orElseThrow(() -> new PlayerActionException("Card not held",
+                        "You do not hold this card in this game."));
+
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        BigDecimal refund = game.getEntryFee();
+
+        walletService.refundPlayer(playerId, refund, gameId);
+
+        // The pot must never go negative: a game whose pot was already paid out
+        // (or a zero-fee game) is floored at zero rather than credited a negative.
+        BigDecimal remaining = game.getPrizePool().subtract(refund);
+        game.setPrizePool(remaining.signum() < 0 ? BigDecimal.ZERO : remaining);
+        gameRepository.save(game);
+
+        gameCardRepository.delete(gameCard);
+        log.info("Game {}: player {} unregistered card {} and was refunded {}",
+                gameId, playerId, cardId, refund);
+        return new UnregisterResult(true, refund);
+    }
+
+    /** True when the card went back to the pool as a preview; false when it was a paid registration. */
+    public record UnregisterResult(boolean wasRegistered, BigDecimal refund) {}
+
+    private Game requireRegistrationOpen(Long gameId) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        if (game.getStatus() != GameStatus.REGISTRATION_OPEN) {
+            throw new PlayerActionException("Game is not accepting registrations",
+                    "This game is no longer accepting registrations.");
+        }
+        return game;
+    }
+
+    /** One active game at a time. Previews are not registrations, so they do not count. */
+    private void requireNoOtherActiveGame(Long gameId, Long playerId) {
+        var activeGameCards = gameCardRepository.findByPlayerIdAndActiveGamesExcluding(playerId, gameId);
+        if (!activeGameCards.isEmpty()) {
+            throw new PlayerActionException(
+                    "Player already has a card for an active game",
+                    "You are already registered for an active game. Finish it before joining another.");
+        }
     }
 
     private Card resolveCard(Long cardId) {
@@ -345,6 +516,20 @@ public class CardService {
                 ? (card.getGamesWon().doubleValue() / card.getUsageCount()) * 100
                 : 0.0);
         cardRepository.save(card);
+    }
+
+    /** Card numbers for the client. A card the server cannot read is shown as an empty grid. */
+    private int[][] parseNumbers(String numbersJson) {
+        if (numbersJson == null || numbersJson.isBlank()) {
+            return new int[CARD_SIZE][CARD_SIZE];
+        }
+        try {
+            int[][] parsed = objectMapper.readValue(numbersJson, int[][].class);
+            return parsed != null && parsed.length > 0 ? parsed : new int[CARD_SIZE][CARD_SIZE];
+        } catch (Exception e) {
+            log.error("Failed to parse card numbers: {}", e.getMessage());
+            return new int[CARD_SIZE][CARD_SIZE];
+        }
     }
 
     private String toJson(int[][] numbers) {

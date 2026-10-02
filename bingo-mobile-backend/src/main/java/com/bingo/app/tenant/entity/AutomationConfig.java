@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 /**
  * Per-admin (per-tenant) template that drive automatic game creation and starting.
  * When {@code enabled} is true the system creates a new game from this template
- * after a finished game, opens registration, then starts it automatically once the
- * configured registration window elapses (or the table fills up) — with all the
+ * after a finished game and opens registration; the admin starts it when ready —
+ * with all the
  * same rules a manually created game follows (min 2 players, fair-play commit,
  * entry fees, commissions, claims, etc). Just automation, no rule changes.
  */
@@ -35,8 +35,6 @@ public class AutomationConfig {
 
     @Column(name = "entry_fee")
     private BigDecimal entryFee;
-    @Column(name = "max_players")
-    private Integer maxPlayers;
     @Column(name = "call_interval")
     private Integer callInterval;
     @Column(name = "rake_percent")
@@ -44,10 +42,6 @@ public class AutomationConfig {
 
     @Column(name = "winning_pattern")
     private String winningPattern;
-    @Column(name = "custom_pattern_name")
-    private String customPatternName;
-    @Column(name = "custom_pattern_cells", columnDefinition = "TEXT")
-    private String customPatternCells;
 
     @Builder.Default
     @Column(name = "auto_mark")
@@ -60,11 +54,6 @@ public class AutomationConfig {
     /** Gap between a finished game and the next automatically created one. */
     @Column(name = "cooldown_seconds")
     private Integer cooldownSeconds;
-
-    /** When true, a game starts immediately once it reaches maxPlayers. */
-    @Builder.Default
-    @Column(name = "start_when_full")
-    private Boolean startWhenFull = true;
 
     /**
      * When true (and enabled), Bingo claims are approved/rejected automatically

@@ -33,9 +33,6 @@ public class ConfigService {
     @Value("${app.game.default-entry-fee:10}")
     private int defaultEntryFee;
 
-    @Value("${app.game.default-max-players:50}")
-    private int defaultMaxPlayers;
-
     @Value("${app.game.min-withdrawal:10}")
     private int defaultMinWithdrawal;
 
@@ -119,7 +116,7 @@ public class ConfigService {
      * simultaneous-winner cap was dropped: the pot is now shared between however many
      * distinct players claimed, so there is no limit left to configure.
      */
-    private static final List<String> RETIRED_KEYS = List.of("maxWinners");
+    private static final List<String> RETIRED_KEYS = List.of("maxWinners", "maxPlayers");
 
     private Map<String, String> defaults() {
         return Map.of(
@@ -127,7 +124,6 @@ public class ConfigService {
                 "numberRange", String.valueOf(defaultNumberRange),
                 "autoCallInterval", String.valueOf(defaultAutoCallInterval),
                 "entryFee", String.valueOf(defaultEntryFee),
-                "maxPlayers", String.valueOf(defaultMaxPlayers),
                 "minWithdrawal", String.valueOf(defaultMinWithdrawal),
                 "ownerFeePercent", String.valueOf(defaultOwnerFeePercent),
                 "minPrizePercent", String.valueOf(defaultMinPrizePercent),
@@ -163,7 +159,6 @@ public class ConfigService {
                 "numberRange", defaultNumberRange,
                 "autoCallInterval", defaultAutoCallInterval,
                 "entryFee", defaultEntryFee,
-                "maxPlayers", defaultMaxPlayers,
                 "minWithdrawal", defaultMinWithdrawal,
                 "ownerFeePercent", defaultOwnerFeePercent,
                 "minPrizePercent", defaultMinPrizePercent,

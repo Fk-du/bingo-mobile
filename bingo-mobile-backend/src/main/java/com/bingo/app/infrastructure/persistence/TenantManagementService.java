@@ -39,7 +39,10 @@ public class TenantManagementService {
             "db/migration/V13__add_game_card_auto_mark.sql",
             "db/migration/V14__add_game_cards_game_card_unique.sql",
             "db/migration/V15__fix_multi_card_constraints.sql",
-            "db/migration/V16__game_prize_amount.sql"
+            "db/migration/V16__game_prize_amount.sql",
+            "db/migration/V17__card_previews.sql",
+            "db/migration/V18__drop_max_players.sql",
+            "db/migration/V19__drop_custom_pattern.sql"
     );
 
     private final TenantRegistryRepository tenantRegistryRepository;

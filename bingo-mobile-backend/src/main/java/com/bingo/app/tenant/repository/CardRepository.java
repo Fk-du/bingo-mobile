@@ -25,8 +25,9 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     /**
      * Cards currently free within this tenant: not dealt to any live game
-     * (REGISTRATION_OPEN / STARTING / IN_PROGRESS / PAUSED / CLAIM_PENDING).
-     * Ordered by card number (id) so pages read naturally, cheapest first.
+     * (REGISTRATION_OPEN / STARTING / IN_PROGRESS / PAUSED / CLAIM_PENDING) and
+     * not held as somebody's preview in one. Ordered by card number (id) so pages
+     * read naturally, cheapest first.
      */
     @Query("""
             SELECT c FROM Card c
@@ -34,6 +35,11 @@ public interface CardRepository extends JpaRepository<Card, Long> {
                 SELECT 1 FROM GameCard gc
                 WHERE gc.card = c
                   AND gc.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)
+            )
+            AND NOT EXISTS (
+                SELECT 1 FROM CardPreview cp
+                WHERE cp.card = c
+                  AND cp.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)
             )
             ORDER BY c.id ASC
             """)
@@ -57,6 +63,11 @@ public interface CardRepository extends JpaRepository<Card, Long> {
                 WHERE gc.card_id = c.id
                   AND gc.game_id IN (SELECT g.id FROM games g WHERE g.status IN :statuses)
             )
+            AND NOT EXISTS (
+                SELECT 1 FROM card_previews cp
+                WHERE cp.card_id = c.id
+                  AND cp.game_id IN (SELECT g.id FROM games g WHERE g.status IN :statuses)
+            )
             ORDER BY random()
             LIMIT :limit
             """, nativeQuery = true)
@@ -69,18 +80,47 @@ public interface CardRepository extends JpaRepository<Card, Long> {
                 WHERE gc.card = c
                   AND gc.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)
             )
+            AND NOT EXISTS (
+                SELECT 1 FROM CardPreview cp
+                WHERE cp.card = c
+                  AND cp.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)
+            )
             """)
     long countAvailable(@Param("statuses") Collection<GameStatus> statuses);
 
     /**
-     * True when a card is currently dealt to a live game (i.e. occupied by a player).
+     * True when a card is currently dealt to a live game (i.e. occupied by a player)
+     * or held as a preview for a live game.
      */
     @Query("""
-            SELECT COUNT(gc) > 0 FROM GameCard gc
-            WHERE gc.card.id = :cardId
-              AND gc.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)
+            SELECT (EXISTS (SELECT 1 FROM GameCard gc
+                            WHERE gc.card.id = :cardId
+                              AND gc.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)))
+                OR EXISTS (SELECT 1 FROM CardPreview cp
+                            WHERE cp.card.id = :cardId
+                              AND cp.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses))
             """)
     boolean isCardOccupied(@Param("cardId") Long cardId, @Param("statuses") Collection<GameStatus> statuses);
+
+    /**
+     * True when a card is occupied by somebody else: dealt to a live game, or held
+     * as another player's preview. The given player's own preview of this card in
+     * this game does not count, because the player is holding it on purpose and is
+     * about to turn it into a registration.
+     */
+    @Query("""
+            SELECT (EXISTS (SELECT 1 FROM GameCard gc
+                            WHERE gc.card.id = :cardId
+                              AND gc.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)))
+                OR EXISTS (SELECT 1 FROM CardPreview cp
+                            WHERE cp.card.id = :cardId
+                              AND cp.gameId IN (SELECT g.id FROM Game g WHERE g.status IN :statuses)
+                              AND NOT (cp.gameId = :gameId AND cp.playerId = :playerId))
+            """)
+    boolean isCardOccupiedByOthers(@Param("cardId") Long cardId,
+                                   @Param("gameId") Long gameId,
+                                   @Param("playerId") Long playerId,
+                                   @Param("statuses") Collection<GameStatus> statuses);
 
     @Query("SELECT AVG(c.winRate) FROM Card c")
     Double getAverageWinRate();

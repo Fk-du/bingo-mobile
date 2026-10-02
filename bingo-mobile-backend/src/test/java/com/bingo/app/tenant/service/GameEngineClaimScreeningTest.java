@@ -10,6 +10,7 @@ import com.bingo.app.tenant.entity.Game;
 import com.bingo.app.tenant.entity.GameCard;
 import com.bingo.app.tenant.enums.GameStatus;
 import com.bingo.app.tenant.repository.BingoClaimRepository;
+import com.bingo.app.tenant.repository.CardPreviewRepository;
 import com.bingo.app.tenant.repository.CalledNumberRepository;
 import com.bingo.app.tenant.repository.GameCardRepository;
 import com.bingo.app.tenant.repository.GameRepository;
@@ -48,6 +49,7 @@ class GameEngineClaimScreeningTest {
     @Mock GameRepository gameRepository;
     @Mock CalledNumberRepository calledNumberRepository;
     @Mock GameCardRepository gameCardRepository;
+    @Mock CardPreviewRepository cardPreviewRepository;
     @Mock BingoClaimRepository bingoClaimRepository;
     @Mock WalletService walletService;
     @Mock CardService cardService;
@@ -77,7 +79,7 @@ class GameEngineClaimScreeningTest {
     void setUp() {
         when(configService.getOwnerFeePercent()).thenReturn(java.math.BigDecimal.ZERO);
         engine = new GameEngineService(gameRepository, calledNumberRepository, gameCardRepository,
-                bingoClaimRepository, walletService, cardService, objectMapper,
+                cardPreviewRepository, bingoClaimRepository, walletService, cardService, objectMapper,
                 realTransactionTemplate(), messagingTemplate, tenantMapper,
                 null, userRepository, notificationService, configService, gameService,
                 new PrizeRules(configService));

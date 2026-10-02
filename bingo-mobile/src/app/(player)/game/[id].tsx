@@ -1,27 +1,38 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
-import { CardGrid } from '@/components/games/CardGrid';
+import { getApiErrorMessage } from '@/api/client';
+import { CardTile } from '@/components/games/CardTile';
 import { FairnessPanel } from '@/components/games/FairnessPanel';
 import { StartCountdownBanner } from '@/components/games/StartCountdownBanner';
 import { WinnerModal } from '@/components/games/WinnerModal';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { CardPickerModal } from '@/components/games/CardPickerModal';
 import { useNumberAnnouncer } from '@/hooks/useNumberAnnouncer';
-import { Button, Card, Screen, Title } from '@/components/ui';
+import { Button, Card, Modal, Screen, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
-import { patternProgress, patternCells, customCellsFromJson, computeProgress } from '@/lib/pattern';
+import { patternProgress, patternCells } from '@/lib/pattern';
+import { IconSettings } from '@/components/ui/icons';
+import { useTheme } from '@/lib/theme';
 import { useGameStore } from '@/store/game.store';
+import {
+  CardSort,
+  MARK_COLORS,
+  countMarkedRows,
+  useGameSettings,
+} from '@/store/gameSettings.store';
 import { PlayerGameResponse, GameStateResponse, GameStatus, PlayerCardView } from '@/types';
 
 export default function LiveGameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const gameId = Number(id);
   const t = useTranslate();
+  const router = useRouter();
+  const { colors } = useTheme();
   const qc = useQueryClient();
 
   // Subscribe per-field. Selecting the whole store re-renders this entire
@@ -34,11 +45,12 @@ export default function LiveGameScreen() {
   const restartNotice = useGameStore((s) => s.restartNotice);
   const totalNumbersCalled = useGameStore((s) => s.totalNumbersCalled);
   const prizeAmount = useGameStore((s) => s.prizeAmount);
-  const isConnecting = useGameStore((s) => s.isConnecting);
   const startTime = useGameStore((s) => s.startTime);
   const startReason = useGameStore((s) => s.startReason);
   const setPlayerCards = useGameStore((s) => s.setPlayerCards);
   const setRestartNotice = useGameStore((s) => s.setRestartNotice);
+  const cardSort = useGameSettings((s) => s.cardSort);
+  const markColor = useGameSettings((s) => s.markColor);
 
   const game = useMemo(
     () => ({
@@ -72,6 +84,11 @@ export default function LiveGameScreen() {
   const [globalMarks, setGlobalMarks] = useState<Set<number>>(new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [busyCardId, setBusyCardId] = useState<number | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [patternPreviewOpen, setPatternPreviewOpen] = useState(false);
   const marksSeeded = useRef(false);
 
   useGameWebSocket(gameId);
@@ -185,6 +202,159 @@ export default function LiveGameScreen() {
     }
   };
 
+  /** Pay for one previewed card. Only that card's entry fee is charged. */
+  const registerCard = async (cardId: number) => {
+    if (busyCardId != null) return;
+    setBusyCardId(cardId);
+    setReport(null);
+    try {
+      await gamesApi.registerCard(gameId, cardId);
+      setRegisterSuccess(true);
+      // Registering from inside a game charges the entry fee, so the lobby
+      // balance card must not keep showing the pre-registration total.
+      void qc.invalidateQueries({ queryKey: ['wallet'] });
+      await loadState();
+    } catch (e) {
+      setReport({ message: getApiErrorMessage(e), kind: 'error' });
+    } finally {
+      setBusyCardId(null);
+    }
+  };
+
+  /**
+   * Drop a card from the board. A preview was never paid for and simply goes
+   * back to the pool; a registered card is unregistered and the entry fee is
+   * refunded, so the balance is re-read either way.
+   */
+  const removeCard = async (cardId: number) => {
+    if (busyCardId != null) return;
+    setBusyCardId(cardId);
+    setReport(null);
+    try {
+      const res = await gamesApi.removeCard(gameId, cardId);
+      if (res.data.wasRegistered) {
+        setRegisterSuccess(false);
+        void qc.invalidateQueries({ queryKey: ['wallet'] });
+        setReport({
+          message:
+            t('game.cardRemovedRefunded', { refund: String(res.data.refund) }) ??
+            `Card removed. ${res.data.refund} refunded.`,
+          kind: 'win',
+        });
+      }
+      await loadState();
+    } catch (e) {
+      setReport({ message: getApiErrorMessage(e), kind: 'error' });
+    } finally {
+      setBusyCardId(null);
+    }
+  };
+
+  const registrable = state?.status === GameStatus.REGISTRATION_OPEN;
+
+  const toggleSelected = (cardId: number) => {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  };
+
+  /** Long-press a card to start selecting several. Once selecting, a long-press
+   *  just toggles that card instead of resetting the whole selection. */
+  const startSelection = (cardId: number) => {
+    if (!registrable) return;
+    if (selectionMode) {
+      toggleSelected(cardId);
+      return;
+    }
+    setSelectionMode(true);
+    setSelectedCardIds(new Set([cardId]));
+  };
+
+  const cancelSelection = () => {
+    setSelectionMode(false);
+    setSelectedCardIds(new Set());
+  };
+
+  /** Pay for every selected preview in one go. Previews only, so a selected
+   *  already-registered card is skipped rather than charged twice. */
+  const registerSelected = async () => {
+    if (bulkBusy || busyCardId != null) return;
+    const previews = state?.previewCards ?? [];
+    const ids = previews.map((c) => c.cardId).filter((id) => selectedCardIds.has(id));
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    setReport(null);
+    let ok = 0;
+    let firstError: string | null = null;
+    for (const id of ids) {
+      try {
+        await gamesApi.registerCard(gameId, id);
+        ok += 1;
+      } catch (e) {
+        if (!firstError) firstError = getApiErrorMessage(e);
+      }
+    }
+    if (ok > 0) {
+      setRegisterSuccess(true);
+      void qc.invalidateQueries({ queryKey: ['wallet'] });
+    }
+    await loadState();
+    setBulkBusy(false);
+    cancelSelection();
+    if (firstError) {
+      setReport({ message: firstError, kind: 'error' });
+    } else {
+      setReport({
+        message: t('game.bulkRegistered', { count: String(ok) }) ?? `${ok} card(s) registered.`,
+        kind: 'win',
+      });
+    }
+  };
+
+  /** Drop every selected card: previews are released, registered ones refund. */
+  const clearSelected = async () => {
+    if (bulkBusy || busyCardId != null || selectedCardIds.size === 0) return;
+    setBulkBusy(true);
+    setReport(null);
+    let removed = 0;
+    let refunded = 0;
+    let firstError: string | null = null;
+    for (const id of selectedCardIds) {
+      try {
+        const res = await gamesApi.removeCard(gameId, id);
+        removed += 1;
+        if (res.data.wasRegistered) refunded += res.data.refund;
+      } catch (e) {
+        if (!firstError) firstError = getApiErrorMessage(e);
+      }
+    }
+    if (refunded > 0) {
+      setRegisterSuccess(false);
+      void qc.invalidateQueries({ queryKey: ['wallet'] });
+    }
+    await loadState();
+    setBulkBusy(false);
+    cancelSelection();
+    if (firstError) {
+      setReport({ message: firstError, kind: 'error' });
+    } else if (refunded > 0) {
+      setReport({
+        message:
+          t('game.cardsRemovedRefunded', { count: String(removed), refund: String(refunded) }) ??
+          `${removed} card(s) removed. ${refunded} refunded.`,
+        kind: 'win',
+      });
+    } else {
+      setReport({
+        message: t('game.cardsCleared', { count: String(removed) }) ?? `${removed} card(s) removed.`,
+        kind: 'win',
+      });
+    }
+  };
+
   const claimCard = async (card: PlayerCardView) => {
     if (claiming) return;
     setClaiming(true);
@@ -223,119 +393,114 @@ export default function LiveGameScreen() {
   const { muted, toggleMuted } = useNumberAnnouncer(calledNumbers);
   const prize = state?.prizeAmount ?? game.prizeAmount;
   const winningPattern = state?.winningPattern ?? null;
-  const patternCellsSet = winningPattern
-    ? winningPattern === 'CUSTOM'
-      ? customCellsFromJson(state?.customPatternCells)
-      : patternCells(winningPattern)
-    : null;
-  const patternLabel =
-    winningPattern === 'CUSTOM'
-      ? state?.customPatternName || (t('patterns.CUSTOM') ?? 'Custom')
-      : winningPattern
-        ? (t(`patterns.${winningPattern}`) ?? winningPattern)
-        : null;
-  const patternHint = winningPattern
-    ? winningPattern === 'CUSTOM'
-      ? (t('patterns.hintCUSTOM') ?? null)
-      : (t(`patterns.hint${winningPattern}`) ?? null)
-    : null;
+  const patternCellsSet = winningPattern ? patternCells(winningPattern) : null;
+  const patternLabel = winningPattern ? (t(`patterns.${winningPattern}`) ?? winningPattern) : null;
+  const patternHint = winningPattern ? (t(`patterns.hint${winningPattern}`) ?? null) : null;
 
   const hasCards = (game.playerCards?.length ?? 0) > 0;
   const isLive = game.gameStatus === GameStatus.IN_PROGRESS;
   const isRegistration = game.gameStatus === GameStatus.REGISTRATION_OPEN;
+  // The game status is only known once the state has loaded, so an unknown
+  // status is the "still fetching" case rather than a game waiting to start.
+  const isStatusUnknown = game.gameStatus == null;
+  // Held but unpaid cards. The server drops these once registration closes, so a
+  // card that was never registered can never linger into a live game.
+  const previewCards = state?.previewCards ?? [];
+  const selectedPreviewCount = previewCards.filter((c) => selectedCardIds.has(c.cardId)).length;
   const entryFee = meta?.entryFee;
+  const markPaint = MARK_COLORS[markColor];
+
+  // A player holding several cards should not have to hunt for the one closest
+  // to winning, so the board is ordered by whichever signal they picked in game
+  // settings. The sort is stable on card id, so a re-render never shuffles
+  // cards that compare equal.
+  const sortedPlayerCards = useMemo(() => {
+    const cards = [...(game.playerCards ?? [])];
+    if (cardSort === 'cardOrder') return cards;
+    const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
+    const markedCount = (c: PlayerCardView) => marksFor(c).size;
+    const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
+    const by: Record<Exclude<CardSort, 'cardOrder'>, (a: PlayerCardView, b: PlayerCardView) => number> = {
+      mostMarked: (a, b) => markedCount(b) - markedCount(a),
+      mostRows: (a, b) => rows(b) - rows(a),
+    };
+    return cards.sort((a, b) => by[cardSort](a, b) || a.cardId - b.cardId);
+  }, [game.playerCards, cardSort, isManual, globalMarks]);
 
   return (
     <Screen>
-      <View className="flex-row items-center justify-between py-1">
-        <View className="min-w-0 flex-1">
-          <Title className="text-xl">
-            {t('game.gameNumber', { id: String(gameId) }) ?? `Game #${gameId}`}
-          </Title>
-          <Text className="text-xs text-bp-textSecondary">
-            {t('game.maxPlayers', { max: String(meta?.maxPlayers ?? '—') }) ?? `Max ${meta?.maxPlayers ?? '—'} players`}
+      <View className="gap-1 py-1">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-bp-textInactive">
+            {t('game.winningPattern') ?? 'Winning pattern'}
           </Text>
+
+          <View className="flex-row items-center gap-2">
+            {/* The gear sits beside the prize rather than in the nav bar: these
+                are board settings, and the board is directly below it. */}
+            <Pressable
+              onPress={() => router.push('/(player)/settings')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('gameSettings.title') ?? 'Settings'}
+              className="h-8 w-8 items-center justify-center rounded-full border border-bp-borderInactive bg-bp-surface active:opacity-70"
+            >
+              <IconSettings color={colors.textSecondary} size={16} />
+            </Pressable>
+            <Text className="text-[10px] uppercase tracking-wider text-bp-textSecondary">
+              {t('mobile.jackpotPrize') ?? 'Prize'}:
+            </Text>
+            <Text className="text-xl font-black text-bp-goldInk">
+              {prize == null ? '—' : prize.toLocaleString()}
+            </Text>
+            {game.gameStatus ? <StatusPill status={game.gameStatus} /> : null}
+          </View>
         </View>
-        {isLive && (
-          <View className="flex-row items-center gap-1.5 rounded-full border border-bp-danger40 bg-bp-danger10 px-3 py-1">
-            <View className="h-2 w-2 rounded-full bg-bp-danger" />
-            <Text className="text-[10px] font-bold uppercase tracking-wider text-red-500">
-              {t('game.live') ?? 'Live'}
-            </Text>
-          </View>
-        )}
-        {/* While the socket is still connecting or retrying, say so: the board
-            keeps updating through the poll, but the player should not sit there
-            assuming the game is stalled. */}
-        {isConnecting && (
-          <View className="flex-row items-center gap-1.5 rounded-full border border-bp-border bg-bp-background px-3 py-1">
-            <View className="h-2 w-2 rounded-full bg-bp-textSecondary" />
-            <Text className="text-[10px] font-bold uppercase tracking-wider text-bp-textSecondary">
-              {t('game.syncing') ?? 'Syncing'}
-            </Text>
-          </View>
-        )}
+
+        {/* The Amharic names run to 37 characters, so the pattern gets its own
+            full-width row instead of a column squeezed beside the prize. It
+            stays on one line, and shrinks rather than truncating. */}
+        <Pressable
+          onPress={() => setPatternPreviewOpen(true)}
+          disabled={!winningPattern}
+          className="w-full flex-row items-center gap-1.5 active:opacity-80"
+        >
+          <Text
+            className="w-full text-sm font-black text-bp-goldInk"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
+            {patternLabel ?? '—'}
+          </Text>
+          {winningPattern ? (
+            <Text className="text-xs text-bp-textInactive">ⓘ</Text>
+          ) : null}
+        </Pressable>
       </View>
 
       <View className="border-b border-bp-borderInactive bg-bp-bg pt-2 pb-1.5">
         <NumberBoard calledNumbers={calledNumbers} lastCalledNumber={lastCalledNumber} />
       </View>
 
+      {/* Only meaningful once the player holds more than one card; the chosen
+          order is theirs, not something the board should override. */}
+      {(game.playerCards?.length ?? 0) > 1 ? (
+        <View className="flex-row items-center gap-2 pt-2">
+          <Text className="text-[10px] uppercase tracking-wider text-bp-textInactive">
+            {t('gameSettings.cardSort') ?? 'Card order'}:
+          </Text>
+          <Text className="text-xs font-semibold text-bp-goldInk">
+            {t(`gameSettings.sorts.${cardSort}`) ?? cardSort}
+          </Text>
+        </View>
+      ) : null}
+
       <ScrollView
         style={{ flex: 1 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadState} tintColor="#6B5BFF" />}
         contentContainerClassName="gap-3 pb-8"
       >
-        {winningPattern && patternLabel && (
-          <View className="mt-1 gap-2">
-            <View className="rounded-2xl border border-bp-gold25 bg-bp-surface p-3">
-              <View className="mb-2 flex-row items-center justify-between">
-                <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-bp-textInactive">
-                  {t('game.winningPattern') ?? 'Winning pattern'}
-                </Text>
-                {patternCellsSet?.size ? (
-                  <View className="rounded-full border border-bp-gold30 bg-bp-gold10 px-2 py-0.5">
-                    <Text className="text-[9px] font-bold text-bp-goldInk">
-                      {patternCellsSet.size} {t('game.patternCells') ?? 'cells'}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <View className="flex-row items-center gap-3">
-                <MiniPattern cells={patternCellsSet} />
-                <View className="min-w-0 flex-1">
-                  <Text className="text-base font-black text-bp-goldInk">{patternLabel}</Text>
-                  {patternHint ? (
-                    <Text className="mt-0.5 text-[11px] leading-snug text-bp-textSecondary">{patternHint}</Text>
-                  ) : null}
-                </View>
-              </View>
-            </View>
-          </View>
-        )}
-
-        <Card className="items-center overflow-hidden py-4">
-          <Text className="text-[10px] uppercase tracking-wider text-bp-textSecondary">
-            {t('mobile.jackpotPrize') ?? 'Prize'}
-          </Text>
-          <Text className="mt-1 text-3xl font-black text-bp-goldInk">
-            {(prize == null ? '—' : prize.toLocaleString())}
-          </Text>
-          <View className="mt-1 flex-row items-center gap-2">
-            {state?.winnerCount && state.winnerCount > 1 ? (
-              <Text className="text-[10px] text-bp-textSecondary">
-                {t('game.prizeShared', { count: String(state.winnerCount) }) ??
-                  `shared between ${state.winnerCount} winners`}
-              </Text>
-            ) : (
-              <Text className="text-[10px] text-bp-textSecondary">{t('game.coins') ?? 'birr'}</Text>
-            )}
-            <Text className="text-[10px] font-bold text-bp-textSecondary">
-              {t('game.called') ?? 'Called'}: {game.totalNumbersCalled}/75
-            </Text>
-          </View>
-        </Card>
-
         <FairnessPanel gameId={gameId} status={game.gameStatus} liveHash={state?.fairnessHash} />
 
         <StartCountdownBanner status={game.gameStatus} reason={startReason} seconds={countdownSeconds} />
@@ -380,14 +545,20 @@ export default function LiveGameScreen() {
 
         {isRegistration && (
           <>
-            {hasCards ? (
+            {hasCards || previewCards.length ? (
               <Card className="items-center py-4">
                 <Text className="text-[10px] font-bold uppercase tracking-[0.25em] text-bp-textSecondary">
                   {t('game.youHold', { count: String(game.playerCards?.length ?? 0), fee: String(entryFee ?? '') }) ??
                     `You hold ${game.playerCards?.length ?? 0} cards`}
                 </Text>
+                {previewCards.length > 0 && (
+                  <Text className="mt-1 text-[10px] text-bp-textSecondary">
+                    {t('game.holdingForYou', { count: String(previewCards.length) }) ??
+                      `${previewCards.length} card(s) held for you — not paid for yet`}
+                  </Text>
+                )}
                 <Button variant="primary" className="mt-3" onPress={() => setPickerOpen(true)}>
-                  {t('game.buyAnotherCard') ?? '+ Buy Another Card'}
+                  {t('game.seeMoreCards') ?? '+ See More Cards'}
                 </Button>
               </Card>
             ) : (
@@ -410,87 +581,136 @@ export default function LiveGameScreen() {
           </>
         )}
 
-        {hasCards ? (
+        {isRegistration && !selectionMode && (previewCards.length > 1 || hasCards) && (
+          <Text className="text-center text-[10px] text-bp-textSecondary">
+            {t('game.longPressToSelect') ?? 'Tip: long-press a card to select several'}
+          </Text>
+        )}
+
+        {selectionMode && (
+          <Card className="border-bp-primary40 bg-bp-primary10 gap-3">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-sm font-bold text-bp-textPrimary">
+                {t('game.selectCards', { count: String(selectedCardIds.size) }) ??
+                  `${selectedCardIds.size} selected`}
+              </Text>
+              <Pressable onPress={cancelSelection} hitSlop={6} disabled={bulkBusy}>
+                <Text className="text-xs font-bold text-bp-textSecondary">{t('common.cancel') ?? 'Cancel'}</Text>
+              </Pressable>
+            </View>
+            <View className="flex-row" style={{ gap: 8 }}>
+              {selectedPreviewCount > 0 && (
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  disabled={bulkBusy}
+                  onPress={() => void registerSelected()}
+                >
+                  {t('game.registerSelected', { count: String(selectedPreviewCount) }) ??
+                    `Register ${selectedPreviewCount}`}
+                </Button>
+              )}
+              <Button
+                variant="danger"
+                className="flex-1"
+                disabled={bulkBusy || selectedCardIds.size === 0}
+                onPress={() => void clearSelected()}
+              >
+                {t('game.removeSelected', { count: String(selectedCardIds.size) }) ??
+                  `Remove ${selectedCardIds.size}`}
+              </Button>
+            </View>
+          </Card>
+        )}
+
+        {(hasCards || previewCards.length > 0) && (
           <View className="flex-row flex-wrap" style={{ gap: 10 }}>
-            {game.playerCards!.map((card) => {
+            {/* Previews first: they are what the player is being asked to decide on. */}
+            {previewCards.map((card) => (
+              <CardTile
+                key={`preview-${card.cardId}`}
+                card={card}
+                tone="preview"
+                t={t}
+                cardIdLabel={t('game.cardNumber', { id: String(card.cardId) }) ?? `Card #${card.cardId}`}
+                busy={busyCardId === card.cardId || bulkBusy}
+                selectable={selectionMode}
+                selected={selectedCardIds.has(card.cardId)}
+                onSelectToggle={() => toggleSelected(card.cardId)}
+                onLongPressCard={() => startSelection(card.cardId)}
+                onRegister={() => void registerCard(card.cardId)}
+                onRemove={() => void removeCard(card.cardId)}
+              />
+            ))}
+            {sortedPlayerCards.map((card) => {
               const marked = isManual ? globalMarks : new Set(card.markedNumbers ?? []);
               const prog = isManual ? patternProgress(card.numbers, marked, winningPattern) : null;
-              const progCustom =
-                isManual && winningPattern === 'CUSTOM'
-                  ? computeProgress(card.numbers, marked, customCellsFromJson(state?.customPatternCells) ?? new Set())
-                  : null;
-              const done = prog?.done ?? progCustom?.done;
-              const total = prog?.total ?? progCustom?.total;
+              const done = prog?.done;
+              const total = prog?.total;
               const patternDone = isManual && total != null && done === total;
               const claimable = isLive && !card.banned && !card.winner && !claiming;
+              const tone = card.banned
+                ? ('banned' as const)
+                : card.winner
+                  ? ('winner' as const)
+                  : claimable
+                    ? ('live' as const)
+                    : ('registered' as const);
               return (
-                <View key={card.cardId} className="gap-1.5" style={{ width: '48%' }}>
-                  <View className="flex-row items-center justify-between gap-1.5">
-                    <Text className="rounded-full border border-bp-borderInactive bg-bp-surfaceAlt px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-bp-textSecondary">
-                      {t('game.cardNumber', { id: String(card.cardId) }) ?? `Card #${card.cardId}`}
-                    </Text>
-                    <View className="flex-row gap-1">
-                      {card.winner && (
-                        <Text className="rounded-full border border-bp-success40 bg-bp-success10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500">
-                          {t('game.winnerBadge') ?? 'Winner'}
-                        </Text>
-                      )}
-                      {card.banned && (
-                        <Text className="rounded-full border border-bp-danger50 bg-bp-danger15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-500">
-                          {t('game.bannedBadge') ?? 'Banned'}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                  <View className={card.banned ? 'opacity-60' : ''}>
-                    <CardGrid
-                      numbers={card.numbers}
-                      called={calledNumbers}
-                      marked={isManual ? [...marked] : []}
-                      lastCalledNumber={lastCalledNumber}
-                      interactive={isManual && !card.banned && !card.winner}
-                      onToggle={(n) => void toggleMark(n)}
-                    />
-                  </View>
-                  {card.banned && (
-                    <Text className="text-center text-[10px] text-red-500/80">
-                      {t('game.bannedCardHint') ?? 'This card is banned.'}
-                    </Text>
-                  )}
-                  {isManual && total != null ? (
-                    <View
-                      className={`self-center rounded-full border px-2 py-0.5 ${
-                        patternDone ? 'border-bp-gold40 bg-bp-gold10' : 'border-bp-borderInactive bg-bp-surfaceAlt'
-                      }`}
-                    >
-                      <Text
-                        className={`text-[9px] font-bold ${patternDone ? 'text-bp-goldInk' : 'text-bp-textSecondary'}`}
-                      >
-                        {patternDone
-                          ? `✓ ${done}/${total}`
-                          : `${t('game.patternProgress', { done: String(done), total: String(total) }) ?? `${done}/${total}`}`}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {claimable ? (
-                    <Pressable
-                      onPress={() => void claimCard(card)}
-                      style={{ boxShadow: '0 0 14px rgba(235,87,87,0.35)' }}
-                      className="w-full items-center rounded-xl bg-bp-danger py-2.5 active:opacity-80"
-                    >
-                      <Text className="text-sm font-black tracking-[0.15em] text-white">
-                        {claiming ? t('game.checking') ?? '✦ CHECKING…' : t('game.bingoBtn') ?? '✦ BINGO! ✦'}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-                </View>
+                <CardTile
+                  key={card.cardId}
+                  card={card}
+                  tone={tone}
+                  t={t}
+                  cardIdLabel={t('game.cardNumber', { id: String(card.cardId) }) ?? `Card #${card.cardId}`}
+                  called={calledNumbers}
+                  marked={isManual ? [...marked] : []}
+                  lastCalledNumber={lastCalledNumber}
+                  interactive={!selectionMode && isManual && !card.banned && !card.winner}
+                  onToggleMark={(n) => void toggleMark(n)}
+                  busy={claimable && claiming}
+                  onClaim={() => void claimCard(card)}
+                  onRemove={isRegistration ? () => void removeCard(card.cardId) : undefined}
+                  selectable={selectionMode}
+                  selected={selectedCardIds.has(card.cardId)}
+                  onSelectToggle={() => toggleSelected(card.cardId)}
+                  onLongPressCard={() => startSelection(card.cardId)}
+                  markColor={markPaint}
+                  footer={
+                    <>
+                      {isManual && total != null ? (
+                        <View
+                          className={`self-center rounded-full border px-2 py-0.5 ${
+                            patternDone ? 'border-bp-gold40 bg-bp-gold10' : 'border-bp-borderInactive bg-bp-surfaceAlt'
+                          }`}
+                        >
+                          <Text
+                            className={`text-[9px] font-bold ${patternDone ? 'text-bp-goldInk' : 'text-bp-textSecondary'}`}
+                          >
+                            {patternDone
+                              ? `✓ ${done}/${total}`
+                              : `${t('game.patternProgress', { done: String(done), total: String(total) }) ?? `${done}/${total}`}`}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </>
+                  }
+                />
               );
             })}
           </View>
-        ) : !isRegistration ? (
+        )}
+        {/* A card the player already paid for is shown at every status, so a
+            card survives STARTING and stays on the board once the game is
+            live. Only a game that never reached registration has nothing to
+            show, and that is the one case worth a message. */}
+        {!hasCards && previewCards.length === 0 && !isRegistration && !isStatusUnknown ? (
           <Card>
             <Text className="text-center text-sm text-bp-textSecondary">
-              {t('game.noCardsAvailable') ?? 'No cards registered yet'}
+              {game.gameStatus === GameStatus.ENDED
+                ? t('game.noCardsThisGame') ?? 'No cards in this game'
+                : t('game.waitingForRegistration') ??
+                  'No cards yet. They will appear here when registration opens.'}
             </Text>
           </Card>
         ) : null}
@@ -561,12 +781,7 @@ export default function LiveGameScreen() {
           gameId={gameId}
           entryFee={entryFee ?? 0}
           onClose={() => setPickerOpen(false)}
-          onRegistered={() => {
-            setRegisterSuccess(true);
-            // Registering from inside a game charges the entry fee too, so the
-            // lobby balance card must not keep showing the pre-registration total.
-            void qc.invalidateQueries({ queryKey: ['wallet'] });
-          }}
+          onPreviewed={() => void loadState()}
         />
       )}
       <WinnerModal
@@ -577,6 +792,40 @@ export default function LiveGameScreen() {
         winners={state?.winnerCount ?? null}
         onClose={() => setWinnerModalSeen(true)}
       />
+
+      {patternPreviewOpen && winningPattern && (
+        <Modal onClose={() => setPatternPreviewOpen(false)}>
+          <Card className="gap-3">
+            <View className="flex-row items-center justify-between">
+              <Text
+                className="min-w-0 flex-1 text-base font-black text-bp-goldInk"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {patternLabel}
+              </Text>
+              <Pressable
+                onPress={() => setPatternPreviewOpen(false)}
+                className="ml-2 h-8 w-8 items-center justify-center rounded-full bg-bp-surfaceAlt active:opacity-70"
+              >
+                <Text className="text-base text-bp-textSecondary">✕</Text>
+              </Pressable>
+            </View>
+            <View className="items-center">
+              <MiniPattern cells={patternCellsSet} size={34} />
+            </View>
+            {patternHint ? (
+              <Text className="text-center text-sm leading-relaxed text-bp-textSecondary">{patternHint}</Text>
+            ) : null}
+            {patternCellsSet?.size ? (
+              <Text className="text-center text-[11px] text-bp-textInactive">
+                {patternCellsSet.size} {t('game.patternCells') ?? 'cells'}
+              </Text>
+            ) : null}
+          </Card>
+        </Modal>
+      )}
 
     </Screen>
   );

@@ -12,7 +12,6 @@ public record AdminGameStateResponse(
         Long gameId,
         GameStatus status,
         BigDecimal entryFee,
-        Integer maxPlayers,
         Integer currentCallIndex,
         Integer totalNumbersCalled,
         BigDecimal prizePool,
@@ -22,8 +21,6 @@ public record AdminGameStateResponse(
         /** Highest prize this admin may set for the current pot. */
         BigDecimal maxPrize,
         String winningPattern,
-        String customPatternName,
-        String customPatternCells,
         Integer callInterval,
         boolean autoMark,
         LocalDateTime startTime,

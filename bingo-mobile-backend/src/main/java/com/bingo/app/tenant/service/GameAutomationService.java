@@ -27,6 +27,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -62,10 +63,24 @@ public class GameAutomationService {
 
     private static final int MIN_PLAYERS_TO_START = 2;
     private static final int DEFAULT_REGISTRATION_WINDOW_SECONDS = 180;
-    private static final Set<String> SUPPORTED_PATTERNS = Set.of(
-            "SINGLE_LINE", "DOUBLE_LINE", "TRIPLE_LINE", "FULL_HOUSE", "BLACKOUT", "FOUR_CORNERS",
+    /**
+     * Patterns the admin picker no longer offers. Automatic games only ever pick from
+     * {@link #SUPPORTED_PATTERNS}, so retiring these here also stops the random picker
+     * from handing out patterns that are no longer in the canonical list.
+     */
+    private static final Set<String> RETIRED_PATTERNS = Set.of(
+            "SINGLE_LINE", "DOUBLE_LINE", "TRIPLE_LINE", "BLACKOUT", "FOUR_CORNERS",
             "X_SHAPE", "L_SHAPE", "T_SHAPE", "POSTAGE_STAMP",
             "PLUS", "FRAME", "DIAMOND", "Z_SHAPE");
+
+    /** The canonical GamePatterns list: 28 grid patterns plus the full-card house. */
+    private static final Set<String> SUPPORTED_PATTERNS = buildSupportedPatterns();
+
+    private static Set<String> buildSupportedPatterns() {
+        Set<String> patterns = new LinkedHashSet<>(WinningPatternGeometry.codes());
+        patterns.add("FULL_HOUSE");
+        return Set.copyOf(patterns);
+    }
 
     public AutomationConfigResponse getConfig(Long adminUserId) {
         return automationConfigRepository.findByAdminUserId(adminUserId)
@@ -80,7 +95,6 @@ public class GameAutomationService {
                         .build());
 
         config.setEntryFee(request.getEntryFee() != null ? request.getEntryFee() : BigDecimal.TEN);
-        config.setMaxPlayers(request.getMaxPlayers() != null ? request.getMaxPlayers() : 50);
         config.setCallInterval(request.getCallInterval() != null ? request.getCallInterval() : 5);
         config.setRakePercent(request.getRakePercent() != null
                 ? request.getRakePercent() : new BigDecimal("10.00"));
@@ -89,7 +103,6 @@ public class GameAutomationService {
                 ? request.getRegistrationWindowSeconds() : DEFAULT_REGISTRATION_WINDOW_SECONDS);
         config.setCooldownSeconds(request.getCooldownSeconds() != null
                 ? request.getCooldownSeconds() : 15);
-        config.setStartWhenFull(request.getStartWhenFull() == null || request.getStartWhenFull());
         config.setEnabled(Boolean.TRUE.equals(request.getEnabled()));
         config.setAutoReview(Boolean.TRUE.equals(request.getAutoReview()));
         config.setReviewGraceSeconds(request.getReviewGraceSeconds() != null
@@ -97,13 +110,6 @@ public class GameAutomationService {
 
         String pattern = normalizePattern(request);
         config.setWinningPattern(pattern);
-        if ("CUSTOM".equals(pattern)) {
-            config.setCustomPatternName(request.getCustomPatternName());
-            config.setCustomPatternCells(request.getCustomPatternCells());
-        } else {
-            config.setCustomPatternName(null);
-            config.setCustomPatternCells(null);
-        }
 
         // Enabling (or saving while enabled) schedules the next game immediately so the
         // scanner creates one on its very next tick instead of waiting on a stale cooldown.
@@ -307,7 +313,6 @@ public class GameAutomationService {
         String pattern = randomPattern();
         CreateGameRequest request = CreateGameRequest.builder()
                 .entryFee(config.getEntryFee() != null ? config.getEntryFee() : BigDecimal.TEN)
-                .maxPlayers(config.getMaxPlayers() != null ? config.getMaxPlayers() : 50)
                 .callInterval(config.getCallInterval() != null ? config.getCallInterval() : 5)
                 // No prize here: the pot is empty until players register, and the
                 // prize is what the admin decides once they can see the room. Their
@@ -338,19 +343,11 @@ public class GameAutomationService {
     }
 
     private String normalizePattern(AutomationConfigRequest request) {
-        String pattern = request.getWinningPattern() != null ? request.getWinningPattern() : "SINGLE_LINE";
-        if ("CUSTOM".equals(pattern)) {
-            if (request.getCustomPatternName() == null || request.getCustomPatternName().trim().isEmpty()) {
-                throw new GameProgressException("Custom pattern requires a name",
-                        "Give your custom pattern a name.");
-            }
-            if (request.getCustomPatternCells() == null || request.getCustomPatternCells().trim().isEmpty()) {
-                throw new GameProgressException("Custom pattern requires cells",
-                        "Draw a pattern on the board first.");
-            }
-            return "CUSTOM";
-        }
-        if ("BLACKOUT".equals(pattern)) {
+        String pattern = request.getWinningPattern() != null ? request.getWinningPattern() : "FULL_HOUSE";
+        if (RETIRED_PATTERNS.contains(pattern)) {
+            // A config saved before the picker changed still carries the old code. Automatic
+            // games randomize the pattern anyway, so fall back instead of blocking the save.
+            log.info("Automation: config still held retired pattern {}, using FULL_HOUSE", pattern);
             return "FULL_HOUSE";
         }
         if (!SUPPORTED_PATTERNS.contains(pattern)) {
@@ -360,21 +357,32 @@ public class GameAutomationService {
         return pattern;
     }
 
+    /**
+     * The pattern to show for a stored config. A retired code reads as FULL_HOUSE
+     * instead of being passed through, so the admin never sees a pattern that is
+     * no longer in the picker.
+     */
+    private String readablePattern(String storedPattern) {
+        if (storedPattern == null || storedPattern.isBlank() || RETIRED_PATTERNS.contains(storedPattern)) {
+            return "FULL_HOUSE";
+        }
+        return storedPattern;
+    }
+
     private AutomationConfigResponse toDto(AutomationConfig config) {
         return AutomationConfigResponse.builder()
                 .adminUserId(config.getAdminUserId())
                 .enabled(Boolean.TRUE.equals(config.getEnabled()))
                 .entryFee(config.getEntryFee())
-                .maxPlayers(config.getMaxPlayers())
                 .callInterval(config.getCallInterval())
                 .rakePercent(config.getRakePercent())
-                .winningPattern(config.getWinningPattern())
-                .customPatternName(config.getCustomPatternName())
-                .customPatternCells(config.getCustomPatternCells())
+                // Normalised on read as well as on save: a row written before the
+                // picker changed still holds a retired code, and the admin UI would
+                // otherwise show a value it no longer offers.
+                .winningPattern(readablePattern(config.getWinningPattern()))
                 .autoMark(config.getAutoMark() == null || config.getAutoMark())
                 .registrationWindowSeconds(config.getRegistrationWindowSeconds())
                 .cooldownSeconds(config.getCooldownSeconds())
-                .startWhenFull(config.getStartWhenFull() == null || config.getStartWhenFull())
                 .autoReview(Boolean.TRUE.equals(config.getAutoReview()))
                 .reviewGraceSeconds(config.getReviewGraceSeconds() != null ? config.getReviewGraceSeconds() : 2)
                 .nextGameAt(config.getNextGameAt())
@@ -387,14 +395,12 @@ public class GameAutomationService {
                 .adminUserId(adminUserId)
                 .enabled(false)
                 .entryFee(BigDecimal.TEN)
-                .maxPlayers(50)
                 .callInterval(5)
                 .rakePercent(new BigDecimal("10.00"))
-                .winningPattern("SINGLE_LINE")
+                .winningPattern("FULL_HOUSE")
                 .autoMark(true)
                 .registrationWindowSeconds(DEFAULT_REGISTRATION_WINDOW_SECONDS)
                 .cooldownSeconds(15)
-                .startWhenFull(true)
                 .autoReview(false)
                 .reviewGraceSeconds(2)
                 .build();

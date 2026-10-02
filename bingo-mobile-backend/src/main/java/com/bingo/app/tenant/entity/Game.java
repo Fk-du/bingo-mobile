@@ -31,8 +31,6 @@ public class Game {
 
     @Column(name = "entry_fee")
     private BigDecimal entryFee;
-    @Column(name = "max_players")
-    private Integer maxPlayers;
     @Column(name = "current_call_index")
     private Integer currentCallIndex;
     @Column(name = "total_numbers_called")
@@ -41,11 +39,6 @@ public class Game {
     private BigDecimal prizePool;
     @Column(name = "winning_pattern")
     private String winningPattern;
-    @Column(name = "custom_pattern_name")
-    private String customPatternName;
-    /** JSON array of [row,col] pairs for a custom pattern, e.g. [[0,0],[0,4]]. */
-    @Column(name = "custom_pattern_cells", columnDefinition = "TEXT")
-    private String customPatternCells;
     @Column(name = "call_interval")
     private Integer callInterval;
     /**

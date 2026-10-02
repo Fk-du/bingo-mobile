@@ -16,8 +16,6 @@ public record GameStateResponse(
         List<Integer> calledNumbers,
         List<String> calledNumbersLabeled,
         String winningPattern,
-        String customPatternName,
-        String customPatternCells,
         boolean autoMark,
         /**
          * Total the winners of this game share. Public — it is the advertised
@@ -26,6 +24,12 @@ public record GameStateResponse(
          */
         java.math.BigDecimal prizeAmount,
         List<PlayerCardView> playerCards,
+        /**
+         * Cards held for this player to look at but not yet paid for. Always empty
+         * once the game leaves registration, and never a registration: these have
+         * no claim rights until the player registers them.
+         */
+        List<PreviewCardView> previewCards,
         boolean hasPlayerCard,
         boolean isWinner,
         /** The winner's own share of the prize; null for anyone who did not win. */
@@ -46,6 +50,12 @@ public record GameStateResponse(
             boolean banned,
             List<Integer> markedNumbers,
             Boolean autoMark
+    ) {}
+
+    /** A card the player is holding to review. It is not registered and cannot claim. */
+    public record PreviewCardView(
+            Long cardId,
+            int[][] numbers
     ) {}
 
     public static String numberToLabel(Integer number) {

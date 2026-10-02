@@ -42,7 +42,6 @@ class ConfigServiceTest {
         ReflectionTestUtils.setField(configService, "defaultNumberRange", 75);
         ReflectionTestUtils.setField(configService, "defaultAutoCallInterval", 5);
         ReflectionTestUtils.setField(configService, "defaultEntryFee", 10);
-        ReflectionTestUtils.setField(configService, "defaultMaxPlayers", 50);
         ReflectionTestUtils.setField(configService, "defaultMinWithdrawal", 10);
 
         when(configRepository.existsById(anyString())).thenReturn(false);

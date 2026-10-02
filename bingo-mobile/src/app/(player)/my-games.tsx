@@ -59,9 +59,6 @@ export default function PlayerMyGamesScreen() {
                   {t('mobile.jackpotPrize') ?? 'Prize'}:{' '}
                   {item.prizeAmount == null ? '—' : item.prizeAmount}
                 </Text>
-                <Text className="text-bp-textSecondary text-sm">
-                  {t('admin.maxPlayers') ?? 'Max'}: {item.maxPlayers}
-                </Text>
               </View>
               <View className="flex-row justify-between items-center">
                 <Text className="text-bp-textSecondary text-xs">

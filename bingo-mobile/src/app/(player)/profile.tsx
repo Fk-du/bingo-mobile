@@ -6,7 +6,9 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { authApi, inviteApi } from '@/api';
 import { Button, Card, Screen, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { IconMoon, IconSun } from '@/components/ui/icons';
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
 
 const LOCALES = ['en', 'am'] as const;
@@ -17,6 +19,7 @@ export default function PlayerProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
+  const { isDark, colors, toggle: toggleTheme } = useTheme();
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
@@ -88,6 +91,34 @@ export default function PlayerProfileScreen() {
           <Text className="text-bp-textSecondary text-sm">{t('player.playerLabel') ?? 'Player'}</Text>
           {user?.username ? <Text className="text-bp-textSecondary text-xs">@{user.username}</Text> : null}
           {user?.phoneNumber ? <Text className="text-bp-textSecondary text-xs">📞 {user.phoneNumber}</Text> : null}
+        </Card>
+
+        {/* The home screen redirects straight to the game, so the theme switch
+            lives on the profile instead of a header the player rarely sees.
+            Both icons stay visible and the active one is outlined in the
+            primary colour, so the current mode reads at a glance. */}
+        <Card className="flex-row items-center justify-between">
+          <Text className="text-bp-textPrimary font-semibold">
+            {t('player.appearance') ?? 'Appearance'}
+          </Text>
+          <View className="flex-row items-center gap-2">
+            <ModeToggle
+              active={!isDark}
+              label={t('player.lightMode') ?? 'Light'}
+              onPress={() => !isDark && toggleTheme()}
+              borderColor={!isDark ? colors.primary : colors.borderInactive}
+            >
+              <IconSun size={18} color={!isDark ? colors.primary : colors.textInactive} />
+            </ModeToggle>
+            <ModeToggle
+              active={isDark}
+              label={t('player.darkMode') ?? 'Dark'}
+              onPress={() => isDark && toggleTheme()}
+              borderColor={isDark ? colors.primary : colors.borderInactive}
+            >
+              <IconMoon size={18} color={isDark ? colors.primary : colors.textInactive} />
+            </ModeToggle>
+          </View>
         </Card>
 
         <Pressable onPress={() => setShowInvite((v) => !v)} className="active:opacity-80">
@@ -191,5 +222,35 @@ export default function PlayerProfileScreen() {
         </Button>
       </ScrollView>
     </Screen>
+  );
+}
+
+/** One light/dark option. Only the active one is outlined and coloured. */
+function ModeToggle({
+  active,
+  label,
+  onPress,
+  borderColor,
+  children,
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+  borderColor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+      // The inactive half stays tappable: tapping it switches to that mode
+      // rather than doing nothing, which is what a segmented control implies.
+      className="h-9 w-9 items-center justify-center rounded-full border bg-bp-surface"
+      style={{ borderColor, opacity: active ? 1 : 0.7 }}
+    >
+      {children}
+    </Pressable>
   );
 }

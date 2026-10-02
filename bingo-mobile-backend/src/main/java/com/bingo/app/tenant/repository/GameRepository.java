@@ -37,8 +37,13 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     @Query("SELECT g FROM Game g WHERE g.adminUserId = :adminUserId AND g.status NOT IN ('ENDED') ORDER BY g.createdAt DESC")
     Optional<Game> findActiveGameByAdmin(@Param("adminUserId") Long adminUserId);
 
-    @Query("SELECT COUNT(g) > 0 FROM Game g WHERE g.adminUserId = :adminUserId AND g.status IN ('STARTING', 'IN_PROGRESS', 'PAUSED', 'CLAIM_PENDING')")
-    boolean hasActiveGame(@Param("adminUserId") Long adminUserId);
+    /**
+     * True when the admin owns any live table, registration included. An admin is only ever
+     * allowed one game at a time, so this — not {@link #hasActiveGame} — is the guard on
+     * creating a new one.
+     */
+    @Query("SELECT COUNT(g) > 0 FROM Game g WHERE g.adminUserId = :adminUserId AND g.status IN ('REGISTRATION_OPEN', 'STARTING', 'IN_PROGRESS', 'PAUSED', 'CLAIM_PENDING')")
+    boolean hasLiveGame(@Param("adminUserId") Long adminUserId);
 
     List<Game> findByStatus(GameStatus status);
 }

@@ -11,10 +11,12 @@ import com.bingo.app.tenant.dto.response.AdminGameStateResponse;
 import com.bingo.app.tenant.dto.response.BingoClaimResponse;
 import com.bingo.app.tenant.dto.response.BingoClaimResultResponse;
 import com.bingo.app.tenant.dto.response.AdminGameResponse;
+import com.bingo.app.tenant.dto.response.CardRemovalResponse;
 import com.bingo.app.tenant.dto.response.GameStateResponse;
 import com.bingo.app.tenant.dto.response.PendingClaimCardResponse;
 import com.bingo.app.tenant.dto.response.PlayerCardHistoryResponse;
 import com.bingo.app.tenant.dto.response.PlayerGameResponse;
+import com.bingo.app.tenant.dto.response.PreviewCardResponse;
 import com.bingo.app.tenant.dto.response.RegisterResponse;
 import com.bingo.app.master.enums.Role;
 import com.bingo.app.tenant.service.CardService;
@@ -75,8 +77,7 @@ public class GameController {
             @PathVariable Long id,
             @Valid @RequestBody GameSettingsUpdateRequest request) {
         var game = gameService.updateGameSettings(id, principal.getUser().getId(),
-                request.maxPlayers(), request.callInterval(), request.winningPattern(),
-                request.customPatternName(), request.customPatternCells(),
+                request.callInterval(), request.winningPattern(),
                 request.prizeAmount(), request.autoMark());
         return ApiResponse.ok("Game settings updated", game);
     }
@@ -208,6 +209,54 @@ public class GameController {
                 .gameId(id)
                 .cardIds(gameCards.stream().map(gc -> gc.card().id()).toList())
                 .build());
+    }
+
+    /**
+     * Show the player {@code count} cards without charging for any of them. The
+     * cards are held for them, so nobody else is dealt the same numbers, and each
+     * one is registered individually afterwards.
+     */
+    @PostMapping("/{id}/cards/preview")
+    @PreAuthorize("hasRole('PLAYER')")
+    public ApiResponse<List<PreviewCardResponse>> previewCards(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @RequestBody(required = false) com.bingo.app.tenant.dto.request.RegisterRequest request) {
+        Integer count = request == null ? null : request.count();
+        var previews = cardService.previewCards(id, principal.getUser().getId(), count == null ? 1 : count);
+        return ApiResponse.ok("Cards ready to review", previews);
+    }
+
+    /** Pay the entry fee for one previewed card and deal it to the player. */
+    @PostMapping("/{id}/cards/{cardId}/register")
+    @PreAuthorize("hasRole('PLAYER')")
+    public ApiResponse<RegisterResponse> registerPreviewedCard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @PathVariable Long cardId) {
+        var gameCard = cardService.registerPreviewedCard(id, principal.getUser().getId(), cardId);
+        return ApiResponse.ok("Card registered", RegisterResponse.builder()
+                .gameId(id)
+                .cardIds(java.util.List.of(gameCard.card().id()))
+                .build());
+    }
+
+    /**
+     * Take a card off the player's board. A card that was only being previewed
+     * just goes away; a registered card is unregistered and its entry fee is
+     * refunded to the balance and taken back out of the pot.
+     */
+    @DeleteMapping("/{id}/cards/{cardId}")
+    @PreAuthorize("hasRole('PLAYER')")
+    public ApiResponse<CardRemovalResponse> unregisterCard(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @PathVariable Long cardId) {
+        var result = cardService.unregisterCard(id, principal.getUser().getId(), cardId);
+        String message = result.wasRegistered()
+                ? "Card removed and entry fee refunded"
+                : "Card removed";
+        return ApiResponse.ok(message, new CardRemovalResponse(result.wasRegistered(), result.refund()));
     }
 
     @PostMapping("/{id}/claim")

@@ -7,14 +7,39 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { AutomationConfig, CreateGameRequest } from '@/types';
 
 const WINNING_PATTERNS = [
-  'SINGLE_LINE', 'DOUBLE_LINE', 'TRIPLE_LINE', 'FULL_HOUSE', 'FOUR_CORNERS',
-  'X_SHAPE', 'T_SHAPE', 'L_SHAPE', 'POSTAGE_STAMP', 'PLUS', 'FRAME', 'DIAMOND',
-  'Z_SHAPE', 'CUSTOM',
+  'FULL_HOUSE',
+  'HALF_HOUSE',
+  'EIGHT_LINES',
+  'SEVEN_LINES',
+  'SIX_LINES',
+  'FIVE_LINES',
+  'TWO_VERT_TWO_HORIZ_ONE_DIAG',
+  'TWO_VERT_TWO_HORIZ',
+  'TWO_VERT_THREE_HORIZ',
+  'FIVE_LINES_NO_FREE',
+  'FOUR_LINES_NO_FREE',
+  'TWO_TOUCH_TWO_NO_TOUCH',
+  'FOUR_SQUARES',
+  'TWO_LINES_TWO_SQUARES',
+  'TWO_LINES_TWO_SEP_SQUARES',
+  'THREE_SQUARES_FOUR_DOTS',
+  'THREE_RECTANGLES',
+  'LARGE_T_TWO_LINES',
+  'FOUR_LINES',
+  'THREE_LINES_ONE_DIAG',
+  'FOUR_LINES_TOUCH_FREE',
+  'TWO_LINES_TWO_RECTANGLES',
+  'LARGE_T_THREE_LINES',
+  'TWO_HORIZ_TWO_VERT_TWO_DIAG',
+  'THREE_LINES_NO_FREE_DISJOINT',
+  'FOUR_LINES_NO_FREE_DISJOINT',
+  'THREE_SMALL_T',
+  'LARGE_CROSS_TWO_SQUARES',
+  'THREE_SMALL_CROSSES',
 ];
 
 const DEFAULTS = {
   entryFee: '10',
-  maxPlayers: '50',
   callInterval: '5',
   rakePercent: '10',
   registrationWindow: '180',
@@ -60,24 +85,20 @@ function AutomationCard({
   const [enabled, setEnabled] = useState(automation?.enabled ?? false);
   const [form, setForm] = useState({
     entryFee: String(automation?.entryFee ?? DEFAULTS.entryFee),
-    maxPlayers: String(automation?.maxPlayers ?? DEFAULTS.maxPlayers),
     callInterval: String(automation?.callInterval ?? DEFAULTS.callInterval),
     rakePercent: String(automation?.rakePercent ?? DEFAULTS.rakePercent),
     autoMark: automation?.autoMark ?? true,
     registrationWindowSeconds: String(automation?.registrationWindowSeconds ?? DEFAULTS.registrationWindow),
     cooldownSeconds: String(automation?.cooldownSeconds ?? DEFAULTS.cooldown),
-    startWhenFull: automation?.startWhenFull ?? false,
   });
 
   const buildPayload = (autoEnabled: boolean) => ({
     entryFee: Number(form.entryFee) || 10,
-    maxPlayers: Number(form.maxPlayers) || 50,
     callInterval: Number(form.callInterval) || 5,
     rakePercent: Number(form.rakePercent) || 10,
     autoMark: form.autoMark,
     registrationWindowSeconds: Number(form.registrationWindowSeconds) || 180,
     cooldownSeconds: Number(form.cooldownSeconds) || 15,
-    startWhenFull: form.startWhenFull,
     enabled: autoEnabled,
   });
 
@@ -138,13 +159,6 @@ function AutomationCard({
               placeholder="10"
             />
           </FieldRow>
-          <FieldRow label={t('admin.maxPlayers') ?? 'Max players'}>
-            <AppTextInput
-              value={form.maxPlayers}
-              onChangeText={(v) => setForm((f) => ({ ...f, maxPlayers: v }))}
-              keyboardType="numeric"
-            />
-          </FieldRow>
           <FieldRow label={t('admin.callInterval') ?? 'Call interval (s)'}>
             <AppTextInput
               value={form.callInterval}
@@ -186,15 +200,6 @@ function AutomationCard({
               keyboardType="numeric"
             />
           </FieldRow>
-          <Pressable
-            onPress={() => setForm((f) => ({ ...f, startWhenFull: !f.startWhenFull }))}
-            className="flex-row items-center gap-2"
-          >
-            <View className={`w-9 h-5 rounded-full px-0.5 justify-center ${form.startWhenFull ? 'bg-bp-primary' : 'bg-bp-textInactive'}`}>
-              <View className={`h-4 w-4 rounded-full bg-white ${form.startWhenFull ? 'self-end' : ''}`} />
-            </View>
-            <Text className="text-bp-textSecondary text-sm">{t('admin.startWhenFull') ?? 'Start when full'}</Text>
-          </Pressable>
           <View className="flex-row gap-2">
             <Button variant="primary" disabled={busy != null} onPress={() => void save(true, t('admin.templateUpdated') ?? 'Template updated', 'save')} style={{ flex: 1 }}>
               {busy === 'save' ? t('admin.creating') ?? 'Saving…' : t('admin.saveTemplateKeepAuto') ?? 'Save & keep auto'}
@@ -220,9 +225,8 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 
 function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
   const [entryFee, setEntryFee] = useState(DEFAULTS.entryFee);
-  const [maxPlayers, setMaxPlayers] = useState(DEFAULTS.maxPlayers);
   const [callInterval, setCallInterval] = useState(DEFAULTS.callInterval);
-  const [winningPattern, setWinningPattern] = useState('SINGLE_LINE');
+  const [winningPattern, setWinningPattern] = useState(WINNING_PATTERNS[0]);
   const [autoMark, setAutoMark] = useState(true);
   const [showPattern, setShowPattern] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -235,7 +239,6 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
     setError(null);
     const payload: CreateGameRequest = {
       entryFee: Number(entryFee),
-      maxPlayers: Number(maxPlayers),
       callInterval: Number(callInterval),
       winningPattern,
       autoMark,
@@ -244,7 +247,6 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
       await gamesApi.create(payload);
       setSuccess(true);
       setEntryFee(DEFAULTS.entryFee);
-      setMaxPlayers(DEFAULTS.maxPlayers);
     } catch (e) {
       setError((e as { userMessage?: string }).userMessage ?? 'Could not create game');
     } finally {
@@ -266,9 +268,6 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
 
       <FieldRow label={t('admin.entryFee') ?? 'Entry fee'}>
         <AppTextInput value={entryFee} onChangeText={setEntryFee} keyboardType="numeric" placeholder="10" />
-      </FieldRow>
-      <FieldRow label={t('admin.maxPlayers') ?? 'Max players'}>
-        <AppTextInput value={maxPlayers} onChangeText={setMaxPlayers} keyboardType="numeric" />
       </FieldRow>
       <FieldRow label={t('admin.callInterval') ?? 'Call interval (s)'}>
         <AppTextInput value={callInterval} onChangeText={setCallInterval} keyboardType="numeric" />

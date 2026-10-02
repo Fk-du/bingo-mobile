@@ -92,7 +92,6 @@ export default function SuperAdminReportsScreen() {
             <View className="flex-row justify-between mt-1">
               <Info label={t('super.entryFee') ?? 'Entry Fee'} value={item.entryFee} />
               <Info label={t('super.prizePool') ?? 'Prize Pool'} value={item.prizePool} />
-              <Info label={t('super.maxPlayers') ?? 'Max Players'} value={item.maxPlayers} />
               <Info label={t('super.created') ?? 'Created'} value={new Date(item.createdAt).toLocaleDateString()} />
             </View>
           </View>

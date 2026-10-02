@@ -94,16 +94,12 @@ public final class SchemaMigrationHelper {
                     admin_user_id BIGINT UNIQUE,
                     enabled BOOLEAN NOT NULL DEFAULT FALSE,
                     entry_fee DECIMAL(19,2),
-                    max_players INTEGER,
                     call_interval INTEGER,
                     rake_percent DECIMAL(19,2),
                     winning_pattern VARCHAR(50),
-                    custom_pattern_name VARCHAR(255),
-                    custom_pattern_cells TEXT,
                     auto_mark BOOLEAN NOT NULL DEFAULT TRUE,
                     registration_window_seconds INTEGER,
                     cooldown_seconds INTEGER,
-                    start_when_full BOOLEAN NOT NULL DEFAULT TRUE,
                     next_game_at TIMESTAMP,
                     updated_at TIMESTAMP
                 )
@@ -119,6 +115,13 @@ public final class SchemaMigrationHelper {
         // migration below, so the new columns exist even on a fresh tenant.
         addColumnIfNotExists(conn, "games", "prize_amount", "NUMERIC(12,2)");
         addColumnIfNotExists(conn, "automation_config", "rake_percent", "DECIMAL(19,2)");
+
+        // Custom patterns are gone: every winning pattern is now a fixed one from the
+        // canonical list, so nothing writes these columns any more.
+        dropColumnIfExists(conn, "games", "custom_pattern_name");
+        dropColumnIfExists(conn, "games", "custom_pattern_cells");
+        dropColumnIfExists(conn, "automation_config", "custom_pattern_name");
+        dropColumnIfExists(conn, "automation_config", "custom_pattern_cells");
         migrateCommissionToPrize(conn);
     }
 
@@ -259,6 +262,16 @@ public final class SchemaMigrationHelper {
         if (!columnExists(conn, table, column)) {
             execute(conn, "ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
             log.info("Added column {}.{}", table, column);
+        }
+    }
+
+    static void dropColumnIfExists(Connection conn, String table, String column) throws SQLException {
+        if (!tableExists(conn, table)) {
+            return;
+        }
+        if (columnExists(conn, table, column)) {
+            execute(conn, "ALTER TABLE " + table + " DROP COLUMN " + column);
+            log.info("Dropped column {}.{}", table, column);
         }
     }
 

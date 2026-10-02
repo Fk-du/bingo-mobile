@@ -49,6 +49,7 @@ public class GameEngineService {
     private final GameRepository gameRepository;
     private final CalledNumberRepository calledNumberRepository;
     private final GameCardRepository gameCardRepository;
+    private final com.bingo.app.tenant.repository.CardPreviewRepository cardPreviewRepository;
     private final BingoClaimRepository bingoClaimRepository;
     private final WalletService walletService;
     private final CardService cardService;
@@ -1176,27 +1177,8 @@ public class GameEngineService {
      * Z_SHAPE: top row + main diagonal + bottom row complete.
      */
     boolean validateBingo(int[][] cardNumbers, List<Integer> calledNumbers, String pattern) {
-        return validateBingo(cardNumbers, calledNumbers, pattern, null);
-    }
-
-    boolean validateBingo(int[][] cardNumbers, List<Integer> calledNumbers, String pattern, String customCellsJson) {
         Set<Integer> calledSet = new HashSet<>(calledNumbers);
         calledSet.add(0);
-
-        if ("CUSTOM".equals(pattern)) {
-            List<int[]> cells = parseCustomCells(customCellsJson);
-            if (cells.isEmpty()) {
-                return false;
-            }
-            for (int[] cell : cells) {
-                int r = cell[0], c = cell[1];
-                if (r == 2 && c == 2) continue; // free centre
-                if (!calledSet.contains(cardNumbers[r][c])) {
-                    return false;
-                }
-            }
-            return true;
-        }
 
         if ("FULL_HOUSE".equals(pattern) || "BLACKOUT".equals(pattern)) {
             for (int row = 0; row < 5; row++) {
@@ -1308,6 +1290,22 @@ public class GameEngineService {
             return topRow && bottomRow && diag;
         }
 
+        if (WinningPatternGeometry.has(pattern)) {
+            // Grid-defined patterns from the admin picker: every listed cell must be called.
+            List<int[]> cells = WinningPatternGeometry.cells(pattern);
+            if (cells.isEmpty()) {
+                return false;
+            }
+            for (int[] cell : cells) {
+                int r = cell[0], c = cell[1];
+                if (r == 2 && c == 2) continue; // free centre
+                if (!calledSet.contains(cardNumbers[r][c])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         int completedLines = 0;
         for (int[] winPattern : WINNING_PATTERNS) {
             boolean lineComplete = true;
@@ -1365,29 +1363,6 @@ public class GameEngineService {
     }
 
     /**
-     * Parse a custom pattern's [[row,col],...] cells from JSON.
-     */
-    private List<int[]> parseCustomCells(String cellsJson) {
-        if (cellsJson == null || cellsJson.trim().isEmpty()) {
-            return List.of();
-        }
-        try {
-            int[][] cells = objectMapper.readValue(cellsJson, int[][].class);
-            if (cells == null) return List.of();
-            java.util.List<int[]> result = new java.util.ArrayList<>();
-            for (int[] cell : cells) {
-                if (cell.length == 2 && cell[0] >= 0 && cell[0] < 5 && cell[1] >= 0 && cell[1] < 5) {
-                    result.add(cell);
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            log.error("Failed to parse custom pattern cells: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    /**
      * Get current game state for a player
      */
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
@@ -1409,6 +1384,16 @@ public class GameEngineService {
                         parseMarkedNumbers(gc),
                         gc.getAutoMark()))
                 .toList();
+
+        List<GameStateResponse.PreviewCardView> previewCards = List.of();
+        if (game.getStatus() == GameStatus.REGISTRATION_OPEN) {
+            previewCards = cardPreviewRepository
+                    .findByGameIdAndPlayerIdOrderByCreatedAtAsc(gameId, playerId).stream()
+                    .map(cp -> new GameStateResponse.PreviewCardView(
+                            cp.getCard().getId(),
+                            parseCardNumbers(cp.getCard().getNumbers())))
+                    .toList();
+        }
 
         boolean anyWinner = playerCards.stream().anyMatch(GameStateResponse.PlayerCardView::winner);
         // The winner's own share, so their result screen can state exactly what they won.
@@ -1442,6 +1427,7 @@ public class GameEngineService {
                 .calledNumbers(calledNumbers)
                 .prizeAmount(game.getPrizeAmount())
                 .playerCards(playerCards)
+                .previewCards(previewCards)
                 .hasPlayerCard(!playerCards.isEmpty())
                 .isWinner(anyWinner)
                 .rewardAmount(winnerReward)
@@ -1449,8 +1435,6 @@ public class GameEngineService {
                 .autoMark(autoMark)
                 .startTime(game.getStartTime())
                 .winningPattern(game.getWinningPattern())
-                .customPatternName(game.getCustomPatternName())
-                .customPatternCells(game.getCustomPatternCells())
                 .fairnessHash(game.getFairnessHash())
                 .build();
     }
@@ -1829,6 +1813,7 @@ public class GameEngineService {
         private List<Integer> calledNumbers;
         private BigDecimal prizeAmount;
         private List<GameStateResponse.PlayerCardView> playerCards;
+        private List<GameStateResponse.PreviewCardView> previewCards;
         private boolean hasPlayerCard;
         private boolean isWinner;
         private BigDecimal rewardAmount;
@@ -1836,8 +1821,6 @@ public class GameEngineService {
         private Boolean autoMark;
         private java.time.LocalDateTime startTime;
         private String winningPattern;
-        private String customPatternName;
-        private String customPatternCells;
         private String fairnessHash;
     }
 }

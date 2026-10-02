@@ -9,6 +9,8 @@ import {
   BingoClaimResponse,
   BingoClaimResultResponse,
   PendingClaimCard,
+  PreviewCardView,
+  CardRemovalResponse,
   RegisterResponse,
   CreateGameRequest,
   GameSettingsUpdateRequest,
@@ -62,6 +64,29 @@ export const gamesApi = {
   },
   register: async (id: number, count: number) => {
     const res = await apiClient.post<ApiResponse<RegisterResponse>>(`/games/${id}/register`, { count });
+    return res.data;
+  },
+  /**
+   * Hold `count` cards for the player to look at. Nothing is charged: each card is
+   * registered on its own afterwards, or dropped with removeCard.
+   */
+  previewCards: async (id: number, count: number) => {
+    const res = await apiClient.post<ApiResponse<PreviewCardView[]>>(`/games/${id}/cards/preview`, { count });
+    return res.data;
+  },
+  /** Pay the entry fee for one previewed card and deal it to the player. */
+  registerCard: async (id: number, cardId: number) => {
+    const res = await apiClient.post<ApiResponse<RegisterResponse>>(
+      `/games/${id}/cards/${cardId}/register`
+    );
+    return res.data;
+  },
+  /**
+   * Take a card off the player's board. An unpaid preview is simply released; a
+   * registered card is unregistered and its entry fee is refunded.
+   */
+  removeCard: async (id: number, cardId: number) => {
+    const res = await apiClient.delete<ApiResponse<CardRemovalResponse>>(`/games/${id}/cards/${cardId}`);
     return res.data;
   },
   saveMarks: async (id: number, cardId: number | undefined, markedNumbers: number[], autoMark?: boolean) => {

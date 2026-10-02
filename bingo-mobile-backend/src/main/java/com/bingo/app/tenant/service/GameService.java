@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,19 +52,21 @@ public class GameService {
     private final TenantMapper tenantMapper;
     private final PrizeRules prizeRules;
     private final com.bingo.app.tenant.repository.AutomationConfigRepository automationConfigRepository;
+    private final com.bingo.app.tenant.repository.CardPreviewRepository cardPreviewRepository;
 
     @Transactional(transactionManager = "tenantTransactionManager")
     public AdminGameResponse createGameWithEntryFee(Long adminUserId, CreateGameRequest request) {
-        if (gameRepository.hasActiveGame(adminUserId)) {
-            throw new GameProgressException("Admin already has an active game",
-                    "You already have an active game. Finish it before creating a new one.");
+        // An admin runs one table at a time. A table still collecting registrations counts
+        // as live, so this also blocks a second game while the first one is being filled.
+        if (gameRepository.hasLiveGame(adminUserId)) {
+            throw new GameProgressException("Admin already has a live game",
+                    "You already have a game in progress. End it before creating a new one.");
         }
 
         Game game = Game.builder()
                 .adminUserId(adminUserId)
                 .status(GameStatus.REGISTRATION_OPEN)
                 .entryFee(request.getEntryFee())
-                .maxPlayers(request.getMaxPlayers() != null ? request.getMaxPlayers() : 50)
                 .currentCallIndex(0)
                 .totalNumbersCalled(0)
                 .prizePool(BigDecimal.ZERO)
@@ -75,7 +78,7 @@ public class GameService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        applyPattern(game, request.getWinningPattern(), request.getCustomPatternName(), request.getCustomPatternCells());
+        applyPattern(game, request.getWinningPattern());
 
         Game saved = gameRepository.save(game);
         log.info("Game created: id={}, adminUserId={}, entryFee={}", saved.getId(), adminUserId, request.getEntryFee());
@@ -186,6 +189,7 @@ public class GameService {
 
         // Enter STARTING state; startTime is the countdown target. The engine
         // flips the game to IN_PROGRESS and begins calling once it elapses.
+        releasePreviews(gameId);
         game.setStatus(GameStatus.STARTING);
         game.setStartTime(LocalDateTime.now().plusSeconds(5));
         game.setCurrentCallIndex(0);
@@ -212,6 +216,7 @@ public class GameService {
         }
 
         refundPlayersForGame(gameId, game.getEntryFee());
+        releasePreviews(gameId);
 
         game.setStatus(GameStatus.ENDED);
         game.setEndTime(LocalDateTime.now());
@@ -389,7 +394,7 @@ public class GameService {
     }
 
     @Transactional(transactionManager = "tenantTransactionManager")
-    public AdminGameResponse updateGameSettings(Long gameId, Long adminUserId, Integer maxPlayers, Integer callInterval, String winningPattern, String customPatternName, String customPatternCells, java.math.BigDecimal prizeAmount, Boolean autoMark) {
+    public AdminGameResponse updateGameSettings(Long gameId, Long adminUserId, Integer callInterval, String winningPattern, java.math.BigDecimal prizeAmount, Boolean autoMark) {
         Game game = gameRepository.findByIdForUpdate(gameId)
                 .orElseThrow(() -> new GameProgressException("Game not found", "Game not found."));
 
@@ -403,14 +408,11 @@ public class GameService {
                     "Game settings can only be changed before the game starts.");
         }
 
-        if (maxPlayers != null) {
-            game.setMaxPlayers(maxPlayers);
-        }
         if (callInterval != null) {
             game.setCallInterval(callInterval);
         }
         if (winningPattern != null) {
-            applyPattern(game, winningPattern, customPatternName, customPatternCells);
+            applyPattern(game, winningPattern);
         }
         if (prizeAmount != null) {
             // Validated against the pot collected so far; the admin's cut is
@@ -529,12 +531,22 @@ public class GameService {
                 .collect(Collectors.joining(","))));
         game.setCurrentCallIndex(0);
         game.setTotalNumbersCalled(0);
+        releasePreviews(gameId);
         game.setStatus(GameStatus.STARTING);
         game.setStartTime(LocalDateTime.now().plusSeconds(5));
 
         Game saved = gameRepository.save(game);
         log.info("Game {} restarted by admin {}: fresh sequence committed, countdown started.", gameId, adminUserId);
         return tenantMapper.toDto(saved);
+    }
+
+    /**
+     * A preview cannot be registered once the game has left registration, so the
+     * holds are released here: nothing was paid for them, and the cards go back
+     * to the pool instead of staying reserved for a game that will never use them.
+     */
+    private void releasePreviews(Long gameId) {
+        cardPreviewRepository.deleteByGameId(gameId);
     }
 
     private String sha256Hex(String input) {
@@ -549,49 +561,21 @@ public class GameService {
         }
     }
 
-    private static final Set<String> SUPPORTED_PATTERNS = Set.of(
-            "SINGLE_LINE", "DOUBLE_LINE", "TRIPLE_LINE", "FULL_HOUSE", "BLACKOUT", "FOUR_CORNERS",
-            "X_SHAPE", "L_SHAPE", "T_SHAPE", "POSTAGE_STAMP",
-            "PLUS", "FRAME", "DIAMOND", "Z_SHAPE");
+    /** The canonical GamePatterns list: 28 grid patterns plus the full-card house. */
+    private static final Set<String> SUPPORTED_PATTERNS = buildSupportedPatterns();
 
-    private void applyPattern(Game game, String pattern, String customName, String customCells) {
-        if ("CUSTOM".equals(pattern)) {
-            validateCustomPattern(customName, customCells);
-            game.setWinningPattern("CUSTOM");
-            game.setCustomPatternName(customName.trim());
-            game.setCustomPatternCells(customCells);
-        } else {
-            game.setWinningPattern(normalizePattern(pattern));
-            game.setCustomPatternName(null);
-            game.setCustomPatternCells(null);
-        }
+    private static Set<String> buildSupportedPatterns() {
+        Set<String> patterns = new LinkedHashSet<>(WinningPatternGeometry.codes());
+        patterns.add("FULL_HOUSE");
+        return Set.copyOf(patterns);
     }
 
-    private void validateCustomPattern(String customName, String customCells) {
-        if (customName == null || customName.trim().isEmpty()) {
-            throw new GameProgressException("Custom pattern requires a name",
-                    "Give your custom pattern a name.");
-        }
-        if (customCells == null || customCells.trim().isEmpty()) {
-            throw new GameProgressException("Custom pattern requires cells",
-                    "Draw a pattern on the board first.");
-        }
-        normalizePattern("CUSTOM", customName, customCells);
+    private void applyPattern(Game game, String pattern) {
+        game.setWinningPattern(normalizePattern(pattern));
     }
 
     private String normalizePattern(String pattern) {
-        return normalizePattern(pattern, null, null);
-    }
-
-    private String normalizePattern(String pattern, String customName, String customCells) {
-        String value = pattern != null ? pattern : "SINGLE_LINE";
-        if ("CUSTOM".equals(value)) {
-            if (customCells == null || customCells.trim().isEmpty()) {
-                throw new GameProgressException("Custom pattern requires cells",
-                        "Draw a pattern on the board first.");
-            }
-            return value;
-        }
+        String value = pattern != null ? pattern : "FULL_HOUSE";
         if (!SUPPORTED_PATTERNS.contains(value)) {
             throw new GameProgressException("Unsupported winning pattern: " + value,
                     "Unknown winning pattern. Pick one from the list.");

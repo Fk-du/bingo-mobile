@@ -3,20 +3,14 @@ import { CardResponse } from './card';
 
 export interface CreateGameRequest {
   entryFee: number;
-  maxPlayers?: number;
   winningPattern?: string;
-  customPatternName?: string;
-  customPatternCells?: string;
   callInterval?: number;
   autoMark?: boolean;
 }
 
 export interface GameSettingsUpdateRequest {
-  maxPlayers?: number;
   callInterval?: number;
   winningPattern?: string;
-  customPatternName?: string;
-  customPatternCells?: string;
   /** Total the winners share. The admin sets it once players have registered. */
   prizeAmount?: number;
   autoMark?: boolean;
@@ -28,15 +22,12 @@ export interface AdminGameResponse {
   adminUserId: number;
   status: GameStatus;
   entryFee: number;
-  maxPlayers: number;
   currentCallIndex: number;
   totalNumbersCalled: number;
   prizePool: number;
   /** Total the winners share. Null until the admin sets it. */
   prizeAmount?: number | null;
   winningPattern: string | null;
-  customPatternName?: string | null;
-  customPatternCells?: string | null;
   autoMark: boolean;
   callInterval: number | null;
   commissionEarned?: number | null;
@@ -60,14 +51,11 @@ export interface PlayerGameResponse {
   adminUserId: number;
   status: GameStatus;
   entryFee: number;
-  maxPlayers: number;
   currentCallIndex: number;
   totalNumbersCalled: number;
   /** The advertised payout. Public, because it is what the player plays for. */
   prizeAmount?: number | null;
   winningPattern: string | null;
-  customPatternName?: string | null;
-  customPatternCells?: string | null;
   autoMark: boolean;
   callInterval: number | null;
   startTime: string | null;
@@ -106,12 +94,27 @@ export interface PlayerCardView {
   autoMark?: boolean | null;
 }
 
+/**
+ * A card the player is looking at but has not paid for. It is held so nobody
+ * else is dealt the same numbers, but it is not a registration: no entry fee
+ * has been taken and it cannot claim Bingo until it is registered.
+ */
+export interface PreviewCardView {
+  cardId: number;
+  numbers: number[][];
+}
+
+/** Result of removing a card from the player's board. */
+export interface CardRemovalResponse {
+  /** False when the card was only a preview, so nothing was refunded. */
+  wasRegistered: boolean;
+  refund: number;
+}
+
 export interface GameStateResponse {
   gameId: number;
   status: GameStatus;
   winningPattern?: string | null;
-  customPatternName?: string | null;
-  customPatternCells?: string | null;
   autoMark: boolean;
   fairnessHash?: string | null;
   currentCallIndex: number;
@@ -121,6 +124,8 @@ export interface GameStateResponse {
   /** The advertised payout. The pot it came from is not sent to players. */
   prizeAmount?: number | null;
   playerCards: PlayerCardView[] | null;
+  /** Unpaid cards held for review. Empty once the game leaves registration. */
+  previewCards: PreviewCardView[] | null;
   hasPlayerCard: boolean;
   isWinner: boolean;
   /** The winner's own share of the prize; null for anyone who did not win. */
@@ -176,13 +181,10 @@ export interface AdminGameStateResponse {
   gameId: number;
   status: GameStatus;
   entryFee: number;
-  maxPlayers: number;
   currentCallIndex: number;
   totalNumbersCalled: number;
   prizePool: number;
   winningPattern: string | null;
-  customPatternName?: string | null;
-  customPatternCells?: string | null;
   autoMark: boolean;
   callInterval: number | null;
   prizeAmount?: number | null;
@@ -210,33 +212,25 @@ export interface AutomationConfig {
   adminUserId: number;
   enabled: boolean;
   entryFee: number;
-  maxPlayers: number;
   callInterval: number;
   /** The rake this admin prefers, used to pre-fill the suggested prize. */
   rakePercent: number;
   winningPattern: string | null;
-  customPatternName?: string | null;
-  customPatternCells?: string | null;
   autoMark: boolean;
   registrationWindowSeconds: number;
   cooldownSeconds: number;
-  startWhenFull: boolean;
   nextGameAt?: string | null;
   updatedAt?: string | null;
 }
 
 export interface AutomationConfigRequest {
   entryFee: number;
-  maxPlayers: number;
   callInterval: number;
   rakePercent: number;
   winningPattern?: string;
-  customPatternName?: string;
-  customPatternCells?: string;
   autoMark?: boolean;
   registrationWindowSeconds: number;
   cooldownSeconds: number;
-  startWhenFull?: boolean;
   enabled?: boolean;
 }
 
