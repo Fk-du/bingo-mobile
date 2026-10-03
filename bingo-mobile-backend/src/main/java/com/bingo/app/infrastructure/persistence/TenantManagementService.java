@@ -128,6 +128,32 @@ public class TenantManagementService {
         }
     }
 
+    /**
+     * Delete an agent's tenant database and forget it. The pool is closed and its
+     * connections terminated first: PostgreSQL refuses to drop a database that
+     * anything is still connected to, and this app holds a pool per tenant.
+     */
+    public String dropTenant(Long adminUserId) {
+        String databaseName = tenantRegistryRepository.findByAdminUserId(adminUserId)
+                .map(TenantRegistry::getDatabaseName)
+                .orElse("bingo_agent_" + adminUserId);
+        String tenantId = "agent_" + adminUserId;
+        try {
+            jdbcTemplate.execute(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                            + "WHERE datname = '" + databaseName + "' AND pid <> pg_backend_pid()");
+            jdbcTemplate.execute("DROP DATABASE IF EXISTS \"" + databaseName + "\"");
+            log.info("Tenant database dropped: {}", databaseName);
+        } catch (Exception e) {
+            log.error("Failed to drop tenant database {}: {}", databaseName, e.getMessage(), e);
+            throw new RuntimeException("Failed to drop tenant database: " + databaseName, e);
+        } finally {
+            routingDataSource.removeTenant(tenantId);
+            tenantRegistryRepository.deleteByAdminUserId(adminUserId);
+        }
+        return databaseName;
+    }
+
     private void createDatabase(String databaseName) {
         try {
             jdbcTemplate.execute("CREATE DATABASE \"" + databaseName + "\"");

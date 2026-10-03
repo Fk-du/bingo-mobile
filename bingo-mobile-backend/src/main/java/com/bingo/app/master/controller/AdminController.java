@@ -5,6 +5,7 @@ import com.bingo.app.master.dto.mapper.MasterMapper;
 import com.bingo.app.master.dto.request.AdminStatusRequest;
 import com.bingo.app.master.dto.request.AdminWarningRequest;
 import com.bingo.app.master.dto.request.CreateOwnerFeeSettlementRequest;
+import com.bingo.app.master.dto.response.AdminDeletionResponse;
 import com.bingo.app.master.dto.response.AdminListItem;
 import com.bingo.app.master.dto.response.AdminWarningResponse;
 import com.bingo.app.master.dto.response.AdminOwnerFeeSummaryResponse;
@@ -90,6 +91,24 @@ public class AdminController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<AgentStatsResponse> agentStats(@PathVariable Long adminUserId) {
         return ApiResponse.ok(userService.getAgentStats(adminUserId));
+    }
+
+    /**
+     * Delete an agent for good, with their tenant database and their players.
+     * Refused while a game is open or money is pending; see
+     * {@link UserService#deleteAdmin}.
+     */
+    @DeleteMapping("/{adminUserId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ApiResponse<AdminDeletionResponse> deleteAdmin(
+            @PathVariable Long adminUserId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        var deleted = userService.deleteAdmin(adminUserId, principal.getUser().getId());
+        String name = deleted.businessName() != null ? deleted.businessName() : "agent " + adminUserId;
+        return ApiResponse.ok(
+                "Deleted " + name + " with " + deleted.playersRemoved() + " player(s) and database "
+                        + deleted.tenantDatabase(),
+                deleted);
     }
 
     private AdminWarningResponse toWarningResponse(AdminWarning w) {

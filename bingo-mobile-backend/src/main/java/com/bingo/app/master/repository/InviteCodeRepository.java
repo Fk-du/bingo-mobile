@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +21,15 @@ public interface InviteCodeRepository extends JpaRepository<InviteCode, Long> {
     List<InviteCode> findByCreatorId(Long creatorId);
 
     boolean existsByCode(String code);
+
+    /**
+     * Invite links belong to the agent who made them. A deleted agent's links
+     * would otherwise keep registering players against a tenant that is gone.
+     */
+    @Modifying
+    @Transactional(transactionManager = "masterTransactionManager")
+    @Query("DELETE FROM InviteCode ic WHERE ic.creatorId = :creatorId")
+    int deleteByCreatorId(@Param("creatorId") Long creatorId);
 
     @Modifying
     @Query("UPDATE InviteCode ic SET ic.active = false WHERE ic.code = :code")

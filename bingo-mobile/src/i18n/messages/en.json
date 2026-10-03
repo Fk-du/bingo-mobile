@@ -1023,7 +1023,14 @@
     "labelMinPrizePercent": "Minimum prize (% of collected)",
     "hintMinPrizePercent": "An admin cannot set a prize below this share of what players have paid in.",
     "labelMaxPrizePercent": "Maximum prize (% of collected)",
-    "hintMaxPrizePercent": "An admin cannot set a prize above this share of what players have paid in."
+    "hintMaxPrizePercent": "An admin cannot set a prize above this share of what players have paid in.",
+    "delete": "Delete",
+    "deleteTitle": "Delete {name} permanently?",
+    "deleteDesc": "This permanently deletes the agent, every player registered under them, and their whole room — all games, cards, wallets and transaction history. It cannot be undone.",
+    "deleteRefusalHint": "If a game is still running or a payment is still pending, the delete is refused. Suspend the agent first, settle the payments, then delete.",
+    "deleteConfirmBtn": "Delete forever",
+    "deleteDoneTitle": "Agent deleted",
+    "deleteFailed": "Could not delete this agent"
   },
   "gameSettings": {
     "title": "Game settings",

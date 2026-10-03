@@ -22,6 +22,11 @@ public interface CardRequestRepository extends JpaRepository<CardRequest, Long> 
 
     List<CardRequest> findByStatusOrderByCreatedAtDesc(FundStatus status);
 
+    @Modifying
+    @Transactional(transactionManager = "masterTransactionManager")
+    @Query("DELETE FROM CardRequest r WHERE r.adminUserId = :adminUserId")
+    int deleteByAdminUserId(@Param("adminUserId") Long adminUserId);
+
     /**
      * Atomically moves a PENDING request to the target status. Returns 0 when the
      * request was already processed, which makes concurrent/double approvals impossible.

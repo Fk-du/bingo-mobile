@@ -5,13 +5,19 @@ import com.bingo.app.infrastructure.persistence.TenantManagementService;
 import com.bingo.app.master.dto.mapper.MasterMapper;
 import com.bingo.app.master.dto.request.CreateAdminRequest;
 import com.bingo.app.master.dto.request.CreatePlayerRequest;
+import com.bingo.app.master.dto.response.AdminDeletionResponse;
 import com.bingo.app.master.dto.response.AdminListItem;
 import com.bingo.app.master.dto.response.AgentStatsResponse;
 import com.bingo.app.master.dto.response.UserProfileResponse;
 import com.bingo.app.master.entity.AdminWarning;
 import com.bingo.app.master.entity.User;
 import com.bingo.app.master.enums.Role;
+import com.bingo.app.master.exception.AdminDeletionException;
 import com.bingo.app.master.repository.AdminWarningRepository;
+import com.bingo.app.master.repository.CardRequestRepository;
+import com.bingo.app.master.repository.InviteCodeRepository;
+import com.bingo.app.master.repository.NotificationRepository;
+import com.bingo.app.master.repository.OwnerFeeSettlementRepository;
 import com.bingo.app.master.repository.TenantRegistryRepository;
 import com.bingo.app.master.repository.UserRepository;
 import com.bingo.app.tenant.dto.response.AdminGameResponse;
@@ -26,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -39,7 +46,11 @@ public class UserService {
     private final MasterMapper masterMapper;
     private final ObjectProvider<InviteService> inviteServiceProvider;
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
     private final AdminWarningRepository adminWarningRepository;
+    private final CardRequestRepository cardRequestRepository;
+    private final OwnerFeeSettlementRepository ownerFeeSettlementRepository;
+    private final InviteCodeRepository inviteCodeRepository;
     private final TenantRegistryRepository tenantRegistryRepository;
     private final GameService gameService;
     private final WalletService walletService;
@@ -50,7 +61,11 @@ public class UserService {
                        MasterMapper masterMapper,
                        ObjectProvider<InviteService> inviteServiceProvider,
                        NotificationService notificationService,
+                       NotificationRepository notificationRepository,
                        AdminWarningRepository adminWarningRepository,
+                       CardRequestRepository cardRequestRepository,
+                       OwnerFeeSettlementRepository ownerFeeSettlementRepository,
+                       InviteCodeRepository inviteCodeRepository,
                        TenantRegistryRepository tenantRegistryRepository,
                        GameService gameService,
                        WalletService walletService) {
@@ -60,7 +75,11 @@ public class UserService {
         this.masterMapper = masterMapper;
         this.inviteServiceProvider = inviteServiceProvider;
         this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository;
         this.adminWarningRepository = adminWarningRepository;
+        this.cardRequestRepository = cardRequestRepository;
+        this.ownerFeeSettlementRepository = ownerFeeSettlementRepository;
+        this.inviteCodeRepository = inviteCodeRepository;
         this.tenantRegistryRepository = tenantRegistryRepository;
         this.gameService = gameService;
         this.walletService = walletService;
@@ -394,6 +413,82 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<AdminWarning> getWarningsForAdmin(Long adminUserId) {
         return adminWarningRepository.findByAdminUserIdOrderByCreatedAtDesc(adminUserId);
+    }
+
+    /**
+     * Delete an agent for good: their tenant database (games, cards, wallets,
+     * transactions), the players registered under them, their invite links, and
+     * every master row that points at them.
+     *
+     * <p>Refused while a game is still open or money is still in flight. Deleting
+     * is irreversible, and a live game with a pot in it — or a pending withdrawal
+     * — is not something a stray tap may resolve. Suspending the agent first is the
+     * deliberate route: that ends the open games and leaves the account there to be
+     * deleted once the money is settled.
+     *
+     * <p>NOT {@code @Transactional}, for the same reason {@link #createAdmin} is
+     * not: {@code dropTenant()} runs {@code DROP DATABASE}, which PostgreSQL refuses
+     * inside a transaction block. The steps go children-first and the agent row
+     * last, so a failure part-way leaves the agent still listed and the delete
+     * retryable rather than a gone agent with its history still attached.
+     */
+    public AdminDeletionResponse deleteAdmin(Long adminUserId, Long actingUserId) {
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> AdminDeletionException.notFound(adminUserId));
+        if (admin.getRole() != Role.ADMIN) {
+            throw AdminDeletionException.notAnAdmin(adminUserId);
+        }
+        if (adminUserId.equals(actingUserId)) {
+            throw AdminDeletionException.cannotDeleteSelf();
+        }
+        requireNothingOutstanding(adminUserId);
+
+        List<User> players = userRepository.findAllByAdminUserId(adminUserId);
+        List<Long> userIds = new ArrayList<>();
+        userIds.add(adminUserId);
+        players.forEach(p -> userIds.add(p.getId()));
+
+        // Children first: the master rows only reference the agent by id, so this
+        // is about not leaving history pointing at an account that no longer exists.
+        notificationRepository.deleteByUserIdIn(userIds);
+        adminWarningRepository.deleteByAdminUserId(adminUserId);
+        cardRequestRepository.deleteByAdminUserId(adminUserId);
+        ownerFeeSettlementRepository.deleteByAdminUserId(adminUserId);
+        inviteCodeRepository.deleteByCreatorId(adminUserId);
+
+        String tenantDatabase = tenantManagementService.dropTenant(adminUserId);
+
+        if (!players.isEmpty()) {
+            userRepository.deleteAll(players);
+        }
+        userRepository.delete(admin);
+
+        log.warn("Super admin {} deleted agent {} ({}), {} player(s), tenant {}",
+                actingUserId, adminUserId, admin.getBusinessName(), players.size(), tenantDatabase);
+        return new AdminDeletionResponse(
+                adminUserId, admin.getBusinessName(), players.size(), tenantDatabase);
+    }
+
+    /**
+     * The two states that make a delete unsafe: a game with players in it, and
+     * money the agent has not paid out yet. Both live in the tenant schema, so
+     * they are read with that tenant in context.
+     */
+    private void requireNothingOutstanding(Long adminUserId) {
+        TenantContext.setTenant(TenantContext.tenantKeyForAdmin(adminUserId));
+        try {
+            int openGames = gameService.findOpenGamesForAdmin(adminUserId).size();
+            if (openGames > 0) {
+                throw AdminDeletionException.hasOpenGames(openGames);
+            }
+            long withdrawals = walletService.countPendingWithdrawalsForAdmin(adminUserId);
+            long coinRequests = walletService.countPendingCoinRequestsForAdmin(adminUserId);
+            if (withdrawals > 0 || coinRequests > 0) {
+                throw AdminDeletionException.hasPendingMoney(withdrawals, coinRequests);
+            }
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     /**

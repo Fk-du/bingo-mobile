@@ -974,7 +974,14 @@
     "labelMinPrizePercent": "ዝቅተኛ ሽልማት (% ከተሰብስቧ)",
     "hintMinPrizePercent": "አድሚኑ ተጫዋቾች የፈለጉትን ድርሻ ከዚህ በታች ሽልማት ማየት አይችሉም።",
     "labelMaxPrizePercent": "ከፍተኛ ሽልማት (% ከተሰብስቧ)",
-    "hintMaxPrizePercent": "አድሚኑ ተጫዋቾች የፈለጉትን ድርሻ ከዚህ በላይ ሽልማት ማየት አይችሉም።"
+    "hintMaxPrizePercent": "አድሚኑ ተጫዋቾች የፈለጉትን ድርሻ ከዚህ በላይ ሽልማት ማየት አይችሉም።",
+    "delete": "አጥፋ",
+    "deleteTitle": "{name} ሙሉ በሙሉ እንዲጠፋ ይፈልጋሉ?",
+    "deleteDesc": "ወኪሉን፣ በወኪሉ ስር የተመዘገቡ ሁሉንም ተጫዋቾችንና የወኪሉን ሙሉ ክፍል — ሁሉንም ጨዋታዎች፣ ካርዶች፣ ቦርሳዎችና የግብይት ታሪክ ያጠፋሉ። ይህም እንደገና መመለስ አይችልም።",
+    "deleteRefusalHint": "ጨዋታ ከሆነ ወይም ክፍያ በመጠባበቅ ላይ ከሆነ ምላሽ ውድቅ ይሰራል። ወኪሉን አስቀድመው አግድ፣ ክፍያዎቹን ፈጽምተው ከዚያ ምላሽ ያድርጉ።",
+    "deleteConfirmBtn": "ሙሉ በሙሉ አጥፋ",
+    "deleteDoneTitle": "ወኪሉ ተጠፍቷል",
+    "deleteFailed": "ይህን ወኪሉ መሰረዝ አልተቻለም"
   },
   "mobile": {
     "navLobby": "ጨዋታ",

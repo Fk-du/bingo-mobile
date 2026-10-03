@@ -19,6 +19,7 @@ export default function SuperAdminAgentsScreen() {
   const qc = useQueryClient();
   const [warnAgent, setWarnAgent] = useState<AgentResponse | null>(null);
   const [suspendAgent, setSuspendAgent] = useState<AgentResponse | null>(null);
+  const [deleteAgent, setDeleteAgent] = useState<AgentResponse | null>(null);
   const [statsAgent, setStatsAgent] = useState<AgentResponse | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -47,6 +48,21 @@ export default function SuperAdminAgentsScreen() {
       invalidate();
     },
     onError: (e) => Alert.alert((e as { userMessage?: string }).userMessage ?? 'Could not update agent'),
+  });
+
+  // Unlike a warn or a suspend, a delete cannot be undone, so the server refuses
+  // it while a game is open or money is pending and reports what it removed. The
+  // refusal arrives as a userMessage and is shown as-is: it is the instruction
+  // (suspend first, settle first) that makes the next attempt succeed.
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => agentsApi.remove(id),
+    onSuccess: (res) => {
+      setDeleteAgent(null);
+      setStatsAgent(null);
+      invalidate();
+      Alert.alert(t('super.deleteDoneTitle') ?? 'Agent deleted', res.message);
+    },
+    onError: (e) => Alert.alert((e as { userMessage?: string }).userMessage ?? (t('super.deleteFailed') ?? 'Could not delete agent')),
   });
 
   const { data: statsData, isFetching: statsLoading } = useQuery({
@@ -182,6 +198,17 @@ export default function SuperAdminAgentsScreen() {
                         <Text className="text-white text-sm font-semibold">{t('super.resume') ?? 'Resume'}</Text>
                       </Button>
                     )}
+                    {/* Delete is deliberately not a filled danger button: it sits
+                        beside Suspend, which is the reversible action, and only
+                        reads as destructive until the confirm dialog is opened. */}
+                    <Button
+                      variant="ghost"
+                      style={{ flex: 1 }}
+                      disabled={deleteMutation.isPending}
+                      onPress={() => setDeleteAgent(a)}
+                    >
+                      <Text className="text-red-500 text-sm font-semibold">{t('super.delete') ?? 'Delete'}</Text>
+                    </Button>
                   </View>
                 </View>
               ))}
@@ -212,6 +239,15 @@ export default function SuperAdminAgentsScreen() {
             statusMutation.mutate({ id: suspendAgent.adminUserId, status: 'SUSPEND' });
             setSuspendAgent(null);
           }}
+          t={t}
+        />
+      )}
+      {deleteAgent && (
+        <DeleteAgentDialog
+          agent={deleteAgent}
+          busy={deleteMutation.isPending}
+          onClose={() => setDeleteAgent(null)}
+          onConfirm={() => deleteMutation.mutate(deleteAgent.adminUserId)}
           t={t}
         />
       )}
@@ -370,6 +406,56 @@ function SuspendConfirmDialog({
             <Text className="text-white text-sm font-semibold">{t('super.suspendBtn') ?? 'Suspend'}</Text>
           </Button>
           <Button variant="neutral" style={{ flex: 1 }} onPress={onClose}>
+            <Text className="text-bp-textPrimary text-sm">{t('super.cancel') ?? 'Cancel'}</Text>
+          </Button>
+        </View>
+      </Card>
+    </Modal>
+  );
+}
+
+/**
+ * Deleting an agent takes their players and their whole room with it: the tenant
+ * database holding every game, card, wallet and transaction goes too. Nothing
+ * here can be recovered afterwards, so the consequences are spelled out rather
+ * than implied — and the server refuses the delete outright while a game is
+ * running or a payment is still pending, which is what the last line warns about.
+ */
+function DeleteAgentDialog({
+  agent,
+  busy,
+  onClose,
+  onConfirm,
+  t,
+}: {
+  agent: AgentResponse;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  t: ReturnType<typeof useTranslate>;
+}) {
+  return (
+    <Modal onClose={onClose}>
+      <Card className="gap-3 border-red-500/40">
+        <Text className="text-bp-textPrimary font-bold">
+          {t('super.deleteTitle', { name: agent.businessName ?? `@${agent.username ?? agent.adminUserId}` }) ??
+            'Delete agent permanently?'}
+        </Text>
+        <Text className="text-bp-textSecondary text-sm">
+          {t('super.deleteDesc') ??
+            "This permanently deletes the agent, every player registered under them, and their whole room — all games, cards, wallets and transaction history. It cannot be undone."}
+        </Text>
+        <Text className="text-bp-textSecondary text-xs">
+          {t('super.deleteRefusalHint') ??
+            'If a game is still running or a payment is still pending, the delete is refused. Suspend the agent first, settle the payments, then delete.'}
+        </Text>
+        <View className="flex-row gap-2">
+          <Button variant="danger" style={{ flex: 1 }} disabled={busy} onPress={onConfirm}>
+            <Text className="text-white text-sm font-semibold">
+              {busy ? (t('common.loading') ?? 'Loading…') : (t('super.deleteConfirmBtn') ?? 'Delete forever')}
+            </Text>
+          </Button>
+          <Button variant="neutral" style={{ flex: 1 }} disabled={busy} onPress={onClose}>
             <Text className="text-bp-textPrimary text-sm">{t('super.cancel') ?? 'Cancel'}</Text>
           </Button>
         </View>

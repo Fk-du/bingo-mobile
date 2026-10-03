@@ -40,6 +40,14 @@ export interface AgentStatusRequest {
   status: string;
 }
 
+/** What a delete actually removed, so the super admin is told the scale of it. */
+export interface AgentDeletion {
+  adminUserId: number;
+  businessName: string | null;
+  playersRemoved: number;
+  tenantDatabase: string;
+}
+
 export interface AdminWarningResponse {
   id: number;
   adminUserId: number;

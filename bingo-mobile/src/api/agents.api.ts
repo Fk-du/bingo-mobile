@@ -2,6 +2,7 @@ import apiClient from './client';
 import {
   ApiResponse,
   AgentResponse,
+  AgentDeletion,
   AgentStatusRequest,
   AdminWarningResponse,
   AgentStatsResponse,
@@ -22,6 +23,14 @@ export const agentsApi = {
   },
   updateStatus: async (id: number, data: AgentStatusRequest) => {
     const res = await apiClient.patch<ApiResponse<AgentResponse>>(`/agents/${id}/status`, data);
+    return res.data;
+  },
+  /**
+   * Delete an agent for good. The server refuses while a game is open or money is
+   * pending, and answers with the scale of what was removed.
+   */
+  remove: async (id: number) => {
+    const res = await apiClient.delete<ApiResponse<AgentDeletion>>(`/agents/${id}`);
     return res.data;
   },
   warn: async (id: number, reason: string) => {

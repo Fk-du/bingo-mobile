@@ -21,6 +21,11 @@ public interface OwnerFeeSettlementRepository extends JpaRepository<OwnerFeeSett
 
     List<OwnerFeeSettlement> findByStatusOrderByCreatedAtDesc(FundStatus status);
 
+    @Modifying
+    @Transactional(transactionManager = "masterTransactionManager")
+    @Query("DELETE FROM OwnerFeeSettlement r WHERE r.adminUserId = :adminUserId")
+    int deleteByAdminUserId(@Param("adminUserId") Long adminUserId);
+
     List<OwnerFeeSettlement> findAllByOrderByCreatedAtDesc();
 
     @Query("SELECT COALESCE(SUM(r.amount), 0) FROM OwnerFeeSettlement r " +

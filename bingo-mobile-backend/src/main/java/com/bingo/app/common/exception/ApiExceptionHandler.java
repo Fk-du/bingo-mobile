@@ -1,5 +1,6 @@
 package com.bingo.app.common.exception;
 
+import com.bingo.app.master.exception.AdminDeletionException;
 import com.bingo.app.master.exception.InviteRegistrationException;
 import com.bingo.app.tenant.exception.GameCreationException;
 import com.bingo.app.tenant.exception.GameProgressException;
@@ -37,6 +38,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(WalletException.class)
     public ResponseEntity<Map<String, Object>> handleWalletException(RuntimeException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), userMessage(ex), "wallet");
+    }
+
+    @ExceptionHandler(AdminDeletionException.class)
+    public ResponseEntity<Map<String, Object>> handleAdminDeletion(AdminDeletionException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), ex.getUserMessage(), ex.getCode());
     }
 
     @ExceptionHandler(TelegramAuthException.class)
@@ -85,6 +91,9 @@ public class ApiExceptionHandler {
         }
         if (ex instanceof InviteRegistrationException inviteRegistrationException) {
             return inviteRegistrationException.getUserMessage();
+        }
+        if (ex instanceof AdminDeletionException adminDeletionException) {
+            return adminDeletionException.getUserMessage();
         }
         if (ex instanceof PlayerActionException playerActionException) {
             return playerActionException.getUserMessage();

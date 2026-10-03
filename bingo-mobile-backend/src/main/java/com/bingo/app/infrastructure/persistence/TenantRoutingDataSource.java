@@ -63,4 +63,23 @@ public class TenantRoutingDataSource extends AbstractRoutingDataSource {
 
         return new HikariDataSource(config);
     }
+
+    /**
+     * Forget a tenant and shut its pool. A dropped database keeps its pool
+     * pointing at nothing, and the pool holds the very connections that stop
+     * {@code DROP DATABASE} from succeeding, so both have to go together.
+     */
+    public void removeTenant(String tenantId) {
+        Object removed = tenantDataSources.remove(tenantId);
+        setTargetDataSources(tenantDataSources);
+        afterPropertiesSet();
+        if (removed instanceof HikariDataSource hikari) {
+            try {
+                hikari.close();
+            } catch (Exception ignored) {
+                // The pool is being discarded either way; a close failure here must
+                // not stop the database drop that follows.
+            }
+        }
+    }
 }
