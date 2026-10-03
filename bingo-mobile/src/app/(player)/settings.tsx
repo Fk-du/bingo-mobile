@@ -120,21 +120,15 @@ export default function GameSettingsScreen() {
         </Dropdown>
 
         <SwitchRow
-          on={autoMark}
+          label={t('gameSettings.autoMark') ?? 'Auto-mark numbers'}
+          enabled={autoMark}
           onToggle={() => setAutoMark(!autoMark)}
-          title={t('gameSettings.autoMark') ?? 'Auto-mark'}
-          value={
-            autoMark
-              ? (t('admin.automatic') ?? 'Automatic')
-              : (t('game.manualMarking') ?? 'Manual')
-          }
         />
 
         <SwitchRow
-          on={soundEnabled}
+          label={t('gameSettings.sound') ?? 'Enable call sound'}
+          enabled={soundEnabled}
           onToggle={() => setSoundEnabled(!soundEnabled)}
-          title={t('gameSettings.sound') ?? 'Call sound'}
-          value={soundEnabled ? (t('game.soundOn') ?? 'On') : (t('game.soundOff') ?? 'Off')}
         />
       </ScrollView>
     </Screen>
@@ -179,38 +173,37 @@ function Dropdown({
 }
 
 /**
- * One on/off setting, in the pill-and-label form the board used to use for
- * these two. A switch rather than a panel: there is nothing to choose inside
- * it, so a second tap target would only add height.
+ * A toggle switch for a boolean setting. Modern iOS/Android style toggle.
+ * Displays with smooth animation between enabled and disabled states.
  */
 function SwitchRow({
-  on,
+  label,
+  enabled,
   onToggle,
-  title,
-  value,
 }: {
-  on: boolean;
+  label: string;
+  enabled: boolean;
   onToggle: () => void;
-  title: string;
-  value: string;
 }) {
   return (
     <Pressable
       onPress={onToggle}
       accessibilityRole="switch"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel={title}
+      accessibilityState={{ checked: enabled }}
+      accessibilityLabel={label}
       className="flex-row items-center justify-between rounded-2xl border border-bp-borderInactive bg-bp-surface px-4 py-3 active:opacity-80"
     >
-      <Text className="font-semibold text-bp-textPrimary">{title}</Text>
-      <View className="flex-row items-center gap-2">
-        <Text className="text-sm text-bp-textSecondary">{value}</Text>
+      <Text className="font-semibold text-bp-textPrimary">{label}</Text>
+      <View
+        className={`h-7 w-12 items-center justify-start rounded-full ${
+          enabled ? 'bg-bp-primary' : 'bg-bp-borderInactive'
+        }`}
+      >
         <View
-          className={`h-5 w-9 justify-center rounded-full ${on ? 'bg-bp-primary' : 'bg-bp-textInactive'}`}
-          style={{ paddingLeft: 2 }}
-        >
-          <View className={`h-4 w-4 rounded-full bg-white ${on ? 'self-end' : ''}`} />
-        </View>
+          className={`m-1 h-5 w-5 rounded-full bg-white ${
+            enabled ? 'ml-6' : 'ml-1'
+          }`}
+        />
       </View>
     </Pressable>
   );

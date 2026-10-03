@@ -87,7 +87,7 @@ function AutomationCard({
     entryFee: String(automation?.entryFee ?? DEFAULTS.entryFee),
     callInterval: String(automation?.callInterval ?? DEFAULTS.callInterval),
     rakePercent: String(automation?.rakePercent ?? DEFAULTS.rakePercent),
-    autoMark: automation?.autoMark ?? true,
+    autoMark: false,
     registrationWindowSeconds: String(automation?.registrationWindowSeconds ?? DEFAULTS.registrationWindow),
     cooldownSeconds: String(automation?.cooldownSeconds ?? DEFAULTS.cooldown),
   });
@@ -177,15 +177,11 @@ function AutomationCard({
             {t('admin.rakePercentHint') ??
               'Used to suggest a prize for automated games. You still set the prize on each game before it starts.'}
           </Text>
-          <Pressable
-            onPress={() => setForm((f) => ({ ...f, autoMark: !f.autoMark }))}
-            className="flex-row items-center gap-2"
-          >
-            <View className={`w-9 h-5 rounded-full px-0.5 justify-center ${form.autoMark ? 'bg-bp-primary' : 'bg-bp-textInactive'}`}>
-              <View className={`h-4 w-4 rounded-full bg-white ${form.autoMark ? 'self-end' : ''}`} />
-            </View>
-            <Text className="text-bp-textSecondary text-sm">{t('admin.cardsMarkThemselves') ?? 'Cards mark themselves'}</Text>
-          </Pressable>
+          {/*
+          Auto-mark is off by default for players; the admin toggle is removed per
+          request ("completely remove this option from the admin side"). The form
+          still tracks the value if needed, but the control itself is hidden.
+          */}
           <FieldRow label={t('admin.registrationWindow') ?? 'Registration window (s)'}>
             <AppTextInput
               value={form.registrationWindowSeconds}
@@ -227,7 +223,7 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
   const [entryFee, setEntryFee] = useState(DEFAULTS.entryFee);
   const [callInterval, setCallInterval] = useState(DEFAULTS.callInterval);
   const [winningPattern, setWinningPattern] = useState(WINNING_PATTERNS[0]);
-  const [autoMark, setAutoMark] = useState(true);
+  const [autoMark, setAutoMark] = useState(false);
   const [showPattern, setShowPattern] = useState(false);
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);

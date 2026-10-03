@@ -30,10 +30,10 @@ public final class WinningPatternGeometry {
     static {
         // --- Line ladders -----------------------------------------------------------
         GRIDS.put("FOUR_LINES", "*****" + "*****" + "*...*" + "*...*" + "*...*");
-        GRIDS.put("FIVE_LINES", "*****" + "*****" + "*...*" + "*..**" + "*...*");
-        GRIDS.put("SIX_LINES", "*****" + "*****" + "*...*" + "**.**" + "*...*");
-        GRIDS.put("SEVEN_LINES", "*****" + "*****" + "*...*" + "**.**" + "*****");
-        GRIDS.put("EIGHT_LINES", "*****" + "*****" + "**..*" + "**.**" + "*****");
+        GRIDS.put("FIVE_LINES", "*****" + "*****" + "*****" + "**..." + "*....");
+        GRIDS.put("SIX_LINES", "*****" + "*****" + "*****" + "**..." + "**...");
+        GRIDS.put("SEVEN_LINES", "*****" + "*****" + "*.*.." + "*****" + "*.*.*");
+        GRIDS.put("EIGHT_LINES", "*****" + "*****" + "*.*.*" + "*****" + "*.*.*");
         GRIDS.put("THREE_LINES_ONE_DIAG", "*****" + "*****" + "..*.." + "...*." + "*****");
         GRIDS.put("FOUR_LINES_TOUCH_FREE", "*.*.*" + ".***." + "*****" + ".***." + "*.*.*");
 
@@ -46,13 +46,13 @@ public final class WinningPatternGeometry {
 
         // --- Vertical / horizontal / diagonal mixes ---------------------------------
         GRIDS.put("TWO_VERT_TWO_HORIZ", "*****" + "**..." + "**..." + "**..." + "*****");
-        GRIDS.put("TWO_VERT_TWO_HORIZ_ONE_DIAG", "*****" + "**..." + "***.." + "**..*" + "*****");
+        GRIDS.put("TWO_VERT_TWO_HORIZ_ONE_DIAG", "*****" + "**..*" + "*.*.*" + "*..**" + "*****");
         GRIDS.put("TWO_VERT_THREE_HORIZ", "*****" + "**..." + "**..." + "*****" + "*****");
-        GRIDS.put("TWO_HORIZ_TWO_VERT_TWO_DIAG", "*****" + "**..*" + "***.." + "**..*" + "*****");
+        GRIDS.put("TWO_HORIZ_TWO_VERT_TWO_DIAG", "*****" + "**.**" + "*.*.*" + "**.**" + "*****");
 
         // --- Squares, rectangles and dots -------------------------------------------
         GRIDS.put("FOUR_SQUARES", "**.**" + "**.**" + "....." + "**.**" + "**.**");
-        GRIDS.put("TWO_LINES_TWO_SQUARES", "*****" + "....." + "**.**" + "**.**" + "*****");
+        GRIDS.put("TWO_LINES_TWO_SQUARES", "*****" + "*...." + "**.**" + "**.**" + "*****");
         GRIDS.put("TWO_LINES_TWO_SEP_SQUARES", "*...*" + "**.*." + "*.**." + "*.**." + "*..**");
         GRIDS.put("TWO_LINES_TWO_RECTANGLES", "*****" + "....." + "*...*" + "*...*" + "*****");
         GRIDS.put("THREE_SQUARES_FOUR_DOTS", "*****" + "**.**" + "*...*" + "**..." + "**.*.");
@@ -61,12 +61,12 @@ public final class WinningPatternGeometry {
         // --- T shapes and crosses ----------------------------------------------------
         GRIDS.put("LARGE_T_TWO_LINES", "*****" + "*****" + "..*.." + "..*.." + "*****");
         GRIDS.put("LARGE_T_THREE_LINES", "*****" + "*****" + "..*.." + "*****" + "*****");
-        GRIDS.put("THREE_SMALL_T", "****." + ".***." + "...**" + "...**" + "....*");
-        GRIDS.put("LARGE_CROSS_TWO_SQUARES", "***.." + "***.." + "*****" + "..***" + "..***");
+        GRIDS.put("THREE_SMALL_T", "***.." + ".*..." + "*...." + "**.*." + "*.***");
+        GRIDS.put("LARGE_CROSS_TWO_SQUARES", "**..." + "**..." + "*****" + "..***" + "..***");
         GRIDS.put("THREE_SMALL_CROSSES", ".***." + "*.*.." + "**..." + "*.*.." + ".***.");
 
         // --- Half card ---------------------------------------------------------------
-        GRIDS.put("HALF_HOUSE", "*****" + "*****" + "....." + "....." + ".....");
+        GRIDS.put("HALF_HOUSE", "*****" + "*****" + "*****" + "....." + ".....");
     }
 
     /** Every code defined here, in the order they were declared. */

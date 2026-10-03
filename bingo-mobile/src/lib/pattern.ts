@@ -45,10 +45,10 @@ PATTERN_CELLS.BLACKOUT = PATTERN_CELLS.FULL_HOUSE;
 const PATTERN_GRIDS: Record<string, string> = {
   // Line ladders
   FOUR_LINES: '*****' + '*****' + '*...*' + '*...*' + '*...*',
-  FIVE_LINES: '*****' + '*****' + '*...*' + '*..**' + '*...*',
-  SIX_LINES: '*****' + '*****' + '*...*' + '**.**' + '*...*',
-  SEVEN_LINES: '*****' + '*****' + '*...*' + '**.**' + '*****',
-  EIGHT_LINES: '*****' + '*****' + '**..*' + '**.**' + '*****',
+  FIVE_LINES: '*****' + '*****' + '*****' + '**...' + '*....',
+  SIX_LINES: '*****' + '*****' + '*****' + '**...' + '**...',
+  SEVEN_LINES: '*****' + '*****' + '*.*..' + '*****' + '*.*.*',
+  EIGHT_LINES: '*****' + '*****' + '*.*.*' + '*****' + '*.*.*',
   THREE_LINES_ONE_DIAG: '*****' + '*****' + '..*..' + '...*.' + '*****',
   FOUR_LINES_TOUCH_FREE: '*.*.*' + '.***.' + '*****' + '.***.' + '*.*.*',
 
@@ -61,13 +61,13 @@ const PATTERN_GRIDS: Record<string, string> = {
 
   // Vertical / horizontal / diagonal mixes
   TWO_VERT_TWO_HORIZ: '*****' + '**...' + '**...' + '**...' + '*****',
-  TWO_VERT_TWO_HORIZ_ONE_DIAG: '*****' + '**...' + '***..' + '**..*' + '*****',
+  TWO_VERT_TWO_HORIZ_ONE_DIAG: '*****' + '**..*' + '*.*.*' + '*..**' + '*****',
   TWO_VERT_THREE_HORIZ: '*****' + '**...' + '**...' + '*****' + '*****',
-  TWO_HORIZ_TWO_VERT_TWO_DIAG: '*****' + '**..*' + '***..' + '**..*' + '*****',
+  TWO_HORIZ_TWO_VERT_TWO_DIAG: '*****' + '**.**' + '*.*.*' + '**.**' + '*****',
 
   // Squares, rectangles and dots
   FOUR_SQUARES: '**.**' + '**.**' + '.....' + '**.**' + '**.**',
-  TWO_LINES_TWO_SQUARES: '*****' + '.....' + '**.**' + '**.**' + '*****',
+  TWO_LINES_TWO_SQUARES: '*****' + '*....' + '**.**' + '**.**' + '*****',
   TWO_LINES_TWO_SEP_SQUARES: '*...*' + '**.*.' + '*.**.' + '*.**.' + '*..**',
   TWO_LINES_TWO_RECTANGLES: '*****' + '.....' + '*...*' + '*...*' + '*****',
   THREE_SQUARES_FOUR_DOTS: '*****' + '**.**' + '*...*' + '**...' + '**.*.',
@@ -76,12 +76,12 @@ const PATTERN_GRIDS: Record<string, string> = {
   // T shapes and crosses
   LARGE_T_TWO_LINES: '*****' + '*****' + '..*..' + '..*..' + '*****',
   LARGE_T_THREE_LINES: '*****' + '*****' + '..*..' + '*****' + '*****',
-  THREE_SMALL_T: '****.' + '.***.' + '...**' + '...**' + '....*',
-  LARGE_CROSS_TWO_SQUARES: '***..' + '***..' + '*****' + '..***' + '..***',
+  THREE_SMALL_T: '***..' + '.*...' + '*....' + '**.*.' + '*.***',
+  LARGE_CROSS_TWO_SQUARES: '**...' + '**...' + '*****' + '..***' + '..***',
   THREE_SMALL_CROSSES: '.***.' + '*.*..' + '**...' + '*.*..' + '.***.',
 
   // Half card
-  HALF_HOUSE: '*****' + '*****' + '.....' + '.....' + '.....',
+  HALF_HOUSE: '*****' + '*****' + '*****' + '.....' + '.....',
 };
 
 function cellsFromGrid(grid: string): Set<string> {

@@ -3,7 +3,10 @@ package com.bingo.app.tenant.service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -114,11 +117,165 @@ class WinningPatternGeometryTest {
         }
     }
 
+    /**
+     * A pattern whose code promises N lines must actually complete N lines. The grids used to be
+     * checked only for "wins when complete" / "fails when one cell is missing", which any layout
+     * passes, so several names drifted away from their shapes: FIVE_LINES completed four lines,
+     * SIX_LINES four, SEVEN_LINES five, and both of the diagonal mixes had no diagonal at all.
+     * This asserts the count so the two cannot drift apart again.
+     */
     @Test
-    @DisplayName("HALF_HOUSE is the top two rows; FULL_HOUSE-style patterns use every cell")
+    @DisplayName("a pattern named for N lines completes exactly N lines")
+    void lineCountsMatchTheirNames() {
+        // The free centre always counts as called, so a line through it is complete for free.
+        record Expectation(String code, int lines) {
+        }
+        List<Expectation> expectations = List.of(
+                new Expectation("FOUR_LINES", 4),
+                new Expectation("FIVE_LINES", 5),
+                new Expectation("SIX_LINES", 6),
+                new Expectation("SEVEN_LINES", 7),
+                new Expectation("EIGHT_LINES", 8),
+                new Expectation("THREE_LINES_NO_FREE_DISJOINT", 3),
+                new Expectation("FOUR_LINES_NO_FREE_DISJOINT", 4),
+                new Expectation("FOUR_LINES_NO_FREE", 4),
+                new Expectation("FIVE_LINES_NO_FREE", 5),
+                new Expectation("THREE_LINES_ONE_DIAG", 4),
+                new Expectation("TWO_TOUCH_TWO_NO_TOUCH", 4),
+                new Expectation("TWO_VERT_TWO_HORIZ", 4),
+                new Expectation("TWO_VERT_TWO_HORIZ_ONE_DIAG", 5),
+                new Expectation("TWO_VERT_THREE_HORIZ", 6),
+                new Expectation("TWO_HORIZ_TWO_VERT_TWO_DIAG", 6),
+                new Expectation("TWO_LINES_TWO_SQUARES", 4),
+                new Expectation("TWO_LINES_TWO_RECTANGLES", 2),
+                new Expectation("THREE_RECTANGLES", 0),
+                new Expectation("LARGE_T_TWO_LINES", 4),
+                new Expectation("LARGE_T_THREE_LINES", 7),
+                new Expectation("FOUR_LINES_TOUCH_FREE", 4)
+        );
+
+        for (Expectation e : expectations) {
+            Set<String> complete = completedLines(WinningPatternGeometry.cells(e.code()));
+            assertEquals(e.lines(), complete.size(),
+                    e.code() + " is named for " + e.lines() + " lines but completes " + complete);
+        }
+    }
+
+    /**
+     * Which of the card's twelve possible lines (five rows, five columns, two diagonals) are fully
+     * covered by the pattern's cells, counting the free centre as always called.
+     */
+    private static Set<String> completedLines(List<int[]> cells) {
+        Set<String> covered = new HashSet<>();
+        for (int[] rc : cells) {
+            covered.add(rc[0] + "," + rc[1]);
+        }
+        covered.add("2,2"); // the free centre is called by definition
+
+        Set<String> complete = new HashSet<>();
+        for (int r = 0; r < 5; r++) {
+            if (coversRow(covered, r)) {
+                complete.add("row" + r);
+            }
+        }
+        for (int c = 0; c < 5; c++) {
+            if (coversCol(covered, c)) {
+                complete.add("col" + c);
+            }
+        }
+        if (coversDiag(covered, 0, 1)) {
+            complete.add("diag\\");
+        }
+        if (coversDiag(covered, 4, -1)) {
+            complete.add("diag/");
+        }
+        return complete;
+    }
+
+    private static boolean coversRow(Set<String> covered, int row) {
+        for (int c = 0; c < 5; c++) {
+            if (!covered.contains(row + "," + c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean coversCol(Set<String> covered, int col) {
+        for (int r = 0; r < 5; r++) {
+            if (!covered.contains(r + "," + col)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean coversDiag(Set<String> covered, int startCol, int colStep) {
+        for (int i = 0; i < 5; i++) {
+            if (!covered.contains(i + "," + (startCol + i * colStep))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * THREE_SMALL_T and THREE_SMALL_CROSSES name shapes rather than lines, so they are guarded by
+     * component count instead: each of the three shapes must be its own connected group. They used
+     * to be a single diagonal smear and a diamond ring respectively.
+     */
+    @Test
+    @DisplayName("the three-shape patterns really contain three separate shapes")
+    void threeShapePatternsHaveThreeComponents() {
+        for (String code : List.of("THREE_SMALL_T", "THREE_SMALL_CROSSES", "THREE_RECTANGLES")) {
+            List<int[]> cells = WinningPatternGeometry.cells(code);
+            assertEquals(3, componentCount(cells), code + " must be three disconnected shapes");
+        }
+    }
+
+    private static int componentCount(List<int[]> cells) {
+        boolean[][] seen = new boolean[5][5];
+        int components = 0;
+        for (int[] start : cells) {
+            if (seen[start[0]][start[1]]) {
+                continue;
+            }
+            components++;
+            Deque<int[]> stack = new ArrayDeque<>();
+            stack.push(start);
+            seen[start[0]][start[1]] = true;
+            while (!stack.isEmpty()) {
+                int[] cur = stack.pop();
+                for (int[] next : new int[][] { { cur[0] + 1, cur[1] }, { cur[0] - 1, cur[1] },
+                        { cur[0], cur[1] + 1 }, { cur[0], cur[1] - 1 } }) {
+                    if (next[0] < 0 || next[0] > 4 || next[1] < 0 || next[1] > 4) {
+                        continue;
+                    }
+                    if (seen[next[0]][next[1]]) {
+                        continue;
+                    }
+                    boolean required = false;
+                    for (int[] cell : cells) {
+                        if (cell[0] == next[0] && cell[1] == next[1]) {
+                            required = true;
+                            break;
+                        }
+                    }
+                    if (required) {
+                        seen[next[0]][next[1]] = true;
+                        stack.push(next);
+                    }
+                }
+            }
+        }
+        return components;
+    }
+
+    @Test
+    @DisplayName("HALF_HOUSE is the top three rows; FULL_HOUSE-style patterns use every cell")
     void sanityOnNamedPatterns() {
         int[][] card = fullCard();
-        assertEquals(10, WinningPatternGeometry.cells("HALF_HOUSE").size());
+        assertEquals(15, WinningPatternGeometry.cells("HALF_HOUSE").size());
         assertEquals(15, WinningPatternGeometry.cells("THREE_LINES_NO_FREE_DISJOINT").size());
         assertEquals(16, WinningPatternGeometry.cells("FOUR_SQUARES").size());
     }

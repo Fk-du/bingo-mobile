@@ -1,0 +1,29 @@
+1. ሙሉ ቤት — Full House
+2. ግማሽ ቤት — Half House
+3. ስምንት መስመሮች — Eight Lines
+4. ሰባት መስመሮች — Seven Lines
+5. ስድስት መስመሮች — Six Lines
+6. አምስት መስመሮች — Five Lines
+7. ሁለት ቁመታዊ፣ ሁለት አግድም እና አንድ ዲያጎናል መስመር — Two Vertical + Two Horizontal + One Diagonal
+8. ሁለት ቁመታዊ እና ሁለት አግድም መስመሮች — Two Vertical + Two Horizontal Lines
+9. ሁለት ቁመታዊ እና ሶስት አግድም መስመሮች — Two Vertical + Three Horizontal Lines
+10. አምስት ፍሪ የማይነኩ መስመሮች — Five Lines Not Touching the Free Space
+11. አራት ፍሪ የማይነኩ መስመሮች — Four Lines Not Touching the Free Space
+12. ሁለት ፍሪ የሚነኩ እና ሁለት ፍሪ የማይነኩ መስመሮች — Two Lines Touching the Free Space + Two Lines Not Touching the Free Space
+13. አራት የተለያዩ ስኰር  — Four Disconnected Squares
+14. ሁለት የተለያዩ መስመሮች ከሁለት ስኰር ጋር — Two Disconnected Lines + Two Squares
+15. ሁለት የተለያዩ መስመሮች ከሁለት የተለያዩ ስኰር ጋር — Two Disconnected Lines + Two Disconnected Squares
+16. ሶስት ስኰር ከአራት የተለያዩ ነጥቦች ጋር — Three Squares + Four Disconnected Dots
+17. ሶስት ራሳቸውን የቻሉ ሬክታንግሎች — Three Independent Rectangles
+18. ትልቅ T ከሁለት መስመሮች ጋር — Large T + Two Lines
+19. አራት የተለያዩ መስመሮች — Four Disconnected Lines
+20. ሶስት የተለያዩ መስመሮች ከአንድ ዲያጎናል ጋር — Three Disconnected Lines + One Diagonal
+21. አራት ፍሪ የሚነኩ መስመሮች — Four Lines Touching the Free Space
+22. ሁለት መስመሮች ከሁለት ሬክታንግሎች ጋር — Two Lines + Two Rectangles
+23. ትልቅ T ከሶስት የተለያዩ መስመሮች ጋር — Large T + Three Disconnected Lines
+24. ሁለት አግድም፣ ሁለት ቁመታዊ እና ሁለት ዲያጎናል መስመሮች — Two Horizontal + Two Vertical + Two Diagonal Lines
+25. ሶስት ማይገናኙ ፍሪ ያልነኩ መስመሮች — Three Disconnected Lines Not Touching the Free Space
+26. አራት ማይገናኙ ፍሪ ያልነኩ መስመሮች — Four Disconnected Lines Not Touching the Free Space
+27. ሶስት የተለያዩ ትንንሽ T ቅርጾች — Three Disconnected Small T Shapes
+28. ትልቅ መስቀል ከሁለት ትንንሽ ስኰር ጋር — Large Cross + Two Small Squares
+29. ሶስት የተለያዩ ትንንሽ መስቀሎች — Three Disconnected Small Crosses

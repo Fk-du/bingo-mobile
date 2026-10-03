@@ -63,7 +63,7 @@ export function CardGrid({
             key={letter}
             className={`flex-1 aspect-square items-center justify-center rounded border font-bold ${LETTER_COLORS[index]}`}
           >
-            <Text className="font-bold text-[10px]">{letter}</Text>
+            <Text className="font-bold text-[12px]">{letter}</Text>
           </View>
         ))}
       </View>
@@ -97,7 +97,10 @@ export function CardGrid({
                 className="flex-1 aspect-square items-center justify-center rounded border bg-bp-surface border-bp-borderInactive"
                 style={cellStyle}
               >
-                <Text className="font-black text-[11px] text-bp-textSecondary" style={inkStyle}>
+                {/* Cells are square and sized by the column width, so the number
+                    can grow without crowding its neighbours. Reading a call
+                    against the card is the main thing a player does here. */}
+                <Text className="font-black text-[15px] text-bp-textSecondary" style={inkStyle}>
                   {display}
                 </Text>
               </Pressable>
