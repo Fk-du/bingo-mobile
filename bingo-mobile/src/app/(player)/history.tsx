@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
-import { Button, Card, Screen, ScreenHeader } from '@/components/ui';
+import { Button, Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
 import { GameStatus, PlayerCardHistory } from '@/types';
@@ -24,7 +24,7 @@ export default function PlayerHistoryScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title={t('player.completedGamesTitle') ?? 'History'} />
+      <ScreenHeader title={t('player.completedGamesTitle') ?? 'History'} left={<ScreenBackButton />} />
 
       <View className="flex-row gap-2 mb-4">
         <Button variant={tab === 'games' ? 'primary' : 'outline'} onPress={() => setTab('games')} style={{ flex: 1 }}>

@@ -261,7 +261,17 @@ export default function AdminLiveGameScreen() {
                     against the called numbers instead of taken on trust. */}
                 {card && (
                   <View className="gap-1">
-                    <CardGrid numbers={card.cardNumbers} called={card.calledNumbers} />
+                    <CardGrid
+                      numbers={card.cardNumbers}
+                      called={card.calledNumbers}
+                      // Same as the player sees it: the call that completed the card is
+                      // lit apart from the rest, so the review is against that number.
+                      lastCalledNumber={
+                        card.calledNumbers.length > 0
+                          ? card.calledNumbers[card.calledNumbers.length - 1]
+                          : null
+                      }
+                    />
                     {card.calledNumbers.length > 0 && (
                       <Text className="text-bp-textSecondary text-xs">
                         {t('admin.claimCalledCount', { count: card.calledNumbers.length }) ??
@@ -269,6 +279,11 @@ export default function AdminLiveGameScreen() {
                       </Text>
                     )}
                   </View>
+                )}
+                {/* A claim the card list could not resolve is called out rather than
+                    left blank, so approving is never done on an invisible card. */}
+                {!card && (
+                  <Text className="text-bp-textSecondary text-xs">{t('common.notAvailable')}</Text>
                 )}
                 {split && (
                   <Text className="text-bp-successInk text-xs">

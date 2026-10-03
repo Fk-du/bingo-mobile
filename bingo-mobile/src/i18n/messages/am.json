@@ -1022,7 +1022,8 @@
     "withdrawalRequest": "የወጪ ጥያቄ",
     "navProfile": "መገለጫ",
     "jackpotPrize": "ሽልማት",
-    "navAlerts": "ማሳወቂያ"
+    "navAlerts": "ማሳወቂያ",
+    "navSettings": "ቅንብሮች"
   },
   "gameSettings": {
     "title": "የጨዋታ ቅንብሮች",
@@ -1033,13 +1034,16 @@
       "green": "አረንጓዴ",
       "blue": "ሰማያዊ",
       "purple": "ሐሙስና",
-      "orange": "ብርቱ"
+      "orange": "ብርቱ",
+      "black": "ጥቁር"
     },
     "cardSort": "የካርድ ቅደም ተከተል",
     "sorts": {
       "cardOrder": "እንደ የተሰጡት",
       "mostMarked": "ከፍተኛ የተሰበረባት",
       "mostRows": "ከፍተኛ የተጠናቀቁ መስመሮች"
-    }
+    },
+    "autoMark": "ራስ ኣጥቁር",
+    "sound": "የቁጥር ማሳወቂያ ድምፅ"
   }
 }

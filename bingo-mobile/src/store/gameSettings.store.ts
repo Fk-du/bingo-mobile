@@ -14,7 +14,7 @@ export const CARD_SORTS = ['cardOrder', 'mostMarked', 'mostRows'] as const;
 export type CardSort = (typeof CARD_SORTS)[number];
 
 /** The colour a called/marked number is filled with. */
-export type MarkColor = 'red' | 'green' | 'blue' | 'purple' | 'orange';
+export type MarkColor = 'red' | 'green' | 'blue' | 'purple' | 'orange' | 'black';
 
 /**
  * Fill and border for a daubed cell, per colour. Kept as raw hex rather than
@@ -27,14 +27,36 @@ export const MARK_COLORS: Record<MarkColor, { fill: string; border: string }> = 
   blue: { fill: '#2D9CDB', border: '#2D9CDB99' },
   purple: { fill: '#6B5BFF', border: '#6B5BFF99' },
   orange: { fill: '#F2994A', border: '#F2994A99' },
+  // The near-black of the light theme's ink rather than a pure #000: a dead
+  // black cell reads as a gap in the grid on an OLED screen. It is the one
+  // colour that has to work in both themes, since the fill carries no alpha
+  // for the theme to tint.
+  black: { fill: '#1A1E2C', border: '#1A1E2C99' },
 };
 
 interface GameSettingsState {
   markColor: MarkColor;
   cardSort: CardSort;
+  /**
+   * Whether called numbers mark themselves on the player's cards. This is a
+   * device preference, not a per-game one: the board follows it in every game,
+   * and the screen keeps the server's per-card flag in step with it on entry.
+   */
+  autoMark: boolean;
+  /** Whether a called number is announced out loud. */
+  soundEnabled: boolean;
   setMarkColor: (c: MarkColor) => void;
   setCardSort: (s: CardSort) => void;
+  setAutoMark: (v: boolean) => void;
+  setSoundEnabled: (v: boolean) => void;
 }
+
+/**
+ * Where the sound preference lived before it moved in here, written by the
+ * number announcer as `1`/`0`. Folded into the store once on first read so a
+ * player who had muted the calls does not get them back by the move.
+ */
+const LEGACY_SOUND_KEY = 'bingo-call-sound-muted';
 
 /**
  * Values written by an earlier build, kept so a device that already has a sort
@@ -53,8 +75,12 @@ export const useGameSettings = create<GameSettingsState>()(
     (set) => ({
       markColor: 'red',
       cardSort: 'cardOrder',
+      autoMark: true,
+      soundEnabled: true,
       setMarkColor: (markColor) => set({ markColor }),
       setCardSort: (cardSort) => set({ cardSort }),
+      setAutoMark: (autoMark) => set({ autoMark }),
+      setSoundEnabled: (soundEnabled) => set({ soundEnabled }),
     }),
     {
       name: 'bingo.game-settings',
@@ -65,6 +91,14 @@ export const useGameSettings = create<GameSettingsState>()(
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<GameSettingsState>;
         const sort = saved.cardSort;
+        if (saved.soundEnabled === undefined) {
+          void AsyncStorage.getItem(LEGACY_SOUND_KEY).then((stored) => {
+            if (stored !== null) {
+              useGameSettings.setState({ soundEnabled: stored !== '1' });
+              void AsyncStorage.removeItem(LEGACY_SOUND_KEY);
+            }
+          });
+        }
         return {
           ...current,
           ...saved,

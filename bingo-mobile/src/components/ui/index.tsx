@@ -13,9 +13,11 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Children, ReactNode } from 'react';
+import { Href, useRouter } from 'expo-router';
 import { useTheme } from '@/lib/theme';
 import { translateClientMessage } from '@/lib/clientTranslations';
 import { useTranslate } from '@/hooks/useTranslate';
+import { IconBack } from './icons';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'success' | 'gold' | 'neutral' | 'green';
 
@@ -148,17 +150,21 @@ export function ScreenHeader({
   title,
   eyebrow,
   description,
+  left,
   right,
 }: {
   title: string;
   /** Defaults to the app name, so a screen with only a title still gets a label. */
   eyebrow?: string;
   description?: string;
+  /** Leading slot, used for a back control on screens reached from a menu. */
+  left?: ReactNode;
   right?: ReactNode;
 }) {
   const t = useTranslate();
   return (
     <View className="flex-row items-start gap-3 pt-3 pb-5">
+      {left ? <View className="shrink-0">{left}</View> : null}
       <View className="min-w-0 flex-1">
         <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
           {eyebrow ?? t('common.appName') ?? 'BingoPlus'}
@@ -168,6 +174,47 @@ export function ScreenHeader({
       </View>
       {right ? <View className="shrink-0">{right}</View> : null}
     </View>
+  );
+}
+
+/**
+ * The leading back control for a screen reached from a menu. The nav bar holds
+ * a single icon now, so a screen below it has to offer its own way out: back
+ * returns to whatever sent the player there, and a screen opened cold from a
+ * link has nothing to go back to, so it falls back to the player home rather
+ * than dropping out of the app.
+ *
+ * `to` is for the screens whose origin is known and is not "whatever is
+ * behind". Every player route shares one tab slot, so a pushed screen sits on
+ * top of whichever tab the player came from and `back()` pops to that tab — the
+ * settings screen reached from the game board's gear would go to the profile
+ * instead. Naming the destination navigates there instead, and still pushes if
+ * the route is not on the stack (a cold start, say).
+ */
+export function ScreenBackButton({ to, fallback = '/(player)' }: { to?: Href; fallback?: Href }) {
+  const t = useTranslate();
+  const router = useRouter();
+  const { colors } = useTheme();
+
+  const goBack = () => {
+    if (to) {
+      router.navigate(to);
+      return;
+    }
+    if (router.canGoBack()) router.back();
+    else router.replace(fallback);
+  };
+
+  return (
+    <Pressable
+      onPress={goBack}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={t('common.back') ?? 'Back'}
+      className="h-9 w-9 items-center justify-center rounded-full border border-bp-borderInactive bg-bp-surface active:opacity-70"
+    >
+      <IconBack color={colors.textSecondary} size={18} />
+    </Pressable>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
@@ -9,6 +9,7 @@ import { FairnessPanel } from '@/components/games/FairnessPanel';
 import { StartCountdownBanner } from '@/components/games/StartCountdownBanner';
 import { WinnerModal } from '@/components/games/WinnerModal';
 import { NumberBoard } from '@/components/games/NumberBoard';
+import { PendingClaimCards } from '@/components/games/PendingClaimCards';
 import { CardPickerModal } from '@/components/games/CardPickerModal';
 import { useNumberAnnouncer } from '@/hooks/useNumberAnnouncer';
 import { Button, Card, Modal, Screen, StatusPill } from '@/components/ui';
@@ -16,23 +17,20 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { patternProgress, patternCells } from '@/lib/pattern';
-import { IconSettings } from '@/components/ui/icons';
-import { useTheme } from '@/lib/theme';
 import { useGameStore } from '@/store/game.store';
+import { useAuthStore } from '@/store/auth.store';
 import {
   CardSort,
   MARK_COLORS,
   countMarkedRows,
   useGameSettings,
 } from '@/store/gameSettings.store';
-import { PlayerGameResponse, GameStateResponse, GameStatus, PlayerCardView } from '@/types';
+import { PlayerGameResponse, GameStateResponse, GameStatus, PendingClaimCard, PlayerCardView } from '@/types';
 
 export default function LiveGameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const gameId = Number(id);
   const t = useTranslate();
-  const router = useRouter();
-  const { colors } = useTheme();
   const qc = useQueryClient();
 
   // Subscribe per-field. Selecting the whole store re-renders this entire
@@ -51,13 +49,17 @@ export default function LiveGameScreen() {
   const setRestartNotice = useGameStore((s) => s.setRestartNotice);
   const cardSort = useGameSettings((s) => s.cardSort);
   const markColor = useGameSettings((s) => s.markColor);
+  // Auto-mark is a general preference now, so the board follows it in every
+  // game rather than remembering a per-game choice. The server still owns the
+  // per-card flag, so it is pushed into step below rather than assumed.
+  const autoMarkPreferred = useGameSettings((s) => s.autoMark);
+  const autoMarkSync = useRef<{ key: string; tries: number } | null>(null);
 
   const game = useMemo(
     () => ({
       gameStatus,
       calledNumbers: calledNumberEntries,
       playerCards,
-      claimPending,
       restartNotice,
       totalNumbersCalled,
       prizeAmount,
@@ -68,7 +70,6 @@ export default function LiveGameScreen() {
       gameStatus,
       calledNumberEntries,
       playerCards,
-      claimPending,
       restartNotice,
       totalNumbersCalled,
       prizeAmount,
@@ -168,6 +169,50 @@ export default function LiveGameScreen() {
     return () => sub.remove();
   }, [loadState]);
 
+  // The cards that have claimed Bingo and are waiting on an admin decision. A
+  // claim is never just "someone won": the paused game shows the actual card with
+  // every called number marked, so the claim can be checked by the players instead
+  // of taken on trust. The claimer's own card is pointed out in the panel.
+  const [pendingClaimCards, setPendingClaimCards] = useState<PendingClaimCard[]>([]);
+  // Claims the player has put away. An approved or rejected claim takes itself off
+  // the game, so the panel closes on its own; this is only for the player who does
+  // not want to look at it while the game waits.
+  const [dismissedClaims, setDismissedClaims] = useState<number[]>([]);
+  const currentPlayerId = useAuthStore((s) => s.user?.id ?? null);
+  const claimsPending = gameStatus === GameStatus.CLAIM_PENDING || claimPending != null;
+
+  const loadPendingClaimCards = useCallback(async () => {
+    try {
+      const res = await gamesApi.getPendingClaimCards(gameId);
+      setPendingClaimCards(res.data);
+      // A dismissed claim that has since been decided is no longer on the game, so
+      // stop remembering it; only claims still waiting can stay dismissed.
+      setDismissedClaims((prev) => prev.filter((id) => res.data.some((c) => c.claimId === id)));
+    } catch {
+      setPendingClaimCards([]);
+    }
+  }, [gameId]);
+
+  // Only polled while a claim is waiting. Approving or rejecting one takes it off
+  // the game, and the panel has to leave with it instead of lingering. A decision
+  // arrives on the socket as the claim being cleared, which re-runs this and drops
+  // that card at once; the poll is the backstop for a dropped session.
+  useEffect(() => {
+    if (!claimsPending) return;
+    const id = setTimeout(() => void loadPendingClaimCards(), 0);
+    const poll = setInterval(() => void loadPendingClaimCards(), 4_000);
+    return () => {
+      clearTimeout(id);
+      clearInterval(poll);
+    };
+  }, [claimsPending, claimPending, loadPendingClaimCards]);
+
+  // Cards already claimed are hidden rather than cleared, so the state is never
+  // written outside a fetch and the panel cannot flash an old claim on the way out.
+  const visibleClaimCards = claimsPending
+    ? pendingClaimCards.filter((c) => !dismissedClaims.includes(c.claimId))
+    : [];
+
   // Countdown and winner result
   const isCountingDown = gameStatus === GameStatus.STARTING;
   const countdownSeconds = useCountdown(startTime, isCountingDown);
@@ -178,9 +223,62 @@ export default function LiveGameScreen() {
   const [winnerModalSeen, setWinnerModalSeen] = useState(false);
   const showWinnerModal = gameStatus === GameStatus.ENDED && Boolean(state?.isWinner) && !winnerModalSeen;
 
-  const isManual = state?.autoMark === false;
+  const isManual = !autoMarkPreferred;
   const lastCalledNumber =
     game.calledNumbers.length > 0 ? game.calledNumbers[game.calledNumbers.length - 1].number : null;
+
+  // Switching a game to auto-mark hands the marking back to the server, so the
+  // numbers already called have to be carried across first or the board would
+  // come back empty. Mirrors what the old per-game toggle did.
+  const applyAutoMark = useCallback(
+    async (enabled: boolean, cards: PlayerCardView[]) => {
+      if (enabled) {
+        setGlobalMarks(new Set());
+        for (const card of cards) {
+          await gamesApi.saveMarks(gameId, card.cardId, [], true);
+        }
+        return;
+      }
+      const ported = new Set<number>();
+      for (const card of cards) {
+        for (const row of card.numbers) {
+          for (const num of row) {
+            if (calledNumberEntries.some((entry) => entry.number === num)) ported.add(num);
+          }
+        }
+      }
+      ported.add(0);
+      setGlobalMarks(ported);
+      for (const card of cards) {
+        await gamesApi.saveMarks(gameId, card.cardId, [...ported], false);
+      }
+    },
+    [gameId, calledNumberEntries, setGlobalMarks]
+  );
+
+  // The board follows the stored preference, but the server's per-card flag is
+  // what actually decides who marks a number, so the two are reconciled here
+  // rather than assumed to agree. Retries are bounded: the screen polls every
+  // four seconds, and a switch the server keeps refusing would otherwise be
+  // retried for as long as the game is open.
+  useEffect(() => {
+    const cards = state?.playerCards ?? [];
+    if (!state || cards.length === 0) return;
+    if (state.autoMark === autoMarkPreferred) return;
+    const key = `${gameId}:${autoMarkPreferred}`;
+    const attempt = autoMarkSync.current;
+    if (attempt && attempt.key === key && attempt.tries >= 3) return;
+    autoMarkSync.current = {
+      key,
+      tries: attempt && attempt.key === key ? attempt.tries + 1 : 1,
+    };
+    void applyAutoMark(autoMarkPreferred, cards)
+      .then(() => loadState())
+      .catch(() => {
+        // Nothing to report here: the board still follows the preference, and
+        // the marks the player can make are the ones already called.
+      });
+  }, [state, autoMarkPreferred, applyAutoMark, gameId, loadState]);
 
   const toggleMark = async (n: number) => {
     if (!isManual) return;
@@ -390,7 +488,7 @@ export default function LiveGameScreen() {
   };
 
   const calledNumbers = game.calledNumbers.map((c) => c.number);
-  const { muted, toggleMuted } = useNumberAnnouncer(calledNumbers);
+  useNumberAnnouncer(calledNumbers);
   const prize = state?.prizeAmount ?? game.prizeAmount;
   const winningPattern = state?.winningPattern ?? null;
   const patternCellsSet = winningPattern ? patternCells(winningPattern) : null;
@@ -436,17 +534,8 @@ export default function LiveGameScreen() {
           </Text>
 
           <View className="flex-row items-center gap-2">
-            {/* The gear sits beside the prize rather than in the nav bar: these
-                are board settings, and the board is directly below it. */}
-            <Pressable
-              onPress={() => router.push('/(player)/settings')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('gameSettings.title') ?? 'Settings'}
-              className="h-8 w-8 items-center justify-center rounded-full border border-bp-borderInactive bg-bp-surface active:opacity-70"
-            >
-              <IconSettings color={colors.textSecondary} size={16} />
-            </Pressable>
+            {/* The gear lives in the nav bar beside the profile icon now, so
+                this row is only about the game itself. */}
             <Text className="text-[10px] uppercase tracking-wider text-bp-textSecondary">
               {t('mobile.jackpotPrize') ?? 'Prize'}:
             </Text>
@@ -529,13 +618,15 @@ export default function LiveGameScreen() {
           </Card>
         ) : null}
 
-        {game.claimPending ? (
-          <Card className="border-bp-gold40 bg-bp-gold10">
-            <Text className="text-center text-sm font-semibold text-amber-500">
-              ⏳ {t('game.claimPending', { cardId: '' }) ?? 'Claim pending review…'}
-            </Text>
-          </Card>
-        ) : null}
+        {/* What is actually under review: the claimed cards with every called
+            number marked, instead of a bare "claim pending" line. The panel goes
+            away by itself once the claim is decided, or on the ✕ if the player
+            would rather not look at it. */}
+        <PendingClaimCards
+          claims={visibleClaimCards}
+          currentPlayerId={currentPlayerId}
+          onDismiss={() => setDismissedClaims(visibleClaimCards.map((c) => c.claimId))}
+        />
 
         {report && (
           <Card className={reportTone(report.kind)}>
@@ -716,63 +807,11 @@ export default function LiveGameScreen() {
         ) : null}
 
         {hasCards && (
-          <>
-            <View className="flex-row items-center">
-              <AutoMarkToggle
-                manual={isManual}
-                onToggle={async () => {
-                  const next = !isManual;
-                  const cards = game.playerCards ?? [];
-                  if (next) {
-                    const ported = new Set<number>();
-                    for (const pc of cards) {
-                      for (const row of pc.numbers) {
-                        for (const num of row) {
-                          if (calledNumbers.includes(num)) ported.add(num);
-                        }
-                      }
-                    }
-                    ported.add(0);
-                    setGlobalMarks(ported);
-                    for (const pc of cards) {
-                      await gamesApi.saveMarks(gameId, pc.cardId, [...ported], false);
-                    }
-                  } else {
-                    setGlobalMarks(new Set());
-                    for (const pc of cards) {
-                      await gamesApi.saveMarks(gameId, pc.cardId, [], true);
-                    }
-                  }
-                  await loadState();
-                }}
-                t={t}
-              />
-              <Pressable
-                onPress={toggleMuted}
-                className="ml-2 flex-row items-center gap-2 rounded-xl border border-bp-borderInactive bg-bp-surfaceAlt px-3 py-2"
-              >
-                <View
-                  className={`h-5 w-9 rounded-full justify-center ${
-                    muted ? 'bg-bp-textInactive' : 'bg-bp-primary'
-                  }`}
-                  style={{ paddingLeft: 2 }}
-                >
-                  <View
-                    className={`h-4 w-4 rounded-full bg-white ${muted ? '' : 'self-end'}`}
-                  />
-                </View>
-                <Text className="text-xs text-bp-textSecondary">
-                  {t('game.sound') ?? 'Sound'}
-                  {muted ? ` · ${t('game.soundOff') ?? 'Off'}` : ` · ${t('game.soundOn') ?? 'On'}`}
-                </Text>
-              </Pressable>
-            </View>
-            {isManual && (
-              <Text className="text-center text-xs text-bp-textSecondary">
-                {t('game.tapToMark') ?? 'Tap a number to mark it'}
-              </Text>
-            )}
-          </>
+          <Text className="text-center text-xs text-bp-textSecondary">
+            {isManual
+              ? (t('game.tapToMark') ?? 'Tap a number to mark it')
+              : (t('admin.cardsMarkThemselves') ?? 'Cards mark themselves')}
+          </Text>
         )}
       </ScrollView>
 
@@ -864,27 +903,6 @@ function MiniPattern({ cells, size = 11 }: { cells: Set<string> | null; size?: n
         </View>
       ))}
     </View>
-  );
-}
-
-function AutoMarkToggle({
-  manual,
-  onToggle,
-  t,
-}: {
-  manual: boolean;
-  onToggle: () => void;
-  t: ReturnType<typeof useTranslate>;
-}) {
-  return (
-    <Pressable onPress={() => void onToggle()} className="flex-row items-center gap-2 rounded-xl border border-bp-borderInactive bg-bp-surfaceAlt px-3 py-2">
-      <View className={`h-5 w-9 rounded-full justify-center ${manual ? 'bg-bp-textInactive' : 'bg-bp-primary'}`} style={{ paddingLeft: 2 }}>
-        <View className={`h-4 w-4 rounded-full bg-white ${manual ? '' : 'self-end'}`} />
-      </View>
-      <Text className="text-xs text-bp-textSecondary">
-        {t('game.autoMarkOn') ?? 'Auto'} {manual ? `· ${t('game.manualMarking') ?? 'Manual'}` : ''}
-      </Text>
-    </Pressable>
   );
 }
 

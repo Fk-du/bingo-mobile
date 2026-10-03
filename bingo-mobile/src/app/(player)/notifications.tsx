@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-na
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { notificationsApi } from '@/api';
-import { Card, Screen, ScreenHeader } from '@/components/ui';
+import { Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
 import { AppNotification } from '@/types';
@@ -70,6 +70,7 @@ export default function NotificationsScreen() {
     <Screen>
       <ScreenHeader
         title={t('mobile.notifications') ?? 'Notifications'}
+        left={<ScreenBackButton />}
         right={
           hasUnread ? (
             <Pressable onPress={markAllRead} hitSlop={8}>

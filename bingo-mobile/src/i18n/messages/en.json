@@ -185,7 +185,8 @@
     "withdrawalRequest": "Withdrawal request",
     "navProfile": "Profile",
     "jackpotPrize": "Prize",
-    "navAlerts": "Alerts"
+    "navAlerts": "Alerts",
+    "navSettings": "Settings"
   },
   "ws": {
     "gameRestarted": "The game is restarting with a fresh number sequence. All registered players keep their cards and can play again.",
@@ -1033,13 +1034,16 @@
       "green": "Green",
       "blue": "Blue",
       "purple": "Purple",
-      "orange": "Orange"
+      "orange": "Orange",
+      "black": "Black"
     },
     "cardSort": "Card order",
     "sorts": {
       "cardOrder": "As dealt",
       "mostMarked": "Most numbers marked",
       "mostRows": "Most lines completed"
-    }
+    },
+    "autoMark": "Auto-mark",
+    "sound": "Call sound"
   }
 }

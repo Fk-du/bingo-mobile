@@ -85,6 +85,16 @@ export function IconMoon({ color, size = 20 }: IconProps) {
   );
 }
 
+export function IconBack({ color, size = 20 }: IconProps) {
+  const defaultColor = useDefaultIconColor();
+  const c = color ?? defaultColor;
+  return (
+    <Svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M15 18l-6-6 6-6" />
+    </Svg>
+  );
+}
+
 export function IconSettings({ color, size = 20 }: IconProps) {
   const defaultColor = useDefaultIconColor();
   const c = color ?? defaultColor;

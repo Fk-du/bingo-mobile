@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
-import { Button, Card, EmptyState, Screen, ScreenHeader, StatusPill } from '@/components/ui';
+import { Button, Card, EmptyState, Screen, ScreenBackButton, ScreenHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
 import { PlayerGameResponse } from '@/types';
@@ -20,7 +20,7 @@ export default function PlayerMyGamesScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title={t('player.myGamesTitle') ?? 'My games'} />
+      <ScreenHeader title={t('player.myGamesTitle') ?? 'My games'} left={<ScreenBackButton />} />
 
       <FlatList
         data={games}

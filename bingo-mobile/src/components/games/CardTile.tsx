@@ -66,10 +66,15 @@ export function CardTile({
 
   return (
     <View className="gap-1.5" style={{ width: '48%', ...ringStyle }}>
-      <View className="flex-row items-center justify-between gap-1.5">
-        <Text className="shrink text-[9px] font-bold uppercase tracking-wider text-bp-textSecondary">
-          {cardIdLabel}
-        </Text>
+      <View className={`flex-row items-center gap-1.5 ${dimmed ? 'justify-end' : 'justify-between'}`}>
+        {/* A banned card shows its number at the bottom in red instead: the number
+            is what an admin needs to identify it, and it reads as part of the
+            penalty rather than as a neutral caption above a dimmed board. */}
+        {!dimmed && (
+          <Text className="shrink text-[9px] font-bold uppercase tracking-wider text-bp-textSecondary">
+            {cardIdLabel}
+          </Text>
+        )}
         {status}
       </View>
       <View className={dimmed ? 'opacity-60' : ''}>
@@ -88,9 +93,12 @@ export function CardTile({
         />
       </View>
       {dimmed && (
-        <Text className="text-center text-[10px] text-red-500/80">
-          {t('game.bannedCardHint') ?? 'This card is banned.'}
-        </Text>
+        <View className="items-center gap-0.5">
+          <Text className="text-[11px] font-black uppercase tracking-wider text-red-500">{cardIdLabel}</Text>
+          <Text className="text-center text-[10px] text-red-500/80">
+            {t('game.bannedCardHint') ?? 'This card is banned.'}
+          </Text>
+        </View>
       )}
       {footer}
     </View>

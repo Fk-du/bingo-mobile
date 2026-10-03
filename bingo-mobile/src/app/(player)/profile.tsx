@@ -3,10 +3,17 @@ import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { authApi, inviteApi } from '@/api';
-import { Button, Card, Screen, ScreenHeader } from '@/components/ui';
+import { authApi, inviteApi, notificationsApi, walletApi } from '@/api';
+import { Button, Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
-import { IconMoon, IconSun } from '@/components/ui/icons';
+import {
+  IconBell,
+  IconHistory,
+  IconLobby,
+  IconMoon,
+  IconSun,
+  IconWallet,
+} from '@/components/ui/icons';
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
@@ -28,6 +35,16 @@ export default function PlayerProfileScreen() {
     queryKey: ['invite/link'],
     queryFn: () => inviteApi.getMyLink(),
   });
+
+  // The wallet row shows the balance inline and the alerts row shows the
+  // unread count. Both used to live on tab icons, and losing them here would
+  // mean opening a screen just to check a number.
+  const { data: walletQuery } = useQuery({ queryKey: ['wallet'], queryFn: () => walletApi.get() });
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications', 'unread'],
+    queryFn: () => notificationsApi.unreadCount(),
+  });
+  const unread = unreadData?.data.count ?? 0;
   const { data: inviteStats } = useQuery({
     queryKey: ['invite/stats'],
     queryFn: () => inviteApi.getMyStats(),
@@ -78,7 +95,10 @@ export default function PlayerProfileScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title={t('player.profileLabel') ?? 'Profile'} />
+      <ScreenHeader
+        title={t('player.profileLabel') ?? 'Profile'}
+        left={<ScreenBackButton />}
+      />
 
       <ScrollView contentContainerClassName="gap-3 pb-8">
         <Card className="items-center gap-1">
@@ -177,14 +197,37 @@ export default function PlayerProfileScreen() {
           </Card>
         )}
 
-        <Pressable
-          onPress={() => router.push('/(player)/history')}
-          className="active:opacity-80"
-        >
-          <Card className="flex-row justify-between items-center">
-            <Text className="text-bp-textPrimary font-semibold">{t('player.gameHistory') ?? 'Game history'}</Text>
-            <Text className="text-bp-primary">›</Text>
-          </Card>
+        {/* The nav bar holds a single icon, so every destination it used to
+            point at is listed here instead. Each row pushes the screen rather
+            than switching tabs, which keeps the bar itself meaning "profile". */}
+        <Pressable onPress={() => router.push('/(player)/wallet')} className="active:opacity-80">
+          <MenuRow
+            icon={<IconWallet size={18} color={colors.textSecondary} />}
+            label={t('mobile.navWallet') ?? 'Wallet'}
+            detail={walletQuery?.data.balance?.toLocaleString()}
+          />
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/(player)/notifications')} className="active:opacity-80">
+          <MenuRow
+            icon={<IconBell size={18} color={colors.textSecondary} />}
+            label={t('mobile.navAlerts') ?? 'Alerts'}
+            badge={unread > 0 ? unread : undefined}
+          />
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/(player)/history')} className="active:opacity-80">
+          <MenuRow
+            icon={<IconHistory size={18} color={colors.textSecondary} />}
+            label={t('player.gameHistory') ?? 'Game history'}
+          />
+        </Pressable>
+
+        <Pressable onPress={() => router.push('/(player)/my-games')} className="active:opacity-80">
+          <MenuRow
+            icon={<IconLobby size={18} color={colors.textSecondary} />}
+            label={t('player.myGames') ?? 'My games'}
+          />
         </Pressable>
 
         <Pressable onPress={() => setShowLanguage((v) => !v)} className="active:opacity-80">
@@ -222,6 +265,35 @@ export default function PlayerProfileScreen() {
         </Button>
       </ScrollView>
     </Screen>
+  );
+}
+
+/** One destination row: icon, label, optional value or count, chevron. */
+function MenuRow({
+  icon,
+  label,
+  detail,
+  badge,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  detail?: string;
+  badge?: number;
+}) {
+  return (
+    <Card className="flex-row items-center justify-between gap-3">
+      <View className="h-8 w-8 items-center justify-center rounded-full bg-bp-surfaceAlt">
+        {icon}
+      </View>
+      <Text className="flex-1 text-bp-textPrimary font-semibold">{label}</Text>
+      {detail ? <Text className="text-bp-textSecondary text-sm">{detail}</Text> : null}
+      {badge ? (
+        <View className="min-w-[20px] items-center justify-center rounded-full bg-bp-danger px-1.5 py-0.5">
+          <Text className="text-[10px] font-bold text-white">{badge}</Text>
+        </View>
+      ) : null}
+      <Text className="text-bp-primary">›</Text>
+    </Card>
   );
 }
 

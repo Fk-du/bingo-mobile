@@ -15,6 +15,7 @@ import {
   Button,
   Card,
   Screen,
+  ScreenBackButton,
   ScreenHeader,
   Subtitle,
   Title,
@@ -132,7 +133,7 @@ export default function WalletScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title={t('mobile.navWallet') ?? 'Wallet'} />
+      <ScreenHeader title={t('mobile.navWallet') ?? 'Wallet'} left={<ScreenBackButton />} />
       <ScrollView contentContainerClassName="gap-4 pb-8">
         <Card className="flex-row justify-between">
           <View>
