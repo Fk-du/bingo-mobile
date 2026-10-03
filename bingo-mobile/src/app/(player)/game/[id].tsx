@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
@@ -10,7 +10,7 @@ import { StartCountdownBanner } from '@/components/games/StartCountdownBanner';
 import { WinnerModal } from '@/components/games/WinnerModal';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { PendingClaimCards } from '@/components/games/PendingClaimCards';
-import { CardPickerModal } from '@/components/games/CardPickerModal';
+import { CardCountFan } from '@/components/games/CardCountFan';
 import { useNumberAnnouncer } from '@/hooks/useNumberAnnouncer';
 import { Button, Card, Modal, Screen, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
@@ -23,15 +23,22 @@ import {
   CardSort,
   MARK_COLORS,
   countMarkedRows,
+  countSmallSquares,
+  countRectangles,
+  countTs,
   useGameSettings,
 } from '@/store/gameSettings.store';
 import { PlayerGameResponse, GameStateResponse, GameStatus, PendingClaimCard, PlayerCardView } from '@/types';
+
+/** How long a confirmation stays on the board before it clears itself. */
+const TOAST_MS = 3_000;
 
 export default function LiveGameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const gameId = Number(id);
   const t = useTranslate();
   const qc = useQueryClient();
+  const router = useRouter();
 
   // Subscribe per-field. Selecting the whole store re-renders this entire
   // screen (every CardGrid) on any store write, including the ones the
@@ -93,6 +100,24 @@ export default function LiveGameScreen() {
   const marksSeeded = useRef(false);
 
   useGameWebSocket(gameId);
+
+  /**
+   * Confirmations here are feedback on a tap, not state: the card list below
+   * already shows whether a card is registered, and leaving a banner up just
+   * pushes the board down. Both clear themselves on a timer, and each new
+   * message restarts it, so a second action does not cut the first one short.
+   */
+  useEffect(() => {
+    if (!report) return;
+    const timer = setTimeout(() => setReport(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [report]);
+
+  useEffect(() => {
+    if (!registerSuccess) return;
+    const timer = setTimeout(() => setRegisterSuccess(false), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [registerSuccess]);
 
   const loadState = useCallback(async () => {
     try {
@@ -498,9 +523,27 @@ export default function LiveGameScreen() {
   const hasCards = (game.playerCards?.length ?? 0) > 0;
   const isLive = game.gameStatus === GameStatus.IN_PROGRESS;
   const isRegistration = game.gameStatus === GameStatus.REGISTRATION_OPEN;
+  const isEnded = game.gameStatus === GameStatus.ENDED;
   // The game status is only known once the state has loaded, so an unknown
   // status is the "still fetching" case rather than a game waiting to start.
   const isStatusUnknown = game.gameStatus == null;
+
+  /**
+   * Once a game is over the player has nothing left to do on this screen, but
+   * the admin can open the next one at any moment. Watching for it here means
+   * they do not have to navigate back out and back in to find out. The poll
+   * only runs while the game is over: the endpoint excludes ENDED games, so
+   * during a live game it could never surface anything new.
+   */
+  const nextGamesQuery = useQuery({
+    queryKey: ['player/games'],
+    queryFn: () => gamesApi.getActive(),
+    enabled: isEnded,
+    refetchInterval: isEnded ? 10_000 : false,
+  });
+  const nextGame: PlayerGameResponse | undefined = (nextGamesQuery.data?.data ?? []).find(
+    (g) => g.id !== gameId
+  );
   // Held but unpaid cards. The server drops these once registration closes, so a
   // card that was never registered can never linger into a live game.
   const previewCards = state?.previewCards ?? [];
@@ -518,9 +561,15 @@ export default function LiveGameScreen() {
     const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
     const markedCount = (c: PlayerCardView) => marksFor(c).size;
     const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
+    const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
+    const rectangles = (c: PlayerCardView) => countRectangles(c.numbers, marksFor(c));
+    const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
     const by: Record<Exclude<CardSort, 'cardOrder'>, (a: PlayerCardView, b: PlayerCardView) => number> = {
       mostMarked: (a, b) => markedCount(b) - markedCount(a),
       mostRows: (a, b) => rows(b) - rows(a),
+      mostSquares: (a, b) => squares(b) - squares(a),
+      mostRectangles: (a, b) => rectangles(b) - rectangles(a),
+      mostTs: (a, b) => ts(b) - ts(a),
     };
     return cards.sort((a, b) => by[cardSort](a, b) || a.cardId - b.cardId);
   }, [game.playerCards, cardSort, isManual, globalMarks]);
@@ -536,12 +585,20 @@ export default function LiveGameScreen() {
           <View className="flex-row items-center gap-2">
             {/* The gear lives in the nav bar beside the profile icon now, so
                 this row is only about the game itself. */}
-            <Text className="text-[10px] uppercase tracking-wider text-bp-textSecondary">
-              {t('mobile.jackpotPrize') ?? 'Prize'}:
-            </Text>
-            <Text className="text-xl font-black text-bp-goldInk">
-              {prize == null ? '—' : prize.toLocaleString()}
-            </Text>
+            {/* Prize and price carry the same pill shape as the registered-card count on
+                the number board, so the row reads as one set of chips. */}
+            <View className="rounded-full border border-bp-gold30 bg-bp-gold10 px-2 py-0.5">
+              <Text className="text-[10px] font-black text-bp-goldInk">
+                {t('mobile.jackpotPrize') ?? 'Prize'}: {prize == null ? '—' : prize.toLocaleString()}
+              </Text>
+            </View>
+            {entryFee != null && (
+              <View className="rounded-full border border-bp-borderActive40 bg-bp-surfaceAlt px-2 py-0.5">
+                <Text className="text-[10px] font-black text-bp-textPrimary">
+                  {t('game.priceLabel') ?? 'Price'}: {entryFee}
+                </Text>
+              </View>
+            )}
             {game.gameStatus ? <StatusPill status={game.gameStatus} /> : null}
           </View>
         </View>
@@ -569,26 +626,19 @@ export default function LiveGameScreen() {
       </View>
 
       <View className="border-b border-bp-borderInactive bg-bp-bg pt-2 pb-1.5">
-        <NumberBoard calledNumbers={calledNumbers} lastCalledNumber={lastCalledNumber} />
+        <NumberBoard
+          calledNumbers={calledNumbers}
+          lastCalledNumber={lastCalledNumber}
+          registeredCount={game.playerCards?.length ?? 0}
+        />
       </View>
-
-      {/* Only meaningful once the player holds more than one card; the chosen
-          order is theirs, not something the board should override. */}
-      {(game.playerCards?.length ?? 0) > 1 ? (
-        <View className="flex-row items-center gap-2 pt-2">
-          <Text className="text-[10px] uppercase tracking-wider text-bp-textInactive">
-            {t('gameSettings.cardSort') ?? 'Card order'}:
-          </Text>
-          <Text className="text-xs font-semibold text-bp-goldInk">
-            {t(`gameSettings.sorts.${cardSort}`) ?? cardSort}
-          </Text>
-        </View>
-      ) : null}
 
       <ScrollView
         style={{ flex: 1 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadState} tintColor="#6B5BFF" />}
-        contentContainerClassName="gap-3 pb-8"
+        // The bottom padding leaves room for the floating add-card button, so
+        // it never sits on top of the last card in the list.
+        contentContainerClassName="gap-3 pb-24"
       >
         <FairnessPanel gameId={gameId} status={game.gameStatus} liveHash={state?.fairnessHash} />
 
@@ -609,6 +659,30 @@ export default function LiveGameScreen() {
             >
               {state?.isWinner ? t('game.youWon') ?? '🎉 BINGO! You Won! 🎉' : (t('game.gameOver') ?? 'Game Over')}
             </Text>
+          </Card>
+        )}
+
+        {/* The finished game stays on screen, but the moment the admin opens the
+            next one the player gets a way straight into its registration
+            instead of having to navigate out and back in. */}
+        {isEnded && nextGame && (
+          <Card className="border-bp-primary40 bg-bp-primary10 gap-3">
+            <View className="items-center gap-1">
+              <Text className="text-center text-sm font-bold text-bp-text">
+                {t('game.nextGameOpen') ?? 'A new game is open'}
+              </Text>
+              <Text className="text-center text-xs text-bp-textSecondary">
+                {t('mobile.jackpotPrize') ?? 'Prize'}: {nextGame.prizeAmount ?? nextGame.entryFee * 5} ·{' '}
+                {t('game.priceLabel') ?? 'Price'}: {nextGame.entryFee}
+              </Text>
+            </View>
+            <Button
+              onPress={() =>
+                router.push({ pathname: '/(player)/game/[id]', params: { id: String(nextGame.id) } })
+              }
+            >
+              {t('game.joinNextGame') ?? 'Register for the new game'}
+            </Button>
           </Card>
         )}
 
@@ -636,34 +710,7 @@ export default function LiveGameScreen() {
 
         {isRegistration && (
           <>
-            {hasCards || previewCards.length ? (
-              <Card className="items-center py-4">
-                <Text className="text-[10px] font-bold uppercase tracking-[0.25em] text-bp-textSecondary">
-                  {t('game.youHold', { count: String(game.playerCards?.length ?? 0), fee: String(entryFee ?? '') }) ??
-                    `You hold ${game.playerCards?.length ?? 0} cards`}
-                </Text>
-                {previewCards.length > 0 && (
-                  <Text className="mt-1 text-[10px] text-bp-textSecondary">
-                    {t('game.holdingForYou', { count: String(previewCards.length) }) ??
-                      `${previewCards.length} card(s) held for you — not paid for yet`}
-                  </Text>
-                )}
-                <Button variant="primary" className="mt-3" onPress={() => setPickerOpen(true)}>
-                  {t('game.seeMoreCards') ?? '+ See More Cards'}
-                </Button>
-              </Card>
-            ) : (
-              <Card className="items-center py-6">
-                <Text className="text-[10px] font-bold uppercase tracking-[0.25em] text-bp-textSecondary">
-                  {t('game.registrationOpen') ?? 'Registration Open'}
-                </Text>
-                <Text className="mt-2 text-3xl font-black text-bp-goldInk">{entryFee ?? '?'}</Text>
-                <Text className="text-sm text-bp-textSecondary">{t('game.coinsPerCard') ?? 'birr per card'}</Text>
-                <Button className="mt-4" onPress={() => setPickerOpen(true)}>
-                  {t('game.chooseCard') ?? '✦ Choose a Card'}
-                </Button>
-              </Card>
-            )}
+            
             {registerSuccess && (
               <Card className="border-bp-success40 bg-bp-success10 px-3 py-2">
                 <Text className="text-center text-emerald-500 text-sm font-semibold">✓ {t('game.registeredReady') ?? 'Registered!'}</Text>
@@ -672,43 +719,103 @@ export default function LiveGameScreen() {
           </>
         )}
 
-        {isRegistration && !selectionMode && (previewCards.length > 1 || hasCards) && (
-          <Text className="text-center text-[10px] text-bp-textSecondary">
-            {t('game.longPressToSelect') ?? 'Tip: long-press a card to select several'}
-          </Text>
-        )}
-
         {selectionMode && (
           <Card className="border-bp-primary40 bg-bp-primary10 gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-sm font-bold text-bp-textPrimary">
-                {t('game.selectCards', { count: String(selectedCardIds.size) }) ??
-                  `${selectedCardIds.size} selected`}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  onPress={() => {
+                    if (bulkBusy) return;
+                    // no-op lint cleanup
+                    // Consider everything selectable in this context? But selection
+                    // can only act on what exists; better: select all that are
+                    // shown/selectable (previews + registered if any, but we can
+                    // target previews for register, and any for remove). For a
+                    // checkbox: if nothing or partial selected, select everything.
+                    // unused: totalSelectable calculation removed to satisfy lint
+                    // easier: select all previews and all player cards that exist
+                    const all = new Set<number>();
+                    for (const pc of game.playerCards ?? []) all.add(pc.cardId);
+                    for (const pr of previewCards) all.add(pr.cardId);
+                    if (all.size === 0) return;
+                    if (selectedCardIds.size === all.size) {
+                      setSelectedCardIds(new Set());
+                      return;
+                    }
+                    setSelectedCardIds(all);
+                  }}
+                  disabled={bulkBusy}
+                  hitSlop={6}
+                  className="flex-row items-center gap-1.5"
+                >
+                  <Text className="text-sm">
+                    {(() => {
+                      const all = new Set<number>();
+                      for (const pc of game.playerCards ?? []) all.add(pc.cardId);
+                      for (const pr of previewCards) all.add(pr.cardId);
+                      const allSelected = all.size > 0 && selectedCardIds.size === all.size;
+                      return allSelected ? '☑' : '☐';
+                    })()}
+                  </Text>
+                  <Text className="text-xs text-bp-textSecondary">
+                    {(() => {
+                      const all = new Set<number>();
+                      for (const pc of game.playerCards ?? []) all.add(pc.cardId);
+                      for (const pr of previewCards) all.add(pr.cardId);
+                      const allSelected = all.size > 0 && selectedCardIds.size === all.size;
+                      return allSelected
+                        ? (t('game.unselectAll') ?? 'Unselect all')
+                        : (t('game.selectAll') ?? 'Select all');
+                    })()}
+                  </Text>
+                </Pressable>
+                <Text className="text-sm font-bold text-bp-textPrimary">
+                  {t('game.selectCards', { count: String(selectedCardIds.size) }) ??
+                    `${selectedCardIds.size} selected`}
+                </Text>
+              </View>
               <Pressable onPress={cancelSelection} hitSlop={6} disabled={bulkBusy}>
                 <Text className="text-xs font-bold text-bp-textSecondary">{t('common.cancel') ?? 'Cancel'}</Text>
               </Pressable>
             </View>
-            <View className="flex-row" style={{ gap: 8 }}>
-              {selectedPreviewCount > 0 && (
-                <Button
-                  variant="primary"
-                  className="flex-1"
-                  disabled={bulkBusy}
-                  onPress={() => void registerSelected()}
-                >
-                  {t('game.registerSelected', { count: String(selectedPreviewCount) }) ??
-                    `Register ${selectedPreviewCount}`}
-                </Button>
-              )}
+            {/* Show bulk actions when nothing is selected: "Register all previews"
+                and "Remove all selected". When some are selected, still allow
+                register all previews or remove all selected (which matches what
+                the count showed before). */}
+            <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+              <Button
+                variant="primary"
+                className="flex-1"
+                disabled={bulkBusy || previewCards.length === 0}
+                onPress={() => {
+                  // If nothing selected, select all previews and register them.
+                  if (selectedCardIds.size === 0 && previewCards.length > 0) {
+                    setSelectedCardIds(new Set(previewCards.map((c) => c.cardId)));
+                    // Register after setting selection to cover all previews.
+                    setTimeout(() => void registerSelected(), 0);
+                    return;
+                  }
+                  void registerSelected();
+                }}
+              >
+                {selectedCardIds.size === 0
+                  ? (t('game.registerAllPreviews') ?? 'Register all')
+                  : (t('game.registerSelected', { count: String(selectedPreviewCount) }) ??
+                      `Register ${selectedPreviewCount}`)}
+              </Button>
               <Button
                 variant="danger"
                 className="flex-1"
                 disabled={bulkBusy || selectedCardIds.size === 0}
-                onPress={() => void clearSelected()}
+                onPress={() => {
+                  if (selectedCardIds.size === 0) return;
+                  void clearSelected();
+                }}
               >
-                {t('game.removeSelected', { count: String(selectedCardIds.size) }) ??
-                  `Remove ${selectedCardIds.size}`}
+                {selectedCardIds.size === 0
+                  ? (t('game.removeAllSelected') ?? 'Remove all')
+                  : (t('game.removeSelected', { count: String(selectedCardIds.size) }) ??
+                      `Remove ${selectedCardIds.size}`)}
               </Button>
             </View>
           </Card>
@@ -806,17 +913,29 @@ export default function LiveGameScreen() {
           </Card>
         ) : null}
 
-        {hasCards && (
-          <Text className="text-center text-xs text-bp-textSecondary">
-            {isManual
-              ? (t('game.tapToMark') ?? 'Tap a number to mark it')
-              : (t('admin.cardsMarkThemselves') ?? 'Cards mark themselves')}
-          </Text>
-        )}
-      </ScrollView>
+        </ScrollView>
 
-      {pickerOpen && (
-        <CardPickerModal
+      {/* Adding a card used to be a button inside the registration card, which
+          meant scrolling to find it every time and a different label depending
+          on whether the player already held one. A single floating action does
+          both jobs, and it stays reachable while the cards are being read. */}
+      {isRegistration && !selectionMode ? (
+        <Pressable
+          onPress={() => setPickerOpen((open) => !open)}
+          accessibilityRole="button"
+          accessibilityLabel={t('game.chooseCard') ?? 'Add a card'}
+          hitSlop={8}
+          className="absolute bottom-5 right-4 h-16 w-16 items-center justify-center rounded-full bg-bp-primary active:opacity-80"
+          style={{ shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+        >
+          <Text className="text-4xl font-light leading-10 text-white">+</Text>
+        </Pressable>
+      ) : null}
+
+      {/* The count choices fan straight out of the button that opened them,
+          so picking is one tap instead of open-a-dialog then confirm. */}
+      {isRegistration && !selectionMode && pickerOpen && (
+        <CardCountFan
           gameId={gameId}
           entryFee={entryFee ?? 0}
           onClose={() => setPickerOpen(false)}

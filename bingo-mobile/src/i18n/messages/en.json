@@ -118,7 +118,7 @@
     "REJECTED": "Rejected",
     "LIVE": "Live",
     "OPEN": "Open",
-    "REGISTRATION_OPEN": "Open for registration",
+    "REGISTRATION_OPEN": "Registration open",
     "ENDED": "Ended",
     "WAITING_FOR_PLAYERS": "Waiting for players"
   },
@@ -465,7 +465,6 @@
     "lastCalled": "Last Called",
     "minimizeNumbers": "Minimize called numbers",
     "expandNumbers": "Expand called numbers",
-    "noNumbersCalled": "No numbers called yet",
     "prizePool": "Prize",
     "coins": "birr",
     "called": "Called",
@@ -570,7 +569,15 @@
     "removeSelected": "Remove {count}",
     "bulkRegistered": "{count, plural, one {# card registered.} other {# cards registered.}}",
     "cardsCleared": "{count, plural, one {# card removed.} other {# cards removed.}}",
-    "cardsRemovedRefunded": "{count, plural, one {# card removed.} other {# cards removed.}} {refund} birr refunded to your balance."
+    "cardsRemovedRefunded": "{count, plural, one {# card removed.} other {# cards removed.}} {refund} birr refunded to your balance.",
+    "selectAll": "Select all",
+    "unselectAll": "Unselect all",
+    "registerAllPreviews": "Register all",
+    "removeAllSelected": "Remove all",
+    "priceLabel": "Price",
+    "nextGameOpen": "A new game is open",
+    "joinNextGame": "Register for the new game",
+    "cardsRegistered": "Registered: {count}"
   },
   "admin": {
     "welcomeBack": "Welcome back,",
@@ -1048,9 +1055,12 @@
     "sorts": {
       "cardOrder": "As dealt",
       "mostMarked": "Most numbers marked",
-      "mostRows": "Most lines completed"
+      "mostRows": "Most lines completed",
+      "mostSquares": "Most 2×2 squares",
+      "mostRectangles": "Most rectangles",
+      "mostTs": "Most T-shapes"
     },
-    "autoMark": "Auto-mark",
-    "sound": "Call sound"
+    "autoMark": "Auto-mark numbers",
+    "sound": "Enable call sound"
   }
 }

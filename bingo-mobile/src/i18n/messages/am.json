@@ -118,7 +118,7 @@
     "REJECTED": "ውድቅ ሆኗል",
     "LIVE": "ቀጥታ",
     "OPEN": "ክፍት",
-    "REGISTRATION_OPEN": "ለምዝገባ ክፍት",
+    "REGISTRATION_OPEN": "ምዝገባ ክፍት",
     "ENDED": "ተጠናቋል",
     "WAITING_FOR_PLAYERS": "ተጫዋቾችን በመጠበቅ ላይ"
   },
@@ -416,7 +416,6 @@
     "lastCalled": "የመጨረሻ ጥሪ",
     "minimizeNumbers": "የተጠሩ ቁጥሮችን አሳንስ",
     "expandNumbers": "የተጠሩ ቁጥሮችን ዘርጋ",
-    "noNumbersCalled": "ገና ምንም ቁጥር አልተጠራም",
     "prizePool": "ሽልማት",
     "coins": "ብር",
     "called": "የተጠሩ",
@@ -521,7 +520,15 @@
     "removeSelected": "{count} አስወግድ",
     "bulkRegistered": "{count, plural, one {# ካርድ ተመዝግቧል።} other {# ካርዶች ተመዝግበዋል።}}",
     "cardsCleared": "{count, plural, one {# ካርድ ተወግዷል።} other {# ካርዶች ተወግደዋል።}}",
-    "cardsRemovedRefunded": "{count, plural, one {# ካርድ ተወግዷል።} other {# ካርዶች ተወግደዋል።}} {refund} ብር ወደ ሂሳብዎ ተመልሷል።"
+    "cardsRemovedRefunded": "{count, plural, one {# ካርድ ተወግዷል።} other {# ካርዶች ተወግደዋል።}} {refund} ብር ወደ ሂሳብዎ ተመልሷል።",
+    "selectAll": "Select all",
+    "unselectAll": "Unselect all",
+    "registerAllPreviews": "Register all",
+    "removeAllSelected": "Remove all",
+    "priceLabel": "ዋጋ",
+    "nextGameOpen": "አዲስ ጨዋታ ተከፍቷል",
+    "joinNextGame": "ለአዲሱ ጨዋታ ተመዝገብ",
+    "cardsRegistered": "ተመዝግቧል: {count}"
   },
   "admin": {
     "welcomeBack": "እንኳን ደህና መጡ፣",
@@ -1048,9 +1055,12 @@
     "sorts": {
       "cardOrder": "እንደ የተሰጡት",
       "mostMarked": "ከፍተኛ የተሰበረባት",
-      "mostRows": "ከፍተኛ የተጠናቀቁ መስመሮች"
+      "mostRows": "ከፍተኛ የተጠናቀቁ መስመሮች",
+      "mostSquares": "ከፍተኛ 2×2 ስኰር",
+      "mostRectangles": "ከፍተኛ አራት ማዕዘናት",
+      "mostTs": "ከፍተኛ ቲ-ቅርጾች"
     },
-    "autoMark": "ራስ ኣጥቁር",
-    "sound": "የቁጥር ማሳወቂያ ድምፅ"
+    "autoMark": "ቁጥሮችን ራስ ወስደህ ምልክት ያድርግ",
+    "sound": "የ ጥሪ ድምፅ ያንቁ"
   }
 }
