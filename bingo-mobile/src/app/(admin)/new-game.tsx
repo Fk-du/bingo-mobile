@@ -53,7 +53,12 @@ export default function AdminCreateGameScreen() {
     queryKey: ['admin/automation'],
     queryFn: () => gamesApi.getAutomation(),
   });
+  const { data: activeGamesData } = useQuery({
+    queryKey: ['admin/active-games'],
+    queryFn: () => gamesApi.getActive(),
+  });
   const automation = automationData?.data;
+  const hasActiveGame = (activeGamesData?.data ?? []).length > 0;
 
   return (
     <Screen>
@@ -63,8 +68,9 @@ export default function AdminCreateGameScreen() {
           automation={automation}
           onSaved={() => refetchAutomation()}
           t={t}
+          disabled={hasActiveGame}
         />
-        {automation?.enabled ? null : <CreateGameForm t={t} />}
+        {automation?.enabled || hasActiveGame ? null : <CreateGameForm t={t} />}
       </ScrollView>
     </Screen>
   );
@@ -74,10 +80,12 @@ function AutomationCard({
   automation,
   onSaved,
   t,
+  disabled = false,
 }: {
   automation: AutomationConfig | undefined;
   onSaved: () => void;
   t: ReturnType<typeof useTranslate>;
+  disabled?: boolean;
 }) {
   const [busy, setBusy] = useState<'auto' | 'manual' | 'save' | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -122,13 +130,15 @@ function AutomationCard({
     <Card className="gap-3">
       <View>
         <Text className="text-bp-textSecondary text-[11px] uppercase tracking-wider">{t('admin.gameMode') ?? 'Game mode'}</Text>
-        <Text className="text-bp-textPrimary font-semibold">{t('admin.manualOrAutomatic') ?? 'Manual or automatic'}</Text>
+        <Text className="text-bp-textPrimary font-semibold">
+          {disabled ? (t('admin.oneGameAtATime') ?? 'Finish your current game to create another') : (t('admin.manualOrAutomatic') ?? 'Manual or automatic')}
+        </Text>
       </View>
 
       <View className="flex-row gap-2">
         <Button
           variant={!enabled ? 'primary' : 'outline'}
-          disabled={busy != null}
+          disabled={busy != null || disabled}
           onPress={() => void save(false, t('admin.automodeOff') ?? 'Automatic mode off', 'manual')}
           style={{ flex: 1 }}
         >
@@ -136,7 +146,7 @@ function AutomationCard({
         </Button>
         <Button
           variant={enabled ? 'primary' : 'outline'}
-          disabled={busy != null}
+          disabled={busy != null || disabled}
           onPress={() => void save(true, t('admin.automodeEnable') ?? 'Automatic mode on', 'auto')}
           style={{ flex: 1 }}
         >
