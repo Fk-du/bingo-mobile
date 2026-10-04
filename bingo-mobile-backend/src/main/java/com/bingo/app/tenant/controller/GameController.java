@@ -227,6 +227,19 @@ public class GameController {
         return ApiResponse.ok("Cards ready to review", previews);
     }
 
+    /**
+     * Reuse the player's most recent cards from previous games as fresh previews
+     * for the target game (new game, clean slate - no marks carried over).
+     */
+    @PostMapping("/{id}/cards/preview-previous")
+    @PreAuthorize("hasRole('PLAYER')")
+    public ApiResponse<List<PreviewCardResponse>> previewPreviousCards(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id) {
+        var previews = cardService.previewPreviousCards(id, principal.getUser().getId());
+        return ApiResponse.ok("Previous cards ready to review", previews);
+    }
+
     /** Pay the entry fee for one previewed card and deal it to the player. */
     @PostMapping("/{id}/cards/{cardId}/register")
     @PreAuthorize("hasRole('PLAYER')")

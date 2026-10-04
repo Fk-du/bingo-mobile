@@ -170,4 +170,9 @@ export const gamesApi = {
     const res = await apiClient.put<ApiResponse<AutomationConfig>>('/automation', data);
     return res.data;
   },
+  /** Preview cards reused from player's previous games as fresh previews for target game. */
+  previewPreviousCards: async (id: number) => {
+    const res = await apiClient.post<ApiResponse<PreviewCardView[]>>(`/games/${id}/cards/preview-previous`);
+    return res.data;
+  },
 };

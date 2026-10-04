@@ -96,6 +96,7 @@ export default function LiveGameScreen() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [patternPreviewOpen, setPatternPreviewOpen] = useState(false);
   const marksSeeded = useRef(false);
 
@@ -676,13 +677,34 @@ export default function LiveGameScreen() {
                 {t('game.priceLabel') ?? 'Price'}: {nextGame.entryFee}
               </Text>
             </View>
-            <Button
-              onPress={() =>
-                router.push({ pathname: '/(player)/game/[id]', params: { id: String(nextGame.id) } })
-              }
-            >
-              {t('game.joinNextGame') ?? 'Register for the new game'}
-            </Button>
+            <View className="flex-row gap-2">
+              <Button
+                onPress={async () => {
+                  try {
+                    setBusy(true);
+                    await gamesApi.previewPreviousCards(nextGame.id);
+                    router.push({ pathname: '/(player)/game/[id]', params: { id: String(nextGame.id) } });
+                  } catch (e) {
+                    setReport({ kind: 'error', message: getApiErrorMessage(e) });
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                disabled={busy}
+                style={{ flex: 1 }}
+                variant="primary"
+              >
+                {t('game.reusePreviousCards') ?? 'Reuse previous cards'}
+              </Button>
+              <Button
+                onPress={() => router.push({ pathname: '/(player)/game/[id]', params: { id: String(nextGame.id) } })}
+                disabled={busy}
+                style={{ flex: 1 }}
+                variant="outline"
+              >
+                {t('game.getNewCards') ?? 'Get new cards'}
+              </Button>
+            </View>
           </Card>
         )}
 

@@ -553,4 +553,53 @@ public class CardService {
             throw new RuntimeException("Failed to hash card", e);
         }
     }
+
+    /**
+     * Take the most recent cards the player used in any previous game (ended,
+     * completed, or even the last one they touched) and create fresh previews
+     * for the target game in REGISTRATION_OPEN. The original card numbers are
+     * reused, but they are treated as new previews in the new game (no marks,
+     * not registered). If any of those cards are unavailable (held elsewhere),
+     * we just skip them rather than failing the whole operation.
+     */
+    @Transactional(transactionManager = "tenantTransactionManager")
+    public List<PreviewCardResponse> previewPreviousCards(Long targetGameId, Long playerId) {
+        Game target = requireRegistrationOpen(targetGameId);
+        requireNoOtherActiveGame(targetGameId, playerId);
+
+        List<GameCard> lastCards = gameCardRepository.findLastCardsByPlayerId(playerId);
+        if (lastCards.isEmpty()) {
+            throw new PlayerActionException("No previous cards",
+                    "You haven't played any cards yet to reuse.");
+        }
+
+        List<PreviewCardResponse> created = new ArrayList<>();
+        for (GameCard gc : lastCards) {
+            Long cardId = gc.getCard().getId();
+            // Already previewed for this game? skip
+            if (cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(targetGameId, playerId, cardId).isPresent()) {
+                // already held as preview
+                continue;
+            }
+            // Check if this card is occupied by others in active games (excluding this target)
+            if (cardRepository.isCardOccupiedByOthers(cardId, targetGameId, playerId, GameStatus.ACTIVE)) {
+                continue; // skip unavailable
+            }
+            cardPreviewRepository.save(CardPreview.builder()
+                    .gameId(targetGameId)
+                    .playerId(playerId)
+                    .card(gc.getCard())
+                    .build());
+            created.add(PreviewCardResponse.builder()
+                    .cardId(cardId)
+                    .numbers(parseNumbers(gc.getCard().getNumbers()))
+                    .build());
+        }
+
+        if (created.isEmpty()) {
+            return heldPreviews(targetGameId, playerId);
+        }
+        log.info("Game {}: player {} previewing {} previous card(s)", targetGameId, playerId, created.size());
+        return created;
+    }
 }

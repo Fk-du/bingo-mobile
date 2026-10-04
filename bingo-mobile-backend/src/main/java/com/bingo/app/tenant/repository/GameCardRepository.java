@@ -42,4 +42,7 @@ public interface GameCardRepository extends JpaRepository<GameCard, Long> {
 
     @Query("SELECT gc FROM GameCard gc JOIN Game g ON g.id = gc.gameId WHERE gc.playerId = :playerId AND g.status IN ('REGISTRATION_OPEN', 'STARTING', 'IN_PROGRESS', 'PAUSED', 'CLAIM_PENDING') AND gc.gameId != :excludedGameId")
     List<GameCard> findByPlayerIdAndActiveGamesExcluding(@Param("playerId") Long playerId, @Param("excludedGameId") Long excludedGameId);
+
+    @Query("SELECT gc FROM GameCard gc WHERE gc.playerId = :playerId ORDER BY gc.createdAt DESC")
+    List<GameCard> findLastCardsByPlayerId(@Param("playerId") Long playerId);
 }

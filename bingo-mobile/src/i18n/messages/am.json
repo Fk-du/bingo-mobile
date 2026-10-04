@@ -528,6 +528,8 @@
     "priceLabel": "ዋጋ",
     "nextGameOpen": "አዲስ ጨዋታ ተከፍቷል",
     "joinNextGame": "ለአዲሱ ጨዋታ ተመዝገብ",
+    "reusePreviousCards": "ያለፉትን ካርዶች ተጠቀም",
+    "getNewCards": "አዲስ ካርዶች አግኝ",
     "cardsRegistered": "ተመዝግቧል: {count}"
   },
   "admin": {

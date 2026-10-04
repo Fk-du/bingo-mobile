@@ -577,6 +577,8 @@
     "priceLabel": "Price",
     "nextGameOpen": "A new game is open",
     "joinNextGame": "Register for the new game",
+    "reusePreviousCards": "Reuse previous cards",
+    "getNewCards": "Get new cards",
     "cardsRegistered": "Registered: {count}"
   },
   "admin": {
