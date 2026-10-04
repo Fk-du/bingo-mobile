@@ -94,15 +94,15 @@ export function CardGrid({
                 onPress={() => (selectable ? onSelect?.() : interactive && onToggle?.(n))}
                 onLongPress={onLongPressCard}
                 delayLongPress={350}
-                className="flex-1 aspect-square items-center justify-center rounded border bg-bp-surface border-bp-borderInactive"
-                style={cellStyle}
+                className="flex-1 aspect-square items-center justify-center"
               >
-                {/* Cells are square and sized by the column width, so the number
-                    can grow without crowding its neighbours. Reading a call
-                    against the card is the main thing a player does here. */}
-                <Text className="font-black text-[15px] text-bp-textSecondary" style={inkStyle}>
-                  {display}
-                </Text>
+                <View className="flex-1 items-center justify-center">
+                  <View className="w-6 h-6 rounded-full items-center justify-center border" style={cellStyle}>
+                    <Text className="font-black text-[13px] text-bp-textSecondary" style={inkStyle}>
+                      {display}
+                    </Text>
+                  </View>
+                </View>
               </Pressable>
             );
           })}

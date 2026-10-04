@@ -24,7 +24,6 @@ function AppRoutes() {
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
-  const { isDark, colors } = useTheme();
 
   useEffect(() => {
     if (user?.preferredLanguage) {
@@ -60,11 +59,11 @@ function AppRoutes() {
   }, [isAuthenticated, user?.role, segments, router]);
 
   return (
-    <View className={`flex-1 ${isDark ? 'dark' : ''}`} style={{ backgroundColor: colors.background }}>
+    <View className="flex-1 bg-bp-background">
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
+          contentStyle: { backgroundColor: 'transparent' },
         }}
       >
         <Stack.Screen name="(auth)" />

@@ -45,20 +45,23 @@ export default function PlayerMyGamesScreen() {
             item.status === 'CLAIM_PENDING';
           return (
             <Card className="gap-2">
-              <View className="flex-row items-center justify-between">
-                <Text className="text-bp-textPrimary font-semibold text-lg">
+              <View className="flex-row items-center justify-between gap-2">
+                <Text className="text-bp-textPrimary font-semibold text-lg flex-1">
                   {t('game.gameNumber', { id: String(item.id) }) ?? `Game #${item.id}`}
                 </Text>
-                <StatusPill status={item.status} />
-              </View>
-              <View className="flex-row justify-between">
-                <Text className="text-bp-textSecondary text-sm">
-                  {t('admin.entryFee') ?? 'Entry'}: {item.entryFee}
+                <Text className="text-bp-textSecondary text-sm flex-1 text-right">
+                  {item.winningPattern ?? ''}
                 </Text>
+              </View>
+              <View className="flex-row flex-wrap gap-3 items-center mt-1">
                 <Text className="text-bp-textSecondary text-sm">
                   {t('mobile.jackpotPrize') ?? 'Prize'}:{' '}
                   {item.prizeAmount == null ? '—' : item.prizeAmount}
                 </Text>
+                <Text className="text-bp-textSecondary text-sm">
+                  {t('admin.entryFee') ?? 'Entry'}: {item.entryFee}
+                </Text>
+                <StatusPill status={item.status} />
               </View>
               <View className="flex-row justify-between items-center">
                 <Text className="text-bp-textSecondary text-xs">

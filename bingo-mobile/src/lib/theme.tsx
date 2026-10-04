@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colorScheme } from 'nativewind';
 import { ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
 export type Theme = 'dark' | 'light';
 
@@ -110,12 +109,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    // On web, colorScheme.set toggles the `dark` class on <html> (harmless,
-    // helps media queries). On native, calling Appearance.setColorScheme can
-    // recreate the Android activity and remount the whole React tree, which
-    // can drop the navigation context - so skip it; the root View's `dark`
-    // class already drives the CSS variables there.
-    if (Platform.OS === 'web') colorScheme.set(theme);
+    colorScheme.set(theme);
     void AsyncStorage.setItem(STORAGE_KEY, theme);
   }, [theme, ready]);
 
