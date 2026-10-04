@@ -34,7 +34,7 @@
       "lobby": "ሎቢ",
       "myGames": "የእኔ ጨዋታዎች",
       "history": "ታሪክ",
-      "wallet": "ዋሌት",
+      "wallet": "ቀሪ ሒሳብ",
       "profile": "መገለጫ",
       "logout": "ውጣ"
     },
@@ -1055,12 +1055,13 @@
     },
     "cardSort": "የካርድ ቅደም ተከተል",
     "sorts": {
-      "cardOrder": "እንደ ተሰጡት",
-      "mostMarked": "ከፍተኛ የተጠራ",
-      "mostRows": "ከፍተኛ መስመሮች",
-      "mostSquares": "ከፍተኛ ስኰር",
-      "mostRectangles": "ከፍተኛ አራት ማዕዘናት",
-      "mostTs": "ከፍተኛ ፐ-ቅርጾች"
+      "cardOrder": "እንደ ተከፋፈለ",
+      "mostCalled": "ከፍተኛ የተጠሩ ቁጥሮች",
+      "mostMarked": "ከፍተኛ ቁጥሮች ተመርጠዋል",
+      "mostRows": "ከፍተኛ መስመሮች ተጠናቀዋል",
+      "mostSquares": "ከፍተኛ 2×2 ካሬዎች",
+      "mostRectangles": "ከፍተኛ አራት ማዕዘኖች",
+      "mostTs": "ከፍተኛ T ቅርጾች"
     },
     "autoMark": "ራስ ኣጥቁር",
     "sound": "የ ጥሪ ድምፅ ያንቁ"
