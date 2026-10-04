@@ -583,7 +583,54 @@ export default function LiveGameScreen() {
       mostTs: (a, b) => ts(b) - ts(a),
     };
     return cards.sort((a, b) => by[cardSort](a, b) || a.cardId - b.cardId);
-  }, [game.playerCards, cardSort, isManual, globalMarks]);
+  }, [game.playerCards, cardSort, isManual, globalMarks, calledNumbers]);
+
+  const topHints = useMemo(() => {
+    if (!game.playerCards || game.playerCards.length === 0 || cardSort === 'cardOrder') {
+      return new Map<number, string>();
+    }
+    const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
+    const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
+    const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
+    const rectangles = (c: PlayerCardView) => countRectangles(c.numbers, marksFor(c));
+    const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
+    const calledSetAll = new Set(calledNumbers);
+    const calledCount = (c: PlayerCardView) => {
+      const nums = c.numbers?.flat() ?? [];
+      let cnt = 0;
+      for (const n of nums) {
+        if (n != null && n >= 0 && calledSetAll.has(n)) cnt++;
+      }
+      return cnt;
+    };
+    const topVals = new Set<number>();
+    for (const c of game.playerCards) {
+      let v = 0;
+      if (cardSort === 'mostCalled') v = calledCount(c);
+      if (cardSort === 'mostMarked') v = marksFor(c).size;
+      if (cardSort === 'mostRows') v = rows(c);
+      if (cardSort === 'mostSquares') v = squares(c);
+      if (cardSort === 'mostRectangles') v = rectangles(c);
+      if (cardSort === 'mostTs') v = ts(c);
+      if (v > 0) topVals.add(v);
+    }
+    const max = topVals.size > 0 ? Math.max(...topVals) : 0;
+    if (max === 0) return new Map<number, string>();
+    const hintMap = new Map<number, string>();
+    for (const c of game.playerCards) {
+      let v = 0;
+      if (cardSort === 'mostCalled') v = calledCount(c);
+      if (cardSort === 'mostMarked') v = marksFor(c).size;
+      if (cardSort === 'mostRows') v = rows(c);
+      if (cardSort === 'mostSquares') v = squares(c);
+      if (cardSort === 'mostRectangles') v = rectangles(c);
+      if (cardSort === 'mostTs') v = ts(c);
+      if (v === max && v > 0) {
+        hintMap.set(c.cardId, `L-${v}`);
+      }
+    }
+    return hintMap;
+  }, [game.playerCards, cardSort, isManual, globalMarks, calledNumbers]);
 
   return (
     <Screen>
@@ -892,7 +939,7 @@ export default function LiveGameScreen() {
                   card={card}
                   tone={tone}
                   t={t}
-                  cardIdLabel={t('game.cardNumber', { id: String(card.cardId) }) ?? `Card #${card.cardId}`}
+                  cardIdLabel={topHints.get(card.cardId) ?? (t('game.cardNumber', { id: String(card.cardId) }) ?? `Card #${card.cardId}`)}
                   called={calledNumbers}
                   marked={isManual ? [...marked] : []}
                   lastCalledNumber={lastCalledNumber}
