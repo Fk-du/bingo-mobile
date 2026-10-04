@@ -565,7 +565,17 @@ export default function LiveGameScreen() {
     const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
     const rectangles = (c: PlayerCardView) => countRectangles(c.numbers, marksFor(c));
     const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
+    const calledSetAll = new Set(calledNumbers);
+    const calledCount = (c: PlayerCardView) => {
+      const nums = c.numbers?.flat() ?? [];
+      let cnt = 0;
+      for (const n of nums) {
+        if (n != null && n >= 0 && calledSetAll.has(n)) cnt++;
+      }
+      return cnt;
+    };
     const by: Record<Exclude<CardSort, 'cardOrder'>, (a: PlayerCardView, b: PlayerCardView) => number> = {
+      mostCalled: (a, b) => calledCount(b) - calledCount(a),
       mostMarked: (a, b) => markedCount(b) - markedCount(a),
       mostRows: (a, b) => rows(b) - rows(a),
       mostSquares: (a, b) => squares(b) - squares(a),

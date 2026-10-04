@@ -10,7 +10,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
  * is furthest along", never "which is least marked". Reversed variants were
  * removed, so 'fewestMarked' and 'fewestRows' are deliberately not valid.
  */
-export const CARD_SORTS = ['cardOrder', 'mostMarked', 'mostRows', 'mostSquares', 'mostRectangles', 'mostTs'] as const;
+export const CARD_SORTS = ['cardOrder', 'mostCalled', 'mostMarked', 'mostRows', 'mostSquares', 'mostRectangles', 'mostTs'] as const;
 export type CardSort = (typeof CARD_SORTS)[number];
 
 /** The colour a called/marked number is filled with. */
