@@ -1058,7 +1058,6 @@
     "sorts": {
       "cardOrder": "እንደ ተከፋፈለ",
       "mostCalled": "ከፍተኛ የተጠሩ ቁጥሮች",
-      "mostMarked": "ከፍተኛ ቁጥሮች ተመርጠዋል",
       "mostRows": "ከፍተኛ መስመሮች ተጠናቀዋል",
       "mostSquares": "ከፍተኛ 2×2 ካሬዎች",
       "mostRectangles": "ከፍተኛ አራት ማዕዘኖች",

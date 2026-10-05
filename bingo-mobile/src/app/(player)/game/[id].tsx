@@ -576,7 +576,6 @@ export default function LiveGameScreen() {
     };
     const by: Record<Exclude<CardSort, 'cardOrder'>, (a: PlayerCardView, b: PlayerCardView) => number> = {
       mostCalled: (a, b) => calledCount(b) - calledCount(a),
-      mostMarked: (a, b) => markedCount(b) - markedCount(a),
       mostRows: (a, b) => rows(b) - rows(a),
       mostSquares: (a, b) => squares(b) - squares(a),
       mostRectangles: (a, b) => rectangles(b) - rectangles(a),
@@ -607,7 +606,6 @@ export default function LiveGameScreen() {
     for (const c of game.playerCards) {
       let v = 0;
       if (cardSort === 'mostCalled') v = calledCount(c);
-      if (cardSort === 'mostMarked') v = marksFor(c).size;
       if (cardSort === 'mostRows') v = rows(c);
       if (cardSort === 'mostSquares') v = squares(c);
       if (cardSort === 'mostRectangles') v = rectangles(c);
@@ -620,7 +618,6 @@ export default function LiveGameScreen() {
     for (const c of game.playerCards) {
       let v = 0;
       if (cardSort === 'mostCalled') v = calledCount(c);
-      if (cardSort === 'mostMarked') v = marksFor(c).size;
       if (cardSort === 'mostRows') v = rows(c);
       if (cardSort === 'mostSquares') v = squares(c);
       if (cardSort === 'mostRectangles') v = rectangles(c);
@@ -628,7 +625,6 @@ export default function LiveGameScreen() {
       if (v === max && v > 0) {
         let prefix = 'L';
         if (cardSort === 'mostCalled') prefix = 'C';
-        if (cardSort === 'mostMarked') prefix = 'N';
         if (cardSort === 'mostSquares') prefix = 'S';
         if (cardSort === 'mostRectangles') prefix = 'R';
         if (cardSort === 'mostTs') prefix = 'T';

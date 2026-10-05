@@ -10,7 +10,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
  * is furthest along", never "which is least marked". Reversed variants were
  * removed, so 'fewestMarked' and 'fewestRows' are deliberately not valid.
  */
-export const CARD_SORTS = ['cardOrder', 'mostCalled', 'mostMarked', 'mostRows', 'mostSquares', 'mostRectangles', 'mostTs'] as const;
+export const CARD_SORTS = ['cardOrder', 'mostCalled', 'mostRows', 'mostSquares', 'mostRectangles', 'mostTs'] as const;
 export type CardSort = (typeof CARD_SORTS)[number];
 
 /** The colour a called/marked number is filled with. */
@@ -67,7 +67,7 @@ const LEGACY_CARD_SORTS: Record<string, CardSort> = {
   fewestRows: 'cardOrder',
   // Worked in testing, but it ranked on pattern cells while the board is
   // ordered for marking, and the two disagreed often enough to confuse.
-  closestToPattern: 'mostMarked',
+  closestToPattern: 'mostCalled',
 };
 
 export const useGameSettings = create<GameSettingsState>()(

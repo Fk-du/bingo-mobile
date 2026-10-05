@@ -1058,7 +1058,6 @@
     "sorts": {
       "cardOrder": "As dealt",
       "mostCalled": "Most called numbers",
-      "mostMarked": "Most numbers marked",
       "mostRows": "Most lines completed",
       "mostSquares": "Most 2×2 squares",
       "mostRectangles": "Most rectangles",
