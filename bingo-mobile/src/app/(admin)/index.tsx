@@ -80,19 +80,14 @@ export default function AdminDashboardScreen() {
         ListHeaderComponent={
           <View className="gap-3 mb-2">
             <Pressable
-              // An admin runs one table at a time, so the entry point is hidden while a
-              // game is live and the server would reject the create anyway.
               onPress={() => router.push('/(admin)/new-game')}
-              disabled={games.length > 0}
-              className={games.length > 0 ? 'opacity-50' : 'active:opacity-80'}
+              className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center bg-bp-primary15 border-bp-primary40">
                 <Text className="text-bp-textPrimary font-semibold">
-                  {games.length > 0
-                    ? (t('admin.oneGameAtATime') ?? 'Finish your current game to create another')
-                    : (t('admin.createNewGame') ?? 'Create new game')}
+                  {t('admin.gamesManageTitle') ?? 'Game management'}
                 </Text>
-                <Text className="text-bp-primary">{games.length > 0 ? '·' : '＋'}</Text>
+                <Text className="text-bp-primary">›</Text>
               </Card>
             </Pressable>
             <Pressable
