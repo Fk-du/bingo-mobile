@@ -102,9 +102,12 @@ export default function PlayerProfileScreen() {
 
       <ScrollView contentContainerClassName="gap-3 pb-8">
         <Card className="items-start gap-1">
-          <Text className="text-bp-textSecondary text-xs">
-            {user?.phoneNumber ? user.phoneNumber : (displayName || (t('player.playerLabel') ?? 'Player'))}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-bp-textSecondary text-xs">{t('player.phoneLabel') ?? 'Phone'}</Text>
+            <Text className="text-bp-textPrimary text-xs">
+              {user?.phoneNumber ? user.phoneNumber : (displayName || (t('player.playerLabel') ?? 'Player'))}
+            </Text>
+          </View>
         </Card>
 
         {/* The home screen redirects straight to the game, so the theme switch

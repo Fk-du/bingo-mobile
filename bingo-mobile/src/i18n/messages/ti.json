@@ -377,7 +377,8 @@
     "darkMode": "ጸልማት",
     "english": "እንግሊዝኛ",
     "amharic": "ኣምሓርኛ",
-    "tigrinya": "ትግርኛ"
+    "tigrinya": "ትግርኛ",
+    "phoneLabel": "ስልክ"
   },
   "patterns": {
     "FULL_HOUSE": "ምሉእ ቤት",
