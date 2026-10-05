@@ -626,7 +626,14 @@ export default function LiveGameScreen() {
       if (cardSort === 'mostRectangles') v = rectangles(c);
       if (cardSort === 'mostTs') v = ts(c);
       if (v === max && v > 0) {
-        hintMap.set(c.cardId, `L-${v}`);
+        let prefix = 'L';
+        if (cardSort === 'mostCalled') prefix = 'C';
+        if (cardSort === 'mostMarked') prefix = 'N';
+        if (cardSort === 'mostSquares') prefix = 'S';
+        if (cardSort === 'mostRectangles') prefix = 'R';
+        if (cardSort === 'mostTs') prefix = 'T';
+        if (cardSort === 'mostRows') prefix = 'L';
+        hintMap.set(c.cardId, `${prefix}-${v}`);
       }
     }
     return hintMap;
