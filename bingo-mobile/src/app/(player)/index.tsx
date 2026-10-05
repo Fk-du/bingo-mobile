@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { gamesApi, walletApi } from '@/api';
-import { Button, EmptyState, Screen, ScreenHeader, Subtitle, Title } from '@/components/ui';
+import { NumberBoard } from '@/components/games/NumberBoard';
+import { Button, EmptyState, Screen, ScreenHeader, StatusPill, Subtitle, Title } from '@/components/ui';
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
@@ -64,19 +65,50 @@ export default function PlayerHomeScreen() {
         right={<ThemeToggleButton />}
       />
 
-      <View className="mb-4 rounded-2xl border border-bp-borderInactive bg-bp-surface p-4">
-        <Subtitle>{t('player.yourBalance') ?? 'Your Balance'}</Subtitle>
-        <Title className="text-2xl">
-          {walletQuery.data?.data.balance?.toLocaleString() ?? '—'}
-        </Title>
-        <Subtitle className="text-xs">{t('player.coinsAvailable') ?? 'birr available'}</Subtitle>
-        <Button
-          variant="outline"
-          className="mt-3 self-start"
-          onPress={() => router.push('/(player)/wallet')}
+      {/* The header row + number board stay visible even when no game is
+          running: the player is waiting on the same board the live game uses,
+          so the pill reads "Waiting", the pattern is the one the admin will
+          use, and the chips show the prize and price. When a game opens the
+          screen hands off to it unchanged. */}
+      <View className="gap-1 py-1">
+        <View className="flex-row items-center justify-between gap-3">
+          <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-bp-textInactive">
+            {t('game.winningPattern') ?? 'Winning pattern'}
+          </Text>
+          <View className="flex-row items-center gap-2">
+            <View className="rounded-full border border-bp-gold30 bg-bp-gold10 px-2 py-0.5">
+              <Text className="text-[10px] font-black text-bp-goldInk">
+                {t('mobile.jackpotPrize') ?? 'Prize'}: {liveGame?.prizeAmount == null ? '—' : liveGame.prizeAmount.toLocaleString()}
+              </Text>
+            </View>
+            <View className="rounded-full border border-bp-borderActive40 bg-bp-surfaceAlt px-2 py-0.5">
+              <Text className="text-[10px] font-black text-bp-textPrimary">
+                {t('game.priceLabel') ?? 'Price'}: {liveGame?.entryFee != null ? liveGame.entryFee : '—'}
+              </Text>
+            </View>
+            <StatusPill status={liveGame?.status ?? 'WAITING'} />
+          </View>
+        </View>
+        <Pressable
+          disabled
+          className="w-full flex-row items-center gap-1.5 opacity-80"
         >
-          {t('player.buyCoins') ?? 'Buy Birr'}
-        </Button>
+          <Text
+            className="w-full text-sm font-black text-bp-goldInk"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
+            {liveGame?.winningPattern ?? '—'}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View className="border-b border-bp-borderInactive bg-bp-bg pt-2 pb-1.5">
+        <NumberBoard
+          calledNumbers={[]}
+          registeredCount={0}
+        />
       </View>
 
       <ScrollView
@@ -85,6 +117,23 @@ export default function PlayerHomeScreen() {
           <RefreshControl refreshing={gamesQuery.isFetching} onRefresh={refresh} tintColor="#6B5BFF" />
         }
       >
+        <View className="mb-4 rounded-2xl border border-bp-borderInactive bg-bp-surface p-4">
+          <Subtitle>{t('player.yourBalance') ?? 'Your Balance'}</Subtitle>
+          <Title className="text-2xl">
+            {walletQuery.data?.data.balance?.toLocaleString() ?? '—'}
+          </Title>
+          <Subtitle className="text-xs">{t('player.coinsAvailable') ?? 'birr available'}</Subtitle>
+          {false && (
+            <Button
+              variant="outline"
+              className="mt-3 self-start"
+              onPress={() => router.push('/(player)/wallet')}
+            >
+              {t('player.buyCoins') ?? 'Buy Birr'}
+            </Button>
+          )}
+        </View>
+
         <EmptyState
           title={t('mobile.noGames') ?? 'No games available right now'}
           description={t('player.waitingForNextGame') ?? 'Your agent will open a new game soon.'}
