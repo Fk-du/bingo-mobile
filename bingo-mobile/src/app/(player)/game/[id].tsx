@@ -652,13 +652,11 @@ export default function LiveGameScreen() {
                 {t('mobile.jackpotPrize') ?? 'Prize'}: {prize == null ? '—' : prize.toLocaleString()}
               </Text>
             </View>
-            {entryFee != null && (
-              <View className="rounded-full border border-bp-borderActive40 bg-bp-surfaceAlt px-2 py-0.5">
-                <Text className="text-[10px] font-black text-bp-textPrimary">
-                  {t('game.priceLabel') ?? 'Price'}: {entryFee}
-                </Text>
-              </View>
-            )}
+            <View className="rounded-full border border-bp-borderActive40 bg-bp-surfaceAlt px-2 py-0.5">
+              <Text className="text-[10px] font-black text-bp-textPrimary">
+                {t('game.priceLabel') ?? 'Price'}: {entryFee != null ? entryFee : '—'}
+              </Text>
+            </View>
             <StatusPill status={game.gameStatus ?? 'WAITING'} />
           </View>
         </View>
