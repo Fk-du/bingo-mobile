@@ -8,7 +8,7 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
 import { useAuthStore } from '@/store/auth.store';
 
-const LOCALES = ['en', 'am'] as const;
+const LOCALES = ['en', 'am', 'ti'] as const;
 
 export default function AdminProfileScreen() {
   const t = useTranslate();
@@ -61,10 +61,10 @@ export default function AdminProfileScreen() {
   };
 
   const switchLanguage = async (locale: (typeof LOCALES)[number]) => {
-    setClientLocale(locale);
-    if (user) setUser({ ...user, preferredLanguage: locale });
+    setClientLocale(locale as any);
+    if (user) setUser({ ...user, preferredLanguage: locale as any });
     try {
-      const res = await authApi.updateProfile({ preferredLanguage: locale });
+      const res = await authApi.updateProfile({ preferredLanguage: locale as any });
       setUser(res.data);
     } catch {
       // language switch still applies locally
@@ -170,7 +170,11 @@ export default function AdminProfileScreen() {
                   style={{ flex: 1, paddingVertical: 10 }}
                 >
                   <Text className={active ? 'text-white' : 'text-bp-textSecondary'}>
-                    {locale === 'en' ? (t('player.english') ?? 'English') : (t('player.amharic') ?? 'አማርኛ')}
+                    {locale === 'en'
+                      ? (t('player.english') ?? 'English')
+                      : locale === 'am'
+                        ? (t('player.amharic') ?? 'አማርኛ')
+                        : (t('player.tigrinya') ?? 'ትግርኛ')}
                   </Text>
                 </Button>
               );
