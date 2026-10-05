@@ -525,8 +525,7 @@ export default function LiveGameScreen() {
   const isLive = game.gameStatus === GameStatus.IN_PROGRESS;
   const isRegistration = game.gameStatus === GameStatus.REGISTRATION_OPEN;
   const isEnded = game.gameStatus === GameStatus.ENDED;
-  // The game status is only known once the state has loaded, so an unknown
-  // status is the "still fetching" case rather than a game waiting to start.
+  // The game status is only known once the state has loaded; treat unknown as waiting/no game state.
   const isStatusUnknown = game.gameStatus == null;
 
   /**
@@ -660,7 +659,7 @@ export default function LiveGameScreen() {
                 </Text>
               </View>
             )}
-            {game.gameStatus ? <StatusPill status={game.gameStatus} /> : null}
+            <StatusPill status={game.gameStatus ?? 'WAITING'} />
           </View>
         </View>
 
