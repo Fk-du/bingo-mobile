@@ -986,8 +986,7 @@ export default function LiveGameScreen() {
             <Text className="text-center text-sm text-bp-textSecondary">
               {game.gameStatus === GameStatus.ENDED
                 ? t('game.noCardsThisGame') ?? 'No cards in this game'
-                : t('game.waitingForRegistration') ??
-                  'No cards yet. They will appear here when registration opens.'}
+                : null}
             </Text>
           </Card>
         ) : null}
