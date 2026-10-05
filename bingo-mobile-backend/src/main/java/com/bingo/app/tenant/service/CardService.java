@@ -290,13 +290,19 @@ public class CardService {
         Game game = requireRegistrationOpen(gameId);
         requireNoOtherActiveGame(gameId, playerId);
 
-        int wanted = Math.max(1, count);
+        int wanted = Math.max(1, Math.min(count, 50));
         long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
-        if (held >= wanted) {
-            // Already holding at least this many: just show what is on hold.
+        long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
+        long totalOwnedInGame = held + registered;
+        if (totalOwnedInGame >= wanted) {
+            // Already holding/registered at least this many: just show what is on hold.
             return heldPreviews(gameId, playerId);
         }
-        int missing = (int) (wanted - held);
+        int missing = (int) (wanted - totalOwnedInGame);
+        if (missing > 50) missing = 50;
+        if (missing <= 0) {
+            return heldPreviews(gameId, playerId);
+        }
 
         List<Card> free = cardRepository.findRandomAvailable(LIVE_STATUS_NAMES, missing);
         if (free.size() < missing) {
@@ -338,6 +344,14 @@ public class CardService {
         // not applied when the card is previewed. It has to be applied here
         // instead, or a player could preview their way past it.
         requireNoOtherActiveGame(gameId, playerId);
+
+        // Enforce max cards per player in game (50)
+        long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
+        long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
+        if (registered >= 50) {
+            throw new PlayerActionException("Too many cards",
+                    "You can hold at most 50 cards in a game.");
+        }
 
         CardPreview preview = cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(gameId, playerId, cardId)
                 .orElseThrow(() -> new PlayerActionException("Card not held",
