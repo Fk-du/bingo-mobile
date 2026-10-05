@@ -59,6 +59,7 @@ export default function AdminCreateGameScreen() {
   });
   const automation = automationData?.data;
   const hasActiveGame = (activeGamesData?.data ?? []).length > 0;
+  const isAuto = automation?.enabled ?? false;
 
   return (
     <Screen>
@@ -68,9 +69,9 @@ export default function AdminCreateGameScreen() {
           automation={automation}
           onSaved={() => refetchAutomation()}
           t={t}
-          disabled={hasActiveGame}
+          disabled={false}
         />
-        {automation?.enabled || hasActiveGame ? null : <CreateGameForm t={t} />}
+        {isAuto || hasActiveGame ? null : <CreateGameForm t={t} />}
       </ScrollView>
     </Screen>
   );
@@ -138,7 +139,7 @@ function AutomationCard({
       <View className="flex-row gap-2">
         <Button
           variant={!enabled ? 'primary' : 'outline'}
-          disabled={busy != null || disabled}
+          disabled={busy != null}
           onPress={() => void save(false, t('admin.automodeOff') ?? 'Automatic mode off', 'manual')}
           style={{ flex: 1 }}
         >
@@ -146,7 +147,7 @@ function AutomationCard({
         </Button>
         <Button
           variant={enabled ? 'primary' : 'outline'}
-          disabled={busy != null || disabled}
+          disabled={busy != null}
           onPress={() => void save(true, t('admin.automodeEnable') ?? 'Automatic mode on', 'auto')}
           style={{ flex: 1 }}
         >
