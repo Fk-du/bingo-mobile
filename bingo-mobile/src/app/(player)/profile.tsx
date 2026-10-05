@@ -18,7 +18,7 @@ import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
 
-const LOCALES = ['en', 'am'] as const;
+const LOCALES = ['en', 'am', 'ti'] as const;
 
 export default function PlayerProfileScreen() {
   const t = useTranslate();
@@ -65,7 +65,7 @@ export default function PlayerProfileScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const switchLanguage = async (locale: 'en' | 'am') => {
+  const switchLanguage = async (locale: 'en' | 'am' | 'ti') => {
     setClientLocale(locale);
     if (user) setUser({ ...user, preferredLanguage: locale });
     try {
@@ -251,7 +251,11 @@ export default function PlayerProfileScreen() {
                     }`}
                   >
                     <Text className={active ? 'text-bp-textPrimary font-semibold' : 'text-bp-textSecondary'}>
-                      {locale === 'en' ? (t('player.english') ?? 'English') : (t('player.amharic') ?? 'አማርኛ')}
+                      {locale === 'en'
+                        ? (t('player.english') ?? 'English')
+                        : locale === 'am'
+                          ? (t('player.amharic') ?? 'አማርኛ')
+                          : (t('player.tigrinya') ?? 'ትግርኛ')}
                     </Text>
                   </Pressable>
                 );

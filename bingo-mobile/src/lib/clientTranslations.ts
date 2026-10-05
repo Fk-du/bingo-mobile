@@ -1,13 +1,17 @@
 import en from '@/i18n/messages/en.json';
 import am from '@/i18n/messages/am.json';
+import ti from '@/i18n/messages/ti.json';
 
-let currentLocale: 'en' | 'am' = 'en';
+let currentLocale: 'en' | 'am' | 'ti' = 'en';
 const localeListeners = new Set<() => void>();
 
-const catalogs = { en, am } as const;
+const catalogs = { en, am, ti } as const;
 
 export function setClientLocale(locale: string) {
-  const next: 'en' | 'am' = locale === 'am' ? 'am' : 'en';
+  let next: 'en' | 'am' | 'ti' = 'en';
+  if (locale === 'am') next = 'am';
+  else if (locale === 'ti' || locale === 'tig' || locale === 'tg' || locale === 'tir') next = 'ti';
+  else next = 'en';
   if (next === currentLocale) return;
   currentLocale = next;
   for (const listener of Array.from(localeListeners)) {
@@ -15,7 +19,7 @@ export function setClientLocale(locale: string) {
   }
 }
 
-export function getClientLocale(): 'en' | 'am' {
+export function getClientLocale(): 'en' | 'am' | 'ti' {
   return currentLocale;
 }
 

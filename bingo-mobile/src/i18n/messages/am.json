@@ -327,7 +327,8 @@
     "lightMode": "ብሩህን",
     "darkMode": "ጨለማ",
     "english": "እንግሊዝኛ",
-    "amharic": "አማርኛ"
+    "amharic": "አማርኛ",
+    "tigrinya": "ትግርኛ"
   },
   "patterns": {
     "FULL_HOUSE": "ሙሉ ቤት",
