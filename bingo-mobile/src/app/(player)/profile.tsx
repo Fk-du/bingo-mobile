@@ -9,10 +9,8 @@ import { useTranslate } from '@/hooks/useTranslate';
 import {
   IconBell,
   IconHistory,
-  IconLobby,
   IconMoon,
   IconSun,
-  IconWallet,
 } from '@/components/ui/icons';
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
 import { useTheme } from '@/lib/theme';
@@ -184,20 +182,46 @@ export default function PlayerProfileScreen() {
           </Card>
         )}
 
-        {/* The nav bar holds a single icon, so every destination it used to
-            point at is listed here instead. Each row pushes the screen rather
-            than switching tabs, which keeps the bar itself meaning "profile". */}
-        <Pressable onPress={() => router.push('/(player)/wallet')} className="active:opacity-80">
-          <MenuRow
-            icon={<IconWallet size={18} color={colors.textSecondary} />}
-            label={t('mobile.navWallet') ?? 'Wallet'}
-            detail={
-              walletQuery?.data
-                ? `${walletQuery.data.balance.toLocaleString()} · ${t('mobile.frozen') ?? 'Frozen'}: ${walletQuery.data.frozenBalance.toLocaleString()}`
-                : undefined
-            }
-          />
-        </Pressable>
+        {/* The wallet area shows the balance and the two action buttons directly
+            so the player never has to open a screen just to find Deposit or
+            Withdraw. */}
+        <View className="gap-4">
+          <Card className="w-full items-center gap-4 p-6">
+            <View className="items-center gap-1">
+              <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
+                {t('mobile.yourBalance') ?? 'Available Balance'}
+              </Text>
+              <Text className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
+                {walletQuery?.data?.balance?.toLocaleString() ?? '—'}
+              </Text>
+            </View>
+            <View className="items-center gap-1">
+              <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
+                {t('mobile.frozen') ?? 'Frozen'}
+              </Text>
+              <Text className="text-lg font-semibold" style={{ color: colors.textPrimary }}>
+                {walletQuery?.data?.frozenBalance?.toLocaleString() ?? '—'}
+              </Text>
+            </View>
+          </Card>
+
+          <View className="flex-row gap-3">
+            <Button
+              onPress={() => router.push('/(player)/wallet')}
+              variant="gold"
+              style={{ flex: 1 }}
+            >
+              {t('mobile.buyCoins') ?? 'Deposit'}
+            </Button>
+            <Button
+              onPress={() => router.push('/(player)/withdraw')}
+              variant="primary"
+              style={{ flex: 1 }}
+            >
+              {t('mobile.withdraw') ?? 'Withdraw'}
+            </Button>
+          </View>
+        </View>
 
         <Pressable onPress={() => router.push('/(player)/notifications')} className="active:opacity-80">
           <MenuRow
