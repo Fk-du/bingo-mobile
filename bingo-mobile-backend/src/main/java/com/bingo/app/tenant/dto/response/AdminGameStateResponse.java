@@ -28,5 +28,15 @@ public record AdminGameStateResponse(
         LocalDateTime createdAt,
         List<Integer> calledNumbers,
         List<String> calledNumbersLabeled,
-        int playerCount
+        int playerCount,
+        /** Every winning card of this game, for the results board. */
+        List<GameStateResponse.WinnerCardView> winnerCards,
+        /** Every banned card of this game, for the results board. */
+        List<GameStateResponse.BannedCardView> bannedCards,
+        /**
+         * Only while the game is paused on a claim: the moment the automatic
+         * reviewer decides everyone. Players count down to it and can still
+         * claim Bingo until then. Null at every other status.
+         */
+        LocalDateTime claimWindowEndsAt
 ) {}

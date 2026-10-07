@@ -83,19 +83,34 @@ class WinningPatternGeometryTest {
     }
 
     @Test
-    @DisplayName("each pattern fails when any single required cell is missing")
-    void failsWhenOneCellMissing() {
+    @DisplayName("each pattern loses on some one-cell-short card")
+    void failsOnACloseButIncompleteCard() {
         int[][] card = fullCard();
         for (String code : EXPECTED_CODES) {
-            List<int[]> cells = WinningPatternGeometry.cells(code);
+            List<int[]> cells = SemanticDemoCells.winningCells(code);
+            boolean found = false;
             for (int[] drop : cells) {
-                if (drop[0] == 2 && drop[1] == 2) continue; // free centre is never required
-                List<int[]> without = new ArrayList<>(cells);
-                without.remove(drop);
-                assertFalse(engine.validateBingo(card, calledCells(card, without), code),
-                        code + " must not win without cell " + drop[0] + "," + drop[1]);
+                if (drop[0] == 2 && drop[1] == 2) {
+                    continue; // free centre is never required
+                }
+                if (!engine.validateBingo(card, calledCells(card, withoutCell(cells, drop)), code)) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found,
+                    code + " must lose on at least one one-cell-short card (semantic near-miss)");
+        }
+    }
+
+    private static List<int[]> withoutCell(List<int[]> cells, int[] dropped) {
+        List<int[]> out = new ArrayList<>();
+        for (int[] cell : cells) {
+            if (cell[0] != dropped[0] || cell[1] != dropped[1]) {
+                out.add(cell);
             }
         }
+        return out;
     }
 
     @Test
@@ -146,7 +161,8 @@ class WinningPatternGeometryTest {
                 new Expectation("TWO_VERT_TWO_HORIZ_ONE_DIAG", 5),
                 new Expectation("TWO_VERT_THREE_HORIZ", 6),
                 new Expectation("TWO_HORIZ_TWO_VERT_TWO_DIAG", 6),
-                new Expectation("TWO_LINES_TWO_SQUARES", 4),
+                new Expectation("TWO_LINES_TWO_SQUARES", 2),
+                new Expectation("TWO_LINES_TWO_SEP_SQUARES", 2),
                 new Expectation("TWO_LINES_TWO_RECTANGLES", 2),
                 new Expectation("THREE_RECTANGLES", 0),
                 new Expectation("LARGE_T_TWO_LINES", 4),
@@ -220,17 +236,49 @@ class WinningPatternGeometryTest {
     }
 
     /**
-     * THREE_SMALL_T and THREE_SMALL_CROSSES name shapes rather than lines, so they are guarded by
+     * THREE_SMALL_T and THREE_RECTANGLES name shapes rather than lines, so they are guarded by
      * component count instead: each of the three shapes must be its own connected group. They used
      * to be a single diagonal smear and a diamond ring respectively.
      */
     @Test
     @DisplayName("the three-shape patterns really contain three separate shapes")
     void threeShapePatternsHaveThreeComponents() {
-        for (String code : List.of("THREE_SMALL_T", "THREE_SMALL_CROSSES", "THREE_RECTANGLES")) {
+        for (String code : List.of("THREE_SMALL_T", "THREE_RECTANGLES")) {
             List<int[]> cells = WinningPatternGeometry.cells(code);
             assertEquals(3, componentCount(cells), code + " must be three disconnected shapes");
         }
+    }
+
+    /**
+     * THREE_SMALL_CROSSES is two full five-cell plus signs that overlap a full line (they share
+     * cells with it, so the whole pattern is one connected shape). It used to be a diamond ring.
+     */
+    @Test
+    @DisplayName("THREE_SMALL_CROSSES completes one line and two full plus signs")
+    void threeSmallCrossesIsALineWithTwoPluses() {
+        List<int[]> cells = WinningPatternGeometry.cells("THREE_SMALL_CROSSES");
+        assertEquals(Set.of("row2"), completedLines(cells), "exactly one completed line");
+        assertEquals(13, cells.size(), "two 5-cell pluses joined by the shared line");
+        assertTrue(isFullPlus(cells, 1, 1), "plus sign centred at (1,1)");
+        assertTrue(isFullPlus(cells, 3, 3), "plus sign centred at (3,3)");
+    }
+
+    /** The five cells of a plus sign centred at (row, col) are all part of the pattern. */
+    private static boolean isFullPlus(List<int[]> cells, int row, int col) {
+        for (int[] rc : new int[][] { { row, col }, { row - 1, col }, { row + 1, col },
+                { row, col - 1 }, { row, col + 1 } }) {
+            boolean found = false;
+            for (int[] cell : cells) {
+                if (cell[0] == rc[0] && cell[1] == rc[1]) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static int componentCount(List<int[]> cells) {
@@ -272,11 +320,68 @@ class WinningPatternGeometryTest {
     }
 
     @Test
-    @DisplayName("HALF_HOUSE is the top three rows; FULL_HOUSE-style patterns use every cell")
+    @DisplayName("HALF_HOUSE starts as the top three rows; FULL_HOUSE-style patterns use every cell")
     void sanityOnNamedPatterns() {
         int[][] card = fullCard();
         assertEquals(15, WinningPatternGeometry.cells("HALF_HOUSE").size());
         assertEquals(15, WinningPatternGeometry.cells("THREE_LINES_NO_FREE_DISJOINT").size());
         assertEquals(16, WinningPatternGeometry.cells("FOUR_SQUARES").size());
+    }
+
+    /**
+     * HALF_HOUSE can be won eight ways: three rows above or below a free band, three columns to
+     * the left or right of one, or either side of either diagonal. Every layout is exactly fifteen
+     * cells including the free centre, wins when complete, and is broken by dropping any single
+     * real cell — and only HALF_HOUSE has these alternatives, so a code's variant list can never
+     * leak into the single-shape patterns.
+     */
+    @Test
+    @DisplayName("HALF_HOUSE wins through any of its eight half-card layouts")
+    void halfHouseHasEightLayoutsThatAllWin() {
+        int[][] card = fullCard();
+        List<List<int[]>> layouts = WinningPatternGeometry.variants("HALF_HOUSE");
+        assertEquals(8, layouts.size(), "HALF_HOUSE layouts");
+        assertEquals(shape(WinningPatternGeometry.cells("HALF_HOUSE")), shape(layouts.get(0)),
+                "the primary layout must stay first");
+
+        for (List<int[]> layout : layouts) {
+            String label = "layout " + layout;
+            assertEquals(15, layout.size(), label + " cell count");
+            assertTrue(layout.stream().anyMatch(cell -> cell[0] == 2 && cell[1] == 2),
+                    label + " includes the free centre");
+            assertTrue(engine.validateBingo(card, calledCells(card, layout), "HALF_HOUSE"),
+                    label + " should win when complete");
+
+            for (int[] drop : layout) {
+                if (drop[0] == 2 && drop[1] == 2) continue; // free centre is never required
+                List<int[]> without = new ArrayList<>(layout);
+                without.remove(drop);
+                assertFalse(engine.validateBingo(card, calledCells(card, without), "HALF_HOUSE"),
+                        label + " must not win without cell " + drop[0] + "," + drop[1]);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("single-shape codes keep exactly one layout, unknown codes none")
+    void variantsForSingleShapeAndUnknownCodes() {
+        assertEquals(1, WinningPatternGeometry.variants("FOUR_SQUARES").size(),
+                "single-shape codes return only their grid");
+        assertEquals(shape(WinningPatternGeometry.cells("FOUR_SQUARES")),
+                shape(WinningPatternGeometry.variants("FOUR_SQUARES").get(0)),
+                "the only variant is the grid itself");
+        assertTrue(WinningPatternGeometry.variants("FULL_HOUSE").isEmpty(),
+                "non-grid codes have no layouts");
+        assertTrue(WinningPatternGeometry.variants(null).isEmpty(),
+                "null has no layouts");
+    }
+
+    /** Coordinate lists as a comparable string; List<int[]> equality is reference-based. */
+    private static String shape(List<int[]> cells) {
+        StringBuilder out = new StringBuilder();
+        cells.stream()
+                .sorted((a, b) -> a[0] != b[0] ? a[0] - b[0] : a[1] - b[1])
+                .forEach(cell -> out.append(cell[0]).append(',').append(cell[1]).append(' '));
+        return out.toString();
     }
 }

@@ -1,5 +1,6 @@
 package com.bingo.app.infrastructure.persistence;
 
+import com.bingo.app.tenant.entity.AutomationConfig;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -106,9 +107,18 @@ public final class SchemaMigrationHelper {
                 """);
         createIndexIfNotExists(conn, "idx_automation_admin", "automation_config", "admin_user_id");
 
-        // Auto claim review (auto approve/reject) opt-in and grace window.
+        // Auto claim review (auto approve/reject) opt-in and grace window. The
+        // grace window is the players' 10s chance to claim after a real Bingo,
+        // so any row still on the old 2s default is lifted to it as well.
         addColumnIfNotExists(conn, "automation_config", "auto_review", "BOOLEAN NOT NULL DEFAULT FALSE");
-        addColumnIfNotExists(conn, "automation_config", "review_grace_seconds", "INTEGER NOT NULL DEFAULT 2");
+        addColumnIfNotExists(conn, "automation_config", "review_grace_seconds",
+                "INTEGER NOT NULL DEFAULT " + AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS);
+        if (tableExists(conn, "automation_config")
+                && columnExists(conn, "automation_config", "review_grace_seconds")) {
+            execute(conn, "UPDATE automation_config SET review_grace_seconds = "
+                    + AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS
+                    + " WHERE review_grace_seconds = 2");
+        }
 
         // The per-game commission percentage is replaced by an admin-chosen prize.
         // These two run after the SQL scripts (V7 / V16) and before the data

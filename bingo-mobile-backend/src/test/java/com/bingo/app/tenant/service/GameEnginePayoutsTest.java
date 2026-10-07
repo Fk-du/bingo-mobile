@@ -202,14 +202,14 @@ class GameEnginePayoutsTest {
     }
 
     @Test
-    @DisplayName("claim submission: completed line is accepted for review and pauses the game")
+    @DisplayName("claim submission: completed pattern is accepted for review and pauses the game")
     void claimSubmissionAccepted() throws Exception {
         Game g = game(32L, new BigDecimal("20.00"), "18.00");
-        g.setWinningPattern("SINGLE_LINE");
+        g.setWinningPattern("FOUR_LINES");
 
         when(gameRepository.findByIdForUpdate(g.getId())).thenReturn(Optional.of(g));
         when(calledNumberRepository.findCalledNumbersByGameId(g.getId()))
-                .thenReturn(List.of(1, 2, 3, 4, 5));
+                .thenReturn(java.util.stream.IntStream.rangeClosed(1, 20).boxed().toList());
         when(gameCardRepository.findByGameIdAndCardId(g.getId(), 5000L))
                 .thenReturn(Optional.of(GameCard.builder()
                         .gameId(g.getId())
@@ -224,7 +224,7 @@ class GameEnginePayoutsTest {
         var result = engine.claimBingo(g.getId(), 101L, 5000L, Collections.<Integer>emptyList(), false);
 
         assertTrue(result.isValid() || result.isPendingReview(),
-                "a completed SINGLE_LINE must be accepted");
+                "a completed FOUR_LINES must be accepted");
         assertEquals(com.bingo.app.tenant.enums.GameStatus.CLAIM_PENDING, g.getStatus());
         // no money moves until the admin approves
         verifyNoInteractions(walletService);

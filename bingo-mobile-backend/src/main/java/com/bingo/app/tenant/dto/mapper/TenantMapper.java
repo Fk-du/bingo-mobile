@@ -230,6 +230,9 @@ public class TenantMapper {
                 .isWinner(state.isWinner())
                 .rewardAmount(state.getRewardAmount())
                 .winnerCount(state.getWinnerCount())
+                .winnerCards(state.getWinnerCards())
+                .bannedCards(state.getBannedCards())
+                .claimWindowEndsAt(state.getClaimWindowEndsAt())
                 .startTime(state.getStartTime())
                 .build();
     }
@@ -259,6 +262,9 @@ public class TenantMapper {
                 .calledNumbers(state.getCalledNumbers())
                 .calledNumbersLabeled(labeled)
                 .playerCount(state.getPlayerCount())
+                .winnerCards(state.getWinnerCards())
+                .bannedCards(state.getBannedCards())
+                .claimWindowEndsAt(state.getClaimWindowEndsAt())
                 .build();
     }
 

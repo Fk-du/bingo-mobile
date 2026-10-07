@@ -36,6 +36,23 @@ public record GameStateResponse(
         BigDecimal rewardAmount,
         /** How many cards won this game, so a winner can see the prize was shared. */
         int winnerCount,
+        /**
+         * Every winning card of this game (all cards marked winner), so the
+         * results board can list them and, on tap, show the card itself. Public —
+         * the whole room sees who won.
+         */
+        List<WinnerCardView> winnerCards,
+        /**
+         * Every banned card of this game, for the results board. Public — the
+         * whole room sees the cards that were voided.
+         */
+        List<BannedCardView> bannedCards,
+        /**
+         * Only while the game is paused on a claim: the moment the automatic
+         * reviewer decides everyone. Players count down to it and can still
+         * claim Bingo until then. Null at every other status.
+         */
+        LocalDateTime claimWindowEndsAt,
         String fairnessHash,
         LocalDateTime startTime
 ) {
@@ -54,6 +71,20 @@ public record GameStateResponse(
 
     /** A card the player is holding to review. It is not registered and cannot claim. */
     public record PreviewCardView(
+            Long cardId,
+            int[][] numbers
+    ) {}
+
+    /** A winning card of this game, for the results board. */
+    public record WinnerCardView(
+            Long cardId,
+            int[][] numbers,
+            /** The winner's share of the prize; equal for every winner of the round. */
+            BigDecimal rewardAmount
+    ) {}
+
+    /** A card banned in this game, for the results board. */
+    public record BannedCardView(
             Long cardId,
             int[][] numbers
     ) {}

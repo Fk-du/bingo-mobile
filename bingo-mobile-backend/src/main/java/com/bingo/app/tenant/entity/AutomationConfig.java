@@ -23,6 +23,14 @@ import java.time.LocalDateTime;
 @Builder
 public class AutomationConfig {
 
+    /**
+     * Claim window: how long after the first (real) Bingo claim a game stays in
+     * CLAIM_PENDING so players who were a beat slow can still claim before the
+     * engine reviews everyone. Every screen shows this countdown as the players'
+     * window to press BINGO.
+     */
+    public static final int DEFAULT_REVIEW_GRACE_SECONDS = 10;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -56,8 +64,20 @@ public class AutomationConfig {
     private Integer cooldownSeconds;
 
     /**
-     * When true (and enabled), Bingo claims are approved/rejected automatically
-     * instead of waiting on the admin. Invalid claims ban the claimed card.
+     * When true, the system validates Bingo claims itself for every game of this
+     * tenant, whether or not game automation is enabled: a provably complete
+     * pattern is approved, a provably incomplete one is rejected and the card
+     * banned, and anything the system cannot prove stays with the admin.
+     * Defaults to on (a null column counts as true).
+     */
+    @Builder.Default
+    @Column(name = "auto_approve")
+    private Boolean autoApprove = true;
+
+    /**
+     * Legacy reject-only mode: with {@link #enabled} and autoApprove off, claims
+     * are only rejected (cards missing the last called number) without ever
+     * approving one.
      */
     @Builder.Default
     @Column(name = "auto_review")
@@ -66,7 +86,7 @@ public class AutomationConfig {
     /** How long the auto-reviewer waits after the first claim before deciding (simultaneous winners). */
     @Builder.Default
     @Column(name = "review_grace_seconds")
-    private Integer reviewGraceSeconds = 2;
+    private Integer reviewGraceSeconds = DEFAULT_REVIEW_GRACE_SECONDS;
 
     /** Earliest moment the next game may be created (cooldown gate). */
     @Column(name = "next_game_at")

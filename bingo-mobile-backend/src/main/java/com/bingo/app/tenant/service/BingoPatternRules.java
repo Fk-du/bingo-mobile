@@ -1,0 +1,392 @@
+package com.bingo.app.tenant.service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Semantic evaluator for the canonical winning patterns offered in the admin picker.
+ *
+ * <p>The grids in {@link WinningPatternGeometry} are the demonstration layouts of each
+ * pattern; a player is not required to reproduce them cell for cell. Each pattern is
+ * validated as a <em>family</em> of every arrangement its name describes: a code named
+ * for N lines wins on any N complete lines whether or not they are the lines in the
+ * demo grid, a code named for N 2x2 blocks wins on any N complete blocks, and so on.
+ *
+ * <p>The centre cell (2,2) is free on every card, so it is always considered called.
+ *
+ * <p>HALF_HOUSE is the exception: its eight half-card layouts <em>are</em> the whole
+ * family, so it stays a cell-exact match through {@link WinningPatternGeometry#variants}.
+ */
+public final class BingoPatternRules {
+
+    private BingoPatternRules() {
+    }
+
+    // Line bookkeeping: rows occupy bits 0-4, columns 5-9, the two diagonals 10-11.
+    private static final int ROW_MASK = 0x1F;
+    private static final int COL_MASK = 0x1F << 5;
+    private static final int DIAG_MASK = 0x3 << 10;
+    /** The four lines that pass through the free centre. */
+    private static final int CENTRE_LINES = (1 << 2) | (1 << 7) | (1 << 10) | (1 << 11);
+    private static final int CENTRE_CELL = 1 << (2 * 5 + 2);
+
+    /**
+     * Whether the card wins the given canonical picker pattern under the current calls.
+     *
+     * @param card   5x5 card, centre cell always free
+     * @param called the numbers called so far (the centre is added implicitly)
+     * @param code   one of {@link WinningPatternGeometry#codes()}
+     */
+    public static boolean wins(int[][] card, Set<Integer> called, String code) {
+        if (card == null || code == null) {
+            return false;
+        }
+        boolean[][] m = marked(card, called);
+        if ("HALF_HOUSE".equals(code)) {
+            return halfHouse(m, code);
+        }
+
+        int lines = completeLinesMask(m);
+        int rows = Integer.bitCount(lines & ROW_MASK);
+        int cols = Integer.bitCount(lines & COL_MASK);
+        int diags = Integer.bitCount(lines & DIAG_MASK);
+        int total = rows + cols + diags;
+        int centre = Integer.bitCount(lines & CENTRE_LINES);
+        int noFree = total - centre;
+
+        List<Integer> blocks = completeBlocks(m);
+        int squares = blocks.size();
+        int rectangles = rectangleComponents(m);
+        int dots = dotCount(m, blocks);
+
+        return switch (code) {
+            // --- Line ladders --------------------------------------------------------
+            case "FOUR_LINES" -> total >= 4;
+            case "FIVE_LINES" -> total >= 5;
+            case "SIX_LINES" -> total >= 6;
+            case "SEVEN_LINES" -> total >= 7;
+            case "EIGHT_LINES" -> total >= 8;
+            case "THREE_LINES_ONE_DIAG" -> rows + cols >= 3 && diags >= 1;
+            case "FOUR_LINES_TOUCH_FREE" -> centre >= 4;
+
+            // --- Line ladders that never rely on the free centre --------------------
+            case "THREE_LINES_NO_FREE_DISJOINT" -> noFree >= 3;
+            case "FOUR_LINES_NO_FREE_DISJOINT", "FOUR_LINES_NO_FREE" -> noFree >= 4;
+            case "FIVE_LINES_NO_FREE" -> noFree >= 5;
+            case "TWO_TOUCH_TWO_NO_TOUCH" -> centre >= 2 && noFree >= 2;
+
+            // --- Vertical / horizontal / diagonal mixes -----------------------------
+            case "TWO_VERT_TWO_HORIZ" -> cols >= 2 && rows >= 2;
+            case "TWO_VERT_TWO_HORIZ_ONE_DIAG" -> cols >= 2 && rows >= 2 && diags >= 1;
+            case "TWO_VERT_THREE_HORIZ" -> cols >= 2 && rows >= 3;
+            case "TWO_HORIZ_TWO_VERT_TWO_DIAG" -> rows >= 2 && cols >= 2 && diags >= 2;
+
+            // --- Squares, rectangles and dots ----------------------------------------
+            case "FOUR_SQUARES" -> packs(blocks, 4);
+            case "TWO_LINES_TWO_SQUARES" -> total >= 2 && squares >= 2;
+            case "TWO_LINES_TWO_SEP_SQUARES" -> total >= 2 && packs(blocks, 2);
+            case "THREE_SQUARES_FOUR_DOTS" -> squares >= 3 && dots >= 4;
+            case "THREE_RECTANGLES" -> rectangles >= 3;
+            case "TWO_LINES_TWO_RECTANGLES" -> total >= 2 && bars(m) >= 2;
+
+            // --- T shapes and crosses ------------------------------------------------
+            case "LARGE_T_TWO_LINES" -> largeT(m, lines, 2);
+            case "LARGE_T_THREE_LINES" -> largeT(m, lines, 3);
+            case "THREE_SMALL_T" -> packs(smallTShapes(m), 3);
+            case "LARGE_CROSS_TWO_SQUARES" -> rowComplete(m, 2) && colComplete(m, 2) && squares >= 2;
+            case "THREE_SMALL_CROSSES" -> fullCrosses(m) >= 3;
+
+            default -> false;
+        };
+    }
+
+    /** The centre is free, so a card cell is "marked" whenever it is called or is (2,2). */
+    private static boolean[][] marked(int[][] card, Set<Integer> called) {
+        boolean[][] m = new boolean[5][5];
+        for (int r = 0; r < 5; r++) {
+            for (int c = 0; c < 5; c++) {
+                m[r][c] = called.contains(card[r][c]) || (r == 2 && c == 2);
+            }
+        }
+        return m;
+    }
+
+    /** HALF_HOUSE stays cell-exact: it wins as soon as any one of its eight layouts is complete. */
+    private static boolean halfHouse(boolean[][] m, String code) {
+        for (List<int[]> layout : WinningPatternGeometry.variants(code)) {
+            boolean complete = true;
+            for (int[] cell : layout) {
+                if (!m[cell[0]][cell[1]]) {
+                    complete = false;
+                    break;
+                }
+            }
+            if (complete) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Bitmask of the twelve lines fully covered by the marked cells. */
+    private static int completeLinesMask(boolean[][] m) {
+        int mask = 0;
+        for (int r = 0; r < 5; r++) {
+            if (rowComplete(m, r)) {
+                mask |= 1 << r;
+            }
+        }
+        for (int c = 0; c < 5; c++) {
+            if (colComplete(m, c)) {
+                mask |= 1 << (5 + c);
+            }
+        }
+        if (diagComplete(m)) {
+            mask |= 1 << 10;
+        }
+        if (antiDiagComplete(m)) {
+            mask |= 1 << 11;
+        }
+        return mask;
+    }
+
+    private static boolean rowComplete(boolean[][] m, int r) {
+        return m[r][0] && m[r][1] && m[r][2] && m[r][3] && m[r][4];
+    }
+
+    private static boolean colComplete(boolean[][] m, int c) {
+        return m[0][c] && m[1][c] && m[2][c] && m[3][c] && m[4][c];
+    }
+
+    private static boolean diagComplete(boolean[][] m) {
+        return m[0][0] && m[1][1] && m[2][2] && m[3][3] && m[4][4];
+    }
+
+    private static boolean antiDiagComplete(boolean[][] m) {
+        return m[0][4] && m[1][3] && m[2][2] && m[3][1] && m[4][0];
+    }
+
+    /**
+     * A large T in any of its four orientations: a full row at the top or bottom with the
+     * full middle column, or a full column at the far left or right with the full middle
+     * row. The "two/three lines" are the extra complete lines beyond the two that make up
+     * the T itself, on whatever orientation is present. The demo grids draw the top row
+     * plus the middle column, which the two/three extra lines reproduce (THREE_LINES
+     * completes rows 1, 3 and 4, TWO_LINES rows 1 and 4), but a card in any other
+     * orientation, or with the extra lines anywhere else, wins just the same.
+     */
+    private static boolean largeT(boolean[][] m, int completeLines, int extraLines) {
+        boolean barAcrossTop = rowComplete(m, 0) && colComplete(m, 2);
+        boolean barAcrossBottom = rowComplete(m, 4) && colComplete(m, 2);
+        boolean barDownLeft = colComplete(m, 0) && rowComplete(m, 2);
+        boolean barDownRight = colComplete(m, 4) && rowComplete(m, 2);
+        if (!(barAcrossTop || barAcrossBottom || barDownLeft || barDownRight)) {
+            return false;
+        }
+        return Integer.bitCount(completeLines) - 2 >= extraLines;
+    }
+
+    /**
+     * Number of straight filled bars of at least two cells (maximal horizontal and
+     * vertical runs). TWO_LINES_TWO_RECTANGLES counts these instead of components:
+     * its demo draws its rectangles as two-cell bars that sit right next to one of the
+     * lines, so component counting would weld them onto the line and hide them.
+     */
+    private static int bars(boolean[][] m) {
+        int runs = 0;
+        for (int r = 0; r < 5; r++) {
+            int len = 0;
+            for (int c = 0; c < 5; c++) {
+                if (m[r][c]) {
+                    len++;
+                } else {
+                    if (len >= 2) {
+                        runs++;
+                    }
+                    len = 0;
+                }
+            }
+            if (len >= 2) {
+                runs++;
+            }
+        }
+        for (int c = 0; c < 5; c++) {
+            int len = 0;
+            for (int r = 0; r < 5; r++) {
+                if (m[r][c]) {
+                    len++;
+                } else {
+                    if (len >= 2) {
+                        runs++;
+                    }
+                    len = 0;
+                }
+            }
+            if (len >= 2) {
+                runs++;
+            }
+        }
+        return runs;
+    }
+
+    /** Every complete 2x2 block of marked cells, as a cell bitmask. */
+    private static List<Integer> completeBlocks(boolean[][] m) {
+        List<Integer> blocks = new ArrayList<>();
+        for (int r = 0; r < 4; r++) {
+            for (int c = 0; c < 4; c++) {
+                if (m[r][c] && m[r][c + 1] && m[r + 1][c] && m[r + 1][c + 1]) {
+                    blocks.add(cellMask(r, c) | cellMask(r, c + 1) | cellMask(r + 1, c) | cellMask(r + 1, c + 1));
+                }
+            }
+        }
+        return blocks;
+    }
+
+    /**
+     * Number of marked cells outside every complete 2x2 block, plus the free centre which
+     * counts as a dot by definition even when a block happens to cover it.
+     */
+    private static int dotCount(boolean[][] m, List<Integer> blocks) {
+        int all = markedMask(m);
+        int blockUnion = 0;
+        for (int block : blocks) {
+            blockUnion |= block;
+        }
+        int dots = Integer.bitCount(all & ~blockUnion);
+        if ((blockUnion & CENTRE_CELL) != 0) {
+            dots++; // the centre is always a dot
+        }
+        return dots;
+    }
+
+    /**
+     * Number of connected filled regions that exactly fill their bounding box and hold at
+     * least three cells. Bars and 2x2 squares qualify, L-shapes, pluses and diagonal
+     * smears do not. Used by THREE_RECTANGLES, where each rectangle is its own separate
+     * region and a three-cell floor keeps a fragmented bar from still qualifying.
+     */
+    private static int rectangleComponents(boolean[][] m) {
+        boolean[][] seen = new boolean[5][5];
+        int rectangles = 0;
+        for (int r = 0; r < 5; r++) {
+            for (int c = 0; c < 5; c++) {
+                if (!m[r][c] || seen[r][c]) {
+                    continue;
+                }
+                List<int[]> component = new ArrayList<>();
+                int minR = r, maxR = r, minC = c, maxC = c;
+                int head = 0;
+                component.add(new int[]{r, c});
+                seen[r][c] = true;
+                while (head < component.size()) {
+                    int[] cell = component.get(head++);
+                    for (int[] next : new int[][]{{cell[0] + 1, cell[1]}, {cell[0] - 1, cell[1]},
+                            {cell[0], cell[1] + 1}, {cell[0], cell[1] - 1}}) {
+                        int nr = next[0], nc = next[1];
+                        if (nr < 0 || nr > 4 || nc < 0 || nc > 4 || !m[nr][nc] || seen[nr][nc]) {
+                            continue;
+                        }
+                        seen[nr][nc] = true;
+                        component.add(next);
+                        minR = Math.min(minR, nr);
+                        maxR = Math.max(maxR, nr);
+                        minC = Math.min(minC, nc);
+                        maxC = Math.max(maxC, nc);
+                    }
+                }
+                if (component.size() >= 3 && component.size() == (maxR - minR + 1) * (maxC - minC + 1)) {
+                    rectangles++;
+                }
+            }
+        }
+        return rectangles;
+    }
+
+    /** Every complete five-cell plus sign (centres in rows/cols 1..3); overlaps are allowed. */
+    private static int fullCrosses(boolean[][] m) {
+        int crosses = 0;
+        for (int r = 1; r < 4; r++) {
+            for (int c = 1; c < 4; c++) {
+                if (m[r][c] && m[r - 1][c] && m[r + 1][c] && m[r][c - 1] && m[r][c + 1]) {
+                    crosses++;
+                }
+            }
+        }
+        return crosses;
+    }
+
+    /** Every 4-cell small T (three in a row plus a perpendicular stem), as a cell bitmask. */
+    private static List<Integer> smallTShapes(boolean[][] m) {
+        List<Integer> shapes = new ArrayList<>();
+        for (int r = 0; r < 5; r++) {
+            for (int c = 1; c < 4; c++) {
+                addT(shapes, allMarked(m, r, c - 1, r, c, r, c + 1, r + 1, c)); // stem below
+                addT(shapes, allMarked(m, r, c - 1, r, c, r, c + 1, r - 1, c)); // stem above
+            }
+        }
+        for (int r = 1; r < 4; r++) {
+            for (int c = 0; c < 5; c++) {
+                addT(shapes, allMarked(m, r - 1, c, r, c, r + 1, c, r, c + 1)); // stem right
+                addT(shapes, allMarked(m, r - 1, c, r, c, r + 1, c, r, c - 1)); // stem left
+            }
+        }
+        return shapes;
+    }
+
+    private static void addT(List<Integer> shapes, int mask) {
+        if (mask != 0) {
+            shapes.add(mask);
+        }
+    }
+
+    /** Every step cell of a single shape, or 0 when any part is off-grid or unmarked. */
+    private static int allMarked(boolean[][] m, int... cells) {
+        int mask = 0;
+        for (int i = 0; i < cells.length; i += 2) {
+            int r = cells[i], c = cells[i + 1];
+            if (r < 0 || r > 4 || c < 0 || c > 4 || !m[r][c]) {
+                return 0;
+            }
+            mask |= cellMask(r, c);
+        }
+        return mask;
+    }
+
+    /** Whether any {@code need} shapes/blocks that share no cell can be picked at once. */
+    private static boolean packs(List<Integer> shapes, int need) {
+        return packMore(shapes, need, 0, 0, 0);
+    }
+
+    private static boolean packMore(List<Integer> shapes, int need, int index, int used, int picked) {
+        if (picked >= need) {
+            return true;
+        }
+        if (picked + (shapes.size() - index) < need) {
+            return false;
+        }
+        for (int i = index; i < shapes.size(); i++) {
+            int mask = shapes.get(i);
+            if ((used & mask) == 0 && packMore(shapes, need, i + 1, used | mask, picked + 1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int markedMask(boolean[][] m) {
+        int mask = 0;
+        for (int r = 0; r < 5; r++) {
+            for (int c = 0; c < 5; c++) {
+                if (m[r][c]) {
+                    mask |= cellMask(r, c);
+                }
+            }
+        }
+        return mask;
+    }
+
+    private static int cellMask(int r, int c) {
+        return 1 << (r * 5 + c);
+    }
+}

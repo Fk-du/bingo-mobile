@@ -1,40 +1,13 @@
 /**
- * Retired patterns, kept only so finished games created before the picker was rebuilt around
- * the canonical GamePatterns list still render their board progress. `FULL_HOUSE` is not
- * retired: it is the first entry in that list, and it is a whole-card pattern rather than a
- * grid, so it is defined here instead of in PATTERN_GRIDS.
+ * Cell sets for the patterns that are not plain grids. `FULL_HOUSE` is the whole card:
+ * it is the first entry in the canonical GamePatterns list, and it is a whole-card
+ * pattern rather than a grid, so it is defined here instead of in PATTERN_GRIDS.
  */
 const PATTERN_CELLS: Record<string, Set<string>> = {
   FULL_HOUSE: new Set(
     Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => `${r},${c}`)).flat(),
   ),
-  SINGLE_LINE: new Set(['2,0', '2,1', '2,2', '2,3', '2,4']),
-  DOUBLE_LINE: new Set(['0,0', '0,1', '0,2', '0,3', '0,4', '4,0', '4,1', '4,2', '4,3', '4,4']),
-  X_SHAPE: new Set(['0,0', '1,1', '2,2', '3,3', '4,4', '0,4', '1,3', '3,1', '4,0']),
-  L_SHAPE: new Set(['0,0', '1,0', '2,0', '3,0', '4,0', '4,1', '4,2', '4,3', '4,4']),
-  T_SHAPE: new Set(['0,0', '0,1', '0,2', '0,3', '0,4', '1,2', '2,2', '3,2', '4,2']),
-  POSTAGE_STAMP: new Set([
-    '0,0', '0,1', '1,0', '1,1',
-    '0,3', '0,4', '1,3', '1,4',
-    '3,0', '3,1', '4,0', '4,1',
-    '3,3', '3,4', '4,3', '4,4',
-  ]),
-  PLUS: new Set(['2,0', '2,1', '2,2', '2,3', '2,4', '0,2', '1,2', '3,2', '4,2']),
-  FRAME: new Set([
-    '0,0', '0,1', '0,2', '0,3', '0,4',
-    '4,0', '4,1', '4,2', '4,3', '4,4',
-    '1,0', '2,0', '3,0',
-    '1,4', '2,4', '3,4',
-  ]),
-  DIAMOND: new Set(['1,1', '1,3', '2,2', '3,1', '3,3']),
-  Z_SHAPE: new Set([
-    '0,0', '0,1', '0,2', '0,3', '0,4',
-    '1,1', '2,2', '3,3',
-    '4,0', '4,1', '4,2', '4,3', '4,4',
-  ]),
 };
-
-PATTERN_CELLS.BLACKOUT = PATTERN_CELLS.FULL_HOUSE;
 
 /**
  * The patterns offered in the admin game-creation picker, written as five rows of five
@@ -67,22 +40,49 @@ const PATTERN_GRIDS: Record<string, string> = {
 
   // Squares, rectangles and dots
   FOUR_SQUARES: '**.**' + '**.**' + '.....' + '**.**' + '**.**',
-  TWO_LINES_TWO_SQUARES: '*****' + '*....' + '**.**' + '**.**' + '*****',
-  TWO_LINES_TWO_SEP_SQUARES: '*...*' + '**.*.' + '*.**.' + '*.**.' + '*..**',
+  TWO_LINES_TWO_SQUARES: '*****' + '**...' + '.....' + '**...' + '*****',
+  TWO_LINES_TWO_SEP_SQUARES: '**.**' + '**.**' + '*...*' + '*...*' + '*...*',
   TWO_LINES_TWO_RECTANGLES: '*****' + '.....' + '*...*' + '*...*' + '*****',
-  THREE_SQUARES_FOUR_DOTS: '*****' + '**.**' + '*...*' + '**...' + '**.*.',
+  THREE_SQUARES_FOUR_DOTS: '**.**' + '**.**' + '..*.*' + '**.*.' + '**..*',
   THREE_RECTANGLES: '****.' + '.....' + '****.' + '.....' + '****.',
 
   // T shapes and crosses
   LARGE_T_TWO_LINES: '*****' + '*****' + '..*..' + '..*..' + '*****',
   LARGE_T_THREE_LINES: '*****' + '*****' + '..*..' + '*****' + '*****',
   THREE_SMALL_T: '***..' + '.*...' + '*....' + '**.*.' + '*.***',
-  LARGE_CROSS_TWO_SQUARES: '**...' + '**...' + '*****' + '..***' + '..***',
-  THREE_SMALL_CROSSES: '.***.' + '*.*..' + '**...' + '*.*..' + '.***.',
+  LARGE_CROSS_TWO_SQUARES: '***..' + '***..' + '*****' + '..***' + '..***',
+  THREE_SMALL_CROSSES: '.*...' + '***..' + '*****' + '..***' + '...*.',
 
   // Half card
   HALF_HOUSE: '*****' + '*****' + '*****' + '.....' + '.....',
 };
+
+/**
+ * Alternative layouts for patterns that can be won through more than one shape, mirroring
+ * the backend's WinningPatternGeometry.VARIANTS. The first entry is always the layout in
+ * PATTERN_GRIDS, so previews and cell counts keep using the primary shape.
+ *
+ * HALF_HOUSE is half of the card in any of eight ways: three rows above or below a free
+ * band, three columns to the left or right of one, or either side of either diagonal.
+ * Every layout is exactly fifteen cells and includes the free centre.
+ */
+const PATTERN_VARIANTS: Record<string, string[]> = {
+  HALF_HOUSE: [
+    '*****' + '*****' + '*****' + '.....' + '.....', // top three rows
+    '.....' + '.....' + '*****' + '*****' + '*****', // bottom three rows
+    '***..' + '***..' + '***..' + '***..' + '***..', // left three columns
+    '..***' + '..***' + '..***' + '..***' + '..***', // right three columns
+    '*....' + '**...' + '***..' + '****.' + '*****', // main diagonal, lower-left half
+    '*****' + '.****' + '..***' + '...**' + '....*', // main diagonal, upper-right half
+    '....*' + '...**' + '..***' + '.****' + '*****', // anti-diagonal, lower-right half
+    '*****' + '****.' + '***..' + '**...' + '*....', // anti-diagonal, upper-left half
+  ],
+};
+
+const PATTERN_VARIANT_CELLS: Record<string, Set<string>[]> = {};
+for (const [code, grids] of Object.entries(PATTERN_VARIANTS)) {
+  PATTERN_VARIANT_CELLS[code] = grids.map(cellsFromGrid);
+}
 
 function cellsFromGrid(grid: string): Set<string> {
   const cells = new Set<string>();
@@ -112,7 +112,19 @@ export function patternProgress(
   if (cells === null) {
     return null;
   }
-  return computeProgress(card, marks, cells);
+  const variants = pattern ? PATTERN_VARIANT_CELLS[pattern] : undefined;
+  if (!variants || variants.length === 0) {
+    return computeProgress(card, marks, cells);
+  }
+  // Multi-shape patterns report the layout closest to winning so far.
+  let best = computeProgress(card, marks, variants[0]);
+  for (let i = 1; i < variants.length; i++) {
+    const progress = computeProgress(card, marks, variants[i]);
+    if (progress.done / progress.total > best.done / best.total) {
+      best = progress;
+    }
+  }
+  return best;
 }
 
 export function computeProgress(

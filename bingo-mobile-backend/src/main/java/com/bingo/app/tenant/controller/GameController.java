@@ -286,7 +286,7 @@ public class GameController {
         if (result.isBanned()) {
             message = "Invalid Bingo claim — you have been banned from this game";
         } else if (result.isPendingReview()) {
-            message = "Bingo claimed! Waiting for admin review.";
+            message = "Bingo claimed!";
         } else {
             message = "Bingo claim processed";
         }
@@ -311,39 +311,6 @@ public class GameController {
         return ApiResponse.ok(gameEngineService.getPendingClaimCards(id));
     }
 
-    @PostMapping("/{id}/claims/{claimId}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<String> rejectClaim(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id,
-            @PathVariable Long claimId,
-            @RequestParam(defaultValue = "Claim rejected by admin") String reason) {
-        gameEngineService.rejectClaim(id, claimId, principal.getUser().getId(), reason);
-        return ApiResponse.ok("Claim rejected, game resumed");
-    }
-
-    @PostMapping("/{id}/claims/{claimId}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<BingoClaimResultResponse> approveClaim(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id,
-            @PathVariable Long claimId) {
-        var result = gameEngineService.approveClaim(id, claimId, principal.getUser().getId());
-        String message = result.isGameEnded()
-                ? "Claim approved. All confirmed winners were paid an equal share of the pot. Game ended."
-                : "Claim approved. The pot is shared equally between every confirmed winner once the remaining claims are reviewed.";
-        return ApiResponse.ok(message, BingoClaimResultResponse.builder()
-                .valid(result.isValid())
-                .claimId(claimId)
-                .pendingReview(result.isPendingReview())
-                .gameEnded(result.isGameEnded())
-                .approvedCount(result.getApprovedCount())
-                .rewardAmount(result.getRewardAmount())
-                .banned(result.isBanned())
-                .restarted(result.isRestarted())
-                .build());
-    }
-
     @PostMapping("/{id}/marks")
     @PreAuthorize("hasRole('PLAYER')")
     public ApiResponse<Void> saveMarks(
@@ -353,22 +320,6 @@ public class GameController {
         gameEngineService.saveMarks(id, principal.getUser().getId(),
                 request.getCardId(), request.getMarkedNumbers(), request.getAutoMark());
         return ApiResponse.ok("Marks saved", null);
-    }
-
-    @PostMapping("/{id}/claims/approve-all")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<BingoClaimResultResponse> approveAllClaims(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @PathVariable Long id) {
-        var result = gameEngineService.approveAllClaims(id, principal.getUser().getId());
-        return ApiResponse.ok("All pending claims approved — winners share the prize. Game ended.",
-                BingoClaimResultResponse.builder()
-                        .valid(true)
-                        .pendingReview(false)
-                        .gameEnded(true)
-                        .approvedCount(result.getApprovedCount())
-                        .rewardAmount(result.getRewardAmount())
-                        .build());
     }
 
     @PostMapping("/{id}/restart")

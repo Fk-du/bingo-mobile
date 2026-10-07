@@ -63,15 +63,6 @@ public class GameAutomationService {
 
     private static final int MIN_PLAYERS_TO_START = 2;
     private static final int DEFAULT_REGISTRATION_WINDOW_SECONDS = 180;
-    /**
-     * Patterns the admin picker no longer offers. Automatic games only ever pick from
-     * {@link #SUPPORTED_PATTERNS}, so retiring these here also stops the random picker
-     * from handing out patterns that are no longer in the canonical list.
-     */
-    private static final Set<String> RETIRED_PATTERNS = Set.of(
-            "SINGLE_LINE", "DOUBLE_LINE", "TRIPLE_LINE", "BLACKOUT", "FOUR_CORNERS",
-            "X_SHAPE", "L_SHAPE", "T_SHAPE", "POSTAGE_STAMP",
-            "PLUS", "FRAME", "DIAMOND", "Z_SHAPE");
 
     /** The canonical GamePatterns list: 28 grid patterns plus the full-card house. */
     private static final Set<String> SUPPORTED_PATTERNS = buildSupportedPatterns();
@@ -94,6 +85,13 @@ public class GameAutomationService {
                         .adminUserId(adminUserId)
                         .build());
 
+        // Auto-approve stays on unless the caller explicitly turns it off: a save
+        // that omits the field (the game-creation form does) must not silently
+        // switch claim validation back to manual for an existing config.
+        Boolean previousAutoApprove = config.getAutoApprove();
+        config.setAutoApprove(request.getAutoApprove() != null
+                ? request.getAutoApprove()
+                : previousAutoApprove == null || previousAutoApprove);
         config.setEntryFee(request.getEntryFee() != null ? request.getEntryFee() : BigDecimal.TEN);
         config.setCallInterval(request.getCallInterval() != null ? request.getCallInterval() : 5);
         config.setRakePercent(request.getRakePercent() != null
@@ -106,7 +104,7 @@ public class GameAutomationService {
         config.setEnabled(Boolean.TRUE.equals(request.getEnabled()));
         config.setAutoReview(Boolean.TRUE.equals(request.getAutoReview()));
         config.setReviewGraceSeconds(request.getReviewGraceSeconds() != null
-                ? request.getReviewGraceSeconds() : 2);
+                ? request.getReviewGraceSeconds() : AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS);
 
         String pattern = normalizePattern(request);
         config.setWinningPattern(pattern);
@@ -197,18 +195,16 @@ public class GameAutomationService {
         // read keeps the 2s scanner from contending with saveConfig/setEnabled or
         // the lifecycle loop's write-lock on the same row.
         AutomationConfig config = automationConfigRepository.findByAdminUserId(adminUserId).orElse(null);
-        if (config == null || !Boolean.TRUE.equals(config.getEnabled())
-                || !Boolean.TRUE.equals(config.getAutoReview())) {
-            return;
-        }
 
-        Game claimPending = gameRepository
-                .findByAdminUserIdAndStatus(adminUserId, GameStatus.CLAIM_PENDING)
-                .orElse(null);
-        if (claimPending == null) {
-            return;
+        // Claim validation is fully automatic and always on: every game with a
+        // pending claim is decided by the engine from server truth, whether or not
+        // automation is enabled or autoReview/autoApprove were ever set. There is
+        // no manual review left to wait for.
+        List<Game> claimPendingGames = gameRepository
+                .findAllByAdminUserIdAndStatusIn(adminUserId, List.of(GameStatus.CLAIM_PENDING));
+        for (Game claimPending : claimPendingGames) {
+            handleClaimReview(adminUserId, config, claimPending);
         }
-        handleClaimReview(adminUserId, config, claimPending);
     }
 
     private void processTenant(Long adminUserId) {
@@ -245,25 +241,21 @@ public class GameAutomationService {
     }
 
     /**
-     * Reject-only claim sanity check once the review grace period after the
-     * first claim has elapsed (so simultaneous winners can still claim). The
-     * system never approves a claim — it only auto-rejects a claim whose card
-     * does not contain the last called number; everything else stays pending
-     * for the admin to decide. When auto-review is disabled no check runs and
-     * the game stays paused for the admin.
+     * Runs the engine's claim review for one game once the review grace period
+     * after the first claim has elapsed (so simultaneous winners can still
+     * claim). The engine decides every pending claim from server truth: wins
+     * are approved, everything else is rejected and banned — no claim is ever
+     * left for a human.
      */
     private void handleClaimReview(Long adminUserId, AutomationConfig config, Game game) {
-        if (!Boolean.TRUE.equals(config.getAutoReview())) {
-            return;
-        }
-
         List<BingoClaim> pending = bingoClaimRepository
                 .findByGameIdAndResultAndValidatedAtIsNull(game.getId(), "VALID");
         if (pending.isEmpty()) {
             return;
         }
 
-        int grace = config.getReviewGraceSeconds() != null ? config.getReviewGraceSeconds() : 2;
+        int grace = config == null || config.getReviewGraceSeconds() == null
+                ? AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS : config.getReviewGraceSeconds();
         LocalDateTime oldestClaim = pending.stream()
                 .map(BingoClaim::getClaimedAt)
                 .filter(Objects::nonNull)
@@ -344,12 +336,6 @@ public class GameAutomationService {
 
     private String normalizePattern(AutomationConfigRequest request) {
         String pattern = request.getWinningPattern() != null ? request.getWinningPattern() : "FULL_HOUSE";
-        if (RETIRED_PATTERNS.contains(pattern)) {
-            // A config saved before the picker changed still carries the old code. Automatic
-            // games randomize the pattern anyway, so fall back instead of blocking the save.
-            log.info("Automation: config still held retired pattern {}, using FULL_HOUSE", pattern);
-            return "FULL_HOUSE";
-        }
         if (!SUPPORTED_PATTERNS.contains(pattern)) {
             throw new GameProgressException("Unsupported winning pattern: " + pattern,
                     "Unknown winning pattern. Pick one from the list.");
@@ -358,12 +344,10 @@ public class GameAutomationService {
     }
 
     /**
-     * The pattern to show for a stored config. A retired code reads as FULL_HOUSE
-     * instead of being passed through, so the admin never sees a pattern that is
-     * no longer in the picker.
+     * The pattern to show for a stored config.
      */
     private String readablePattern(String storedPattern) {
-        if (storedPattern == null || storedPattern.isBlank() || RETIRED_PATTERNS.contains(storedPattern)) {
+        if (storedPattern == null || storedPattern.isBlank()) {
             return "FULL_HOUSE";
         }
         return storedPattern;
@@ -383,8 +367,10 @@ public class GameAutomationService {
                 .autoMark(config.getAutoMark() == null || config.getAutoMark())
                 .registrationWindowSeconds(config.getRegistrationWindowSeconds())
                 .cooldownSeconds(config.getCooldownSeconds())
+                .autoApprove(!Boolean.FALSE.equals(config.getAutoApprove()))
                 .autoReview(Boolean.TRUE.equals(config.getAutoReview()))
-                .reviewGraceSeconds(config.getReviewGraceSeconds() != null ? config.getReviewGraceSeconds() : 2)
+                .reviewGraceSeconds(config.getReviewGraceSeconds() != null ? config.getReviewGraceSeconds()
+                        : AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS)
                 .nextGameAt(config.getNextGameAt())
                 .updatedAt(config.getUpdatedAt())
                 .build();
@@ -401,8 +387,9 @@ public class GameAutomationService {
                 .autoMark(true)
                 .registrationWindowSeconds(DEFAULT_REGISTRATION_WINDOW_SECONDS)
                 .cooldownSeconds(15)
+                .autoApprove(true)
                 .autoReview(false)
-                .reviewGraceSeconds(2)
+                .reviewGraceSeconds(AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS)
                 .build();
     }
 }

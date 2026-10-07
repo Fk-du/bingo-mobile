@@ -16,6 +16,7 @@ public record AutomationConfigResponse(
         boolean autoMark,
         Integer registrationWindowSeconds,
         Integer cooldownSeconds,
+        boolean autoApprove,
         boolean autoReview,
         Integer reviewGraceSeconds,
         LocalDateTime nextGameAt,

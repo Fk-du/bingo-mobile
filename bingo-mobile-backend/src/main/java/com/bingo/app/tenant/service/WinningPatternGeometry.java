@@ -16,9 +16,11 @@ import java.util.Set;
  * irrelevant to the pattern. The centre cell (row 2, column 2) is free on every card, so
  * when a pattern includes it the cell is always considered complete.
  *
- * <p>These codes are validated by {@link GameEngineService#validateBingo} through the same
- * "every listed cell must be called" rule, which is why they do not appear in the older,
- * hand-rolled {@code if ("X_SHAPE".equals(pattern))} branches.
+ * <p>These codes are validated by {@link GameEngineService#validateBingo} through
+ * {@link BingoPatternRules}, which treats each grid as the demonstration of a semantic
+ * family: any arrangement the code's name describes wins, not just the exact cells below.
+ * A code may declare several alternative layouts (see {@link #variants}); the pattern
+ * wins as soon as any one layout is complete.
  */
 public final class WinningPatternGeometry {
 
@@ -52,21 +54,45 @@ public final class WinningPatternGeometry {
 
         // --- Squares, rectangles and dots -------------------------------------------
         GRIDS.put("FOUR_SQUARES", "**.**" + "**.**" + "....." + "**.**" + "**.**");
-        GRIDS.put("TWO_LINES_TWO_SQUARES", "*****" + "*...." + "**.**" + "**.**" + "*****");
-        GRIDS.put("TWO_LINES_TWO_SEP_SQUARES", "*...*" + "**.*." + "*.**." + "*.**." + "*..**");
+        GRIDS.put("TWO_LINES_TWO_SQUARES", "*****" + "**..." + "....." + "**..." + "*****");
+        GRIDS.put("TWO_LINES_TWO_SEP_SQUARES", "**.**" + "**.**" + "*...*" + "*...*" + "*...*");
         GRIDS.put("TWO_LINES_TWO_RECTANGLES", "*****" + "....." + "*...*" + "*...*" + "*****");
-        GRIDS.put("THREE_SQUARES_FOUR_DOTS", "*****" + "**.**" + "*...*" + "**..." + "**.*.");
+        GRIDS.put("THREE_SQUARES_FOUR_DOTS", "**.**" + "**.**" + "..*.*" + "**.*." + "**..*");
         GRIDS.put("THREE_RECTANGLES", "****." + "....." + "****." + "....." + "****.");
 
         // --- T shapes and crosses ----------------------------------------------------
         GRIDS.put("LARGE_T_TWO_LINES", "*****" + "*****" + "..*.." + "..*.." + "*****");
         GRIDS.put("LARGE_T_THREE_LINES", "*****" + "*****" + "..*.." + "*****" + "*****");
         GRIDS.put("THREE_SMALL_T", "***.." + ".*..." + "*...." + "**.*." + "*.***");
-        GRIDS.put("LARGE_CROSS_TWO_SQUARES", "**..." + "**..." + "*****" + "..***" + "..***");
-        GRIDS.put("THREE_SMALL_CROSSES", ".***." + "*.*.." + "**..." + "*.*.." + ".***.");
+        GRIDS.put("LARGE_CROSS_TWO_SQUARES", "***.." + "***.." + "*****" + "..***" + "..***");
+        GRIDS.put("THREE_SMALL_CROSSES", ".*..." + "***.." + "*****" + "..***" + "...*.");
 
         // --- Half card ---------------------------------------------------------------
         GRIDS.put("HALF_HOUSE", "*****" + "*****" + "*****" + "....." + ".....");
+    }
+
+    /**
+     * Alternative layouts for patterns that can be won through more than one shape. The
+     * first entry is always the layout declared in {@link #GRIDS}, so {@link #cells} and
+     * anything keyed off the primary layout (previews, cell counts) stay unchanged.
+     *
+     * <p>HALF_HOUSE is half of the card in any of eight ways: three rows above or below a
+     * free band, three columns to the left or right of one, or either side of either
+     * diagonal. Every layout is exactly fifteen cells and includes the free centre.
+     */
+    private static final Map<String, List<String>> VARIANTS = new LinkedHashMap<>();
+
+    static {
+        VARIANTS.put("HALF_HOUSE", List.of(
+                "*****" + "*****" + "*****" + "....." + ".....",   // top three rows
+                "....." + "....." + "*****" + "*****" + "*****",   // bottom three rows
+                "***.." + "***.." + "***.." + "***.." + "***..",   // left three columns
+                "..***" + "..***" + "..***" + "..***" + "..***",   // right three columns
+                "*...." + "**..." + "***.." + "****." + "*****",   // main diagonal, lower-left half
+                "*****" + ".****" + "..***" + "...**" + "....*",   // main diagonal, upper-right half
+                "....*" + "...**" + "..***" + ".****" + "*****",   // anti-diagonal, lower-right half
+                "*****" + "****." + "***.." + "**..." + "*...."    // anti-diagonal, upper-left half
+        ));
     }
 
     /** Every code defined here, in the order they were declared. */
@@ -80,18 +106,38 @@ public final class WinningPatternGeometry {
 
     /** True when the pattern includes the free centre cell. */
     public static boolean usesFreeCentre(String code) {
-        return cells(code).contains(new int[]{2, 2});
+        return cells(code).stream().anyMatch(cell -> cell[0] == 2 && cell[1] == 2);
     }
 
     /**
      * The cells that make up the pattern, or an empty list when the code is not one of the
-     * grid-defined patterns.
+     * grid-defined patterns. Multi-shape codes report their primary layout; use
+     * {@link #variants} to test every layout a pattern wins through.
      */
     public static List<int[]> cells(String code) {
         String grid = code != null ? GRIDS.get(code) : null;
-        if (grid == null) {
-            return Collections.emptyList();
+        return grid == null ? Collections.emptyList() : toCells(grid);
+    }
+
+    /**
+     * Every layout that satisfies the pattern, primary layout first. A single-shape code
+     * returns exactly the cells of {@link #cells}; codes listed in {@link #VARIANTS}
+     * return all of their layouts. Unknown or non-grid codes return an empty list.
+     */
+    public static List<List<int[]>> variants(String code) {
+        List<String> grids = code != null ? VARIANTS.get(code) : null;
+        if (grids == null) {
+            List<int[]> single = cells(code);
+            return single.isEmpty() ? List.of() : List.of(single);
         }
+        List<List<int[]>> layouts = new ArrayList<>();
+        for (String grid : grids) {
+            layouts.add(toCells(grid));
+        }
+        return layouts;
+    }
+
+    private static List<int[]> toCells(String grid) {
         List<int[]> cells = new ArrayList<>();
         for (int row = 0; row < 5; row++) {
             for (int col = 0; col < 5; col++) {

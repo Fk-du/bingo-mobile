@@ -104,6 +104,20 @@ export interface PreviewCardView {
   numbers: number[][];
 }
 
+/** A winning card of the game, for the results board. */
+export interface WinnerCardView {
+  cardId: number;
+  numbers: number[][];
+  /** The winner's share of the prize; equal for every winner of the round. */
+  rewardAmount?: number | null;
+}
+
+/** A card banned in the game, for the results board. */
+export interface BannedCardView {
+  cardId: number;
+  numbers: number[][];
+}
+
 /** Result of removing a card from the player's board. */
 export interface CardRemovalResponse {
   /** False when the card was only a preview, so nothing was refunded. */
@@ -132,6 +146,12 @@ export interface GameStateResponse {
   rewardAmount?: number | null;
   /** How many cards won this game, so a winner can see the prize was shared. */
   winnerCount?: number | null;
+  /** Every winning card of this game, for the results board. */
+  winnerCards: WinnerCardView[] | null;
+  /** Every banned card of this game, for the results board. */
+  bannedCards: BannedCardView[] | null;
+  /** Only while the game is paused on a claim: the moment the automatic reviewer decides everyone. */
+  claimWindowEndsAt?: string | null;
   startTime?: string | null;
 }
 
@@ -196,6 +216,12 @@ export interface AdminGameStateResponse {
   calledNumbers: number[];
   calledNumbersLabeled?: string[];
   playerCount: number;
+  /** Every winning card of this game, for the results board. */
+  winnerCards: WinnerCardView[] | null;
+  /** Every banned card of this game, for the results board. */
+  bannedCards: BannedCardView[] | null;
+  /** Only while the game is paused on a claim: the moment the automatic reviewer decides everyone. */
+  claimWindowEndsAt?: string | null;
 }
 
 /** What the admin needs to choose a prize: the pot, the allowed band, a suggestion. */
@@ -219,6 +245,8 @@ export interface AutomationConfig {
   autoMark: boolean;
   registrationWindowSeconds: number;
   cooldownSeconds: number;
+  /** Claims are validated automatically by the system (default on). */
+  autoApprove?: boolean;
   nextGameAt?: string | null;
   updatedAt?: string | null;
 }
@@ -232,6 +260,8 @@ export interface AutomationConfigRequest {
   registrationWindowSeconds: number;
   cooldownSeconds: number;
   enabled?: boolean;
+  /** Set false to keep every claim manual; omitted keeps the current setting (default on). */
+  autoApprove?: boolean;
 }
 
 export interface GameCardResponse {

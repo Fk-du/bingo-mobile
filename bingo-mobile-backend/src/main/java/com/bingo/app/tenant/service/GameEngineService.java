@@ -65,6 +65,13 @@ public class GameEngineService {
     private final GameService gameService;
     private final PrizeRules prizeRules;
 
+    // Not part of the positional constructor (tests build the service directly):
+    // injected by Spring when present, so the state readers can report the
+    // claim-window deadline without stretching every unit test's stubs. When
+    // null the review grace falls back to the shared default.
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private AutomationConfigRepository automationConfigRepository;
+
 
     @Value("${bingo.game.claim-timeout-seconds:300}")
     private int claimTimeoutSeconds;
@@ -73,21 +80,6 @@ public class GameEngineService {
     private final ScheduledThreadPoolExecutor taskScheduler = new ScheduledThreadPoolExecutor(4);
     private final Map<Long, ScheduledFuture<?>> activeGameTasks = new ConcurrentHashMap<>();
     private final Map<Long, String> gameTenantContexts = new ConcurrentHashMap<>();
-
-    // Bingo patterns
-    private static final List<int[]> WINNING_PATTERNS = List.of(            new int[]{0,0, 0,1, 0,2, 0,3, 0,4}, // Top row
-            new int[]{1,0, 1,1, 1,2, 1,3, 1,4}, // Second row
-            new int[]{2,0, 2,1, 2,2, 2,3, 2,4}, // Third row
-            new int[]{3,0, 3,1, 3,2, 3,3, 3,4}, // Fourth row
-            new int[]{4,0, 4,1, 4,2, 4,3, 4,4}, // Bottom row
-            new int[]{0,0, 1,0, 2,0, 3,0, 4,0}, // First column
-            new int[]{0,1, 1,1, 2,1, 3,1, 4,1}, // Second column
-            new int[]{0,2, 1,2, 2,2, 3,2, 4,2}, // Third column
-            new int[]{0,3, 1,3, 2,3, 3,3, 4,3}, // Fourth column
-            new int[]{0,4, 1,4, 2,4, 3,4, 4,4}, // Fifth column
-            new int[]{0,0, 1,1, 2,2, 3,3, 4,4}, // Main diagonal
-            new int[]{0,4, 1,3, 2,2, 3,1, 4,0}  // Anti-diagonal
-    );
 
     /**
      * Start automatic number calling for a game
@@ -394,10 +386,12 @@ public class GameEngineService {
             return;
         }
 
-        // Same courtesy as any other resume: warn every player, then count down.
-        resumeWithCountdown(gameId, locked, REASON_CLAIM_RESOLVED);
+        // Nothing left to review: settle any winner already confirmed during this
+        // round (an auto-approved claim must still be paid when its unresolvable
+        // companion claim times out); with no winner this resumes the countdown.
+        settleApprovedWinners(locked, locked.getAdminUserId());
 
-        log.info("Game {}: All timed-out claims rejected, game resuming in {} seconds.",
+        log.info("Game {}: All timed-out claims rejected, game settled or resuming in {} seconds.",
                 gameId, COUNTDOWN_SECONDS);
     }
 
@@ -515,10 +509,15 @@ public class GameEngineService {
 
     /**
      * Claim Bingo for a player — allows multiple simultaneous claims.
-     * The system never approves: the admin decides who wins. The only automatic
-     * decision is a rejection — a card that does not contain the game's last
-     * called number can never be a real Bingo, so that claim is rejected and the
-     * card is banned. Every other claim waits for the admin.
+     * The system only makes decisions it can prove. At submission time that is
+     * a rejection: when the game's pattern is readable, a card on which the
+     * pattern is provably incomplete can never become a real Bingo, so the
+     * claim is rejected, the card banned and the game never paused; when the
+     * pattern is not readable the last-called-number heuristic applies (a card
+     * without the game's last called number is impossible). A claim whose
+     * pattern is provably complete, and every claim the system cannot prove
+     * either way, waits in the pending queue for the automatic reviewer, which
+     * decides every remaining claim from server truth within seconds.
      */
     @Transactional(transactionManager = "tenantTransactionManager")
     public BingoClaimResult claimBingo(Long gameId, Long playerId, Long cardId, java.util.List<Integer> markedNumbers, Boolean autoMark) throws JsonProcessingException {
@@ -563,24 +562,37 @@ public class GameEngineService {
             gameCardRepository.save(gameCard);
         }
 
-        // The system never decides a winner — the admin does. Its single automatic
-        // decision is a REJECTION: a card that does not contain the game's last
-        // called number can never be a real Bingo, so the claim is impossible.
-        // The claim is recorded as rejected, only the card that tried to claim is
-        // banned (the player's other cards keep playing), the owner is notified
-        // and the game is never paused for an impossible claim. No refund.
-        // A card the server cannot read proves nothing, so it goes to the admin.
+        // Two certain rejections can happen here, in order of reliability:
+        //  - the pattern is readable and the card provably does not complete it
+        //    with the numbers called so far — no future call can undo a claim
+        //    that was already impossible when it was made;
+        //  - the pattern is not readable — the legacy heuristic: a card that
+        //    does not even contain the game's last called number cannot hold a
+        //    real Bingo.
+        // A provably complete pattern skips both checks: the win is real however
+        // late the player claims, and waits for the automatic reviewer to confirm
+        // it. Unreadable card data proves nothing and stays in the queue for the
+        // reviewer to reject from the registered card.
         Integer lastCalledNumber = calledNumbers.isEmpty()
                 ? null
                 : calledNumbers.get(calledNumbers.size() - 1);
         int[][] cardNumbers = parseCardNumbersOrNull(card.getNumbers());
-        if (lastCalledNumber != null && cardNumbers != null
+        boolean patternDecidable = cardNumbers != null && cardGridIsSane(cardNumbers)
+                && isRecognizedPattern(game.getWinningPattern());
+        if (patternDecidable && !calledNumbers.isEmpty()) {
+            if (!validateBingo(cardNumbers, calledNumbers, game.getWinningPattern())) {
+                return rejectImpossibleClaim(game, gameCard, card, calledNumbers,
+                        "Pattern " + game.getWinningPattern()
+                                + " is not complete with the numbers called so far");
+            }
+        } else if (lastCalledNumber != null && cardNumbers != null
                 && !cardContainsNumber(cardNumbers, lastCalledNumber)) {
-            return rejectImpossibleClaim(game, gameCard, card, calledNumbers, lastCalledNumber);
+            return rejectImpossibleClaim(game, gameCard, card, calledNumbers,
+                    "Card does not contain the last called number (" + lastCalledNumber + ")");
         }
 
-        // Every other claim is left pending for the admin to review — even a card
-        // with a complete pattern. The pattern is validated by the admin.
+        // Every claim that survived the certain checks is left pending for the
+        // automatic reviewer to decide.
 
         // Pause on first claim only
         boolean firstClaim = game.getStatus() == GameStatus.IN_PROGRESS;
@@ -973,14 +985,13 @@ public class GameEngineService {
     }
 
     /**
-     * Automated claim review — a backstop for claims that reached CLAIM_PENDING
-     * without being screened at submission time. Auto-approval was removed: the
-     * admin always decides who wins. The system's only automatic decision is
-     * rejecting a claim whose card does not even contain the game's last called
-     * number — such a claim can never be a real Bingo (the card gets banned and
-     * the claim is processed exactly like a manual rejection). Every other claim
-     * is left pending for the admin to review before the claim-timeout backstop
-     * kicks in.
+     * Automated claim review — the only way claims are ever decided. Validation
+     * is fully automatic and always on: every pending claim of a round is
+     * classified against server truth and acted on without an admin. A provable
+     * win ({@link ClaimVerdict#WIN}) is approved and paid when the round
+     * resolves; everything else — pattern incomplete, unrecognized pattern, or
+     * unreadable/missing card data ({@link ClaimVerdict#LOSS}) — is rejected
+     * and the card is banned. No claim is ever left undecided.
      */
     @Transactional(transactionManager = "tenantTransactionManager")
     public void automatedClaimReview(Long gameId, Long adminId) {
@@ -1000,37 +1011,43 @@ public class GameEngineService {
         if (serverCalled.isEmpty()) {
             return;
         }
-        int lastCalled = serverCalled.get(serverCalled.size() - 1);
 
         for (BingoClaim claim : pending) {
-            // The system never decides a winner — the admin does. The only
-            // automatic rejection is when the claimed card does not contain the
-            // game's last called number, because that claim cannot be real.
-            String reason = claimLacksLastCalledNumber(game, claim, lastCalled);
-            if (reason != null) {
+            String registeredJson = registeredCardJson(game, claim);
+            int[][] serverCard = parseCardNumbersOrNull(registeredJson);
+            ClaimVerdict verdict = classifyClaim(game, claim, serverCalled, serverCard);
+            if (verdict == ClaimVerdict.LOSS) {
                 try {
-                    rejectClaim(gameId, claim.getId(), adminId, "auto: " + reason);
+                    rejectClaim(gameId, claim.getId(), adminId,
+                            "auto: Pattern " + game.getWinningPattern()
+                                    + " not complete on this card with called numbers");
                 } catch (Exception e) {
-                    log.warn("Game {}: auto-reject of claim {} failed: {}", gameId, claim.getId(), e.getMessage());
+                    log.warn("Game {}: auto-reject (LOSS) of claim {} failed: {}", gameId, claim.getId(), e.getMessage());
                 }
-            } else {
-                log.info("Game {}: claim {} left for the admin to review.", gameId, claim.getId());
+                continue;
+            }
+            if (verdict == ClaimVerdict.WIN) {
+                try {
+                    approveClaim(gameId, claim.getId(), adminId);
+                } catch (RequestAlreadyProcessedException e) {
+                    log.info("Game {}: claim {} already processed while auto-approving.", gameId, claim.getId());
+                } catch (Exception e) {
+                    log.warn("Game {}: auto-approve of claim {} failed: {}", gameId, claim.getId(), e.getMessage());
+                }
             }
         }
     }
 
     /**
-     * Reject a claim whose card does not contain the game's last called number.
-     * Such a claim can never be a real Bingo, so it is processed exactly like an
-     * admin rejection: the claim is stored as REJECTED, only the card that tried
-     * to claim is banned, and the owner is notified. The game keeps its current
-     * status — an impossible claim never pauses it — and the entry fee is not
-     * refunded.
+     * Reject a claim the system proved impossible (incomplete pattern, or the
+     * legacy last-called-number heuristic). The claim is recorded as rejected,
+     * only the card that tried to claim is banned and the owner is notified;
+     * the game keeps its current status — an impossible claim never pauses it —
+     * and the entry fee is not refunded.
      */
     private BingoClaimResult rejectImpossibleClaim(Game game, GameCard gameCard, Card card,
-                                                   List<Integer> calledNumbers, int lastCalledNumber)
+                                                   List<Integer> calledNumbers, String reason)
             throws JsonProcessingException {
-        String reason = "Card does not contain the last called number (" + lastCalledNumber + ")";
         LocalDateTime now = LocalDateTime.now();
 
         BingoClaim claim = BingoClaim.builder()
@@ -1064,21 +1081,33 @@ public class GameEngineService {
                 .build();
     }
 
+    public enum ClaimVerdict {
+        WIN, LOSS
+    }
+
     /**
-     * Returns a rejection reason when the claimed card does not contain the
-     * game's last called number, or {@code null} when the claim must be decided
-     * by the admin (the last number is on the card, or the card is not
-     * registered on the server).
+     * Decide a claim on server truth alone. Validation is fully automatic: a
+     * claim is a {@linkplain ClaimVerdict#WIN win} when the registered card
+     * completes the game's pattern with the numbers called so far, and a
+     * {@linkplain ClaimVerdict#LOSS loss} for everything else. Missing or
+     * unreadable card data, an unrecognized winning pattern, or a card the
+     * server cannot parse are all losses — a claim is never left undecided
+     * for a human to resolve.
      */
-    private String claimLacksLastCalledNumber(Game game, BingoClaim claim, int lastCalled) {
-        String registeredJson = registeredCardJson(game, claim);
-        if (registeredJson == null) {
-            return null;
+    private ClaimVerdict classifyClaim(Game game, BingoClaim claim, List<Integer> serverCalled,
+                                      int[][] serverCard) {
+        if (game == null || claim == null || serverCalled == null || serverCalled.isEmpty()
+                || serverCard == null) {
+            return ClaimVerdict.LOSS;
         }
-        if (cardContainsNumber(parseCardNumbers(registeredJson), lastCalled)) {
-            return null;
+        String pattern = game.getWinningPattern();
+        if (!isRecognizedPattern(pattern) || !cardGridIsSane(serverCard)) {
+            return ClaimVerdict.LOSS;
         }
-        return "Card does not contain the last called number (" + lastCalled + ")";
+        if (validateBingo(serverCard, serverCalled, pattern)) {
+            return ClaimVerdict.WIN;
+        }
+        return ClaimVerdict.LOSS;
     }
 
     private boolean cardContainsNumber(int[][] card, int number) {
@@ -1161,26 +1190,18 @@ public class GameEngineService {
     /**
      * Validate Bingo claim — respects the game's configured winning pattern.
      *
-     * SINGLE_LINE: any one of the 12 line patterns (rows, columns, diagonals) is complete.
-     * DOUBLE_LINE: at least two distinct line patterns are complete.
-     * TRIPLE_LINE: at least three distinct line patterns are complete.
-     * FULL_HOUSE:  all 24 non-free cells are called.
-     * FOUR_CORNERS: the four corner cells are called.
-     * BLACKOUT: same as FULL_HOUSE (alias).
-     * L_SHAPE: bottom row + first column complete.
-     * T_SHAPE: top row + third column complete.
-     * X_SHAPE: both diagonals complete.
-     * POSTAGE_STAMP: any 2x2 block in a corner is complete.
-     * PLUS: middle row + middle column complete.
-     * FRAME: all outer border cells complete.
-     * DIAMOND: the four cells diagonally adjacent to the centre are complete.
-     * Z_SHAPE: top row + main diagonal + bottom row complete.
+     * <p>FULL_HOUSE needs all 24 non-free cells called. Every other code in the admin
+     * picker ({@link WinningPatternGeometry#codes()}) is settled semantically by
+     * {@link BingoPatternRules}: the grid shown to the player is one example of the
+     * pattern, and any arrangement the code's name describes wins (any N complete
+     * lines, any N complete 2x2 blocks, and so on). See the rules class for each
+     * mapping. A pattern outside the canonical set asks for nothing and never wins.
      */
     boolean validateBingo(int[][] cardNumbers, List<Integer> calledNumbers, String pattern) {
         Set<Integer> calledSet = new HashSet<>(calledNumbers);
         calledSet.add(0);
 
-        if ("FULL_HOUSE".equals(pattern) || "BLACKOUT".equals(pattern)) {
+        if ("FULL_HOUSE".equals(pattern)) {
             for (int row = 0; row < 5; row++) {
                 for (int col = 0; col < 5; col++) {
                     if (row == 2 && col == 2) continue;
@@ -1192,148 +1213,8 @@ public class GameEngineService {
             return true;
         }
 
-        if ("FOUR_CORNERS".equals(pattern)) {
-            return calledSet.contains(cardNumbers[0][0])
-                    && calledSet.contains(cardNumbers[0][4])
-                    && calledSet.contains(cardNumbers[4][0])
-                    && calledSet.contains(cardNumbers[4][4]);
-        }
-
-        if ("X_SHAPE".equals(pattern)) {
-            // Both diagonals
-            boolean mainDiag = true, antiDiag = true;
-            for (int i = 0; i < 5; i++) {
-                if (!calledSet.contains(cardNumbers[i][i])) mainDiag = false;
-                if (!calledSet.contains(cardNumbers[i][4 - i])) antiDiag = false;
-            }
-            return mainDiag && antiDiag;
-        }
-
-        if ("L_SHAPE".equals(pattern)) {
-            // Bottom row (4,0-4) + first column (0-4,0) — center counted once
-            boolean bottomRow = true, firstCol = true;
-            for (int col = 0; col < 5; col++) {
-                if (!calledSet.contains(cardNumbers[4][col])) bottomRow = false;
-            }
-            for (int row = 0; row < 5; row++) {
-                if (!calledSet.contains(cardNumbers[row][0])) firstCol = false;
-            }
-            return bottomRow && firstCol;
-        }
-
-        if ("T_SHAPE".equals(pattern)) {
-            // Top row (0,0-4) + third column (0-4,2)
-            boolean topRow = true, thirdCol = true;
-            for (int col = 0; col < 5; col++) {
-                if (!calledSet.contains(cardNumbers[0][col])) topRow = false;
-            }
-            for (int row = 0; row < 5; row++) {
-                if (!calledSet.contains(cardNumbers[row][2])) thirdCol = false;
-            }
-            return topRow && thirdCol;
-        }
-
-        if ("POSTAGE_STAMP".equals(pattern)) {
-            // Any 2x2 block in the four corners
-            return is2x2Complete(cardNumbers, calledSet, 0, 0)
-                    || is2x2Complete(cardNumbers, calledSet, 0, 3)
-                    || is2x2Complete(cardNumbers, calledSet, 3, 0)
-                    || is2x2Complete(cardNumbers, calledSet, 3, 3);
-        }
-
-        if ("PLUS".equals(pattern)) {
-            // Middle row (2,0-4) + middle column (0-4,2)
-            boolean middleRow = true, middleCol = true;
-            for (int col = 0; col < 5; col++) {
-                if (!calledSet.contains(cardNumbers[2][col])) middleRow = false;
-            }
-            for (int row = 0; row < 5; row++) {
-                if (!calledSet.contains(cardNumbers[row][2])) middleCol = false;
-            }
-            return middleRow && middleCol;
-        }
-
-        if ("FRAME".equals(pattern)) {
-            // All outer border cells
-            int[][] frame = {
-                    {0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4},
-                    {4, 0}, {4, 1}, {4, 2}, {4, 3}, {4, 4},
-                    {1, 0}, {2, 0}, {3, 0},
-                    {1, 4}, {2, 4}, {3, 4}
-            };
-            for (int[] cell : frame) {
-                if (!calledSet.contains(cardNumbers[cell[0]][cell[1]])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if ("DIAMOND".equals(pattern)) {
-            // The four cells diagonally adjacent to the (free) center
-            return calledSet.contains(cardNumbers[1][1])
-                    && calledSet.contains(cardNumbers[1][3])
-                    && calledSet.contains(cardNumbers[3][1])
-                    && calledSet.contains(cardNumbers[3][3]);
-        }
-
-        if ("Z_SHAPE".equals(pattern)) {
-            // Top row + main diagonal + bottom row
-            boolean topRow = true, bottomRow = true, diag = true;
-            for (int col = 0; col < 5; col++) {
-                if (!calledSet.contains(cardNumbers[0][col])) topRow = false;
-                if (!calledSet.contains(cardNumbers[4][col])) bottomRow = false;
-            }
-            for (int i = 1; i < 4; i++) {
-                if (!calledSet.contains(cardNumbers[i][i])) diag = false;
-            }
-            return topRow && bottomRow && diag;
-        }
-
-        if (WinningPatternGeometry.has(pattern)) {
-            // Grid-defined patterns from the admin picker: every listed cell must be called.
-            List<int[]> cells = WinningPatternGeometry.cells(pattern);
-            if (cells.isEmpty()) {
-                return false;
-            }
-            for (int[] cell : cells) {
-                int r = cell[0], c = cell[1];
-                if (r == 2 && c == 2) continue; // free centre
-                if (!calledSet.contains(cardNumbers[r][c])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        int completedLines = 0;
-        for (int[] winPattern : WINNING_PATTERNS) {
-            boolean lineComplete = true;
-            for (int i = 0; i < winPattern.length; i += 2) {
-                int row = winPattern[i];
-                int col = winPattern[i + 1];
-                if (!calledSet.contains(cardNumbers[row][col])) {
-                    lineComplete = false;
-                    break;
-                }
-            }
-            if (lineComplete) {
-                completedLines++;
-            }
-        }
-
-        return switch (pattern != null ? pattern : "SINGLE_LINE") {
-            case "DOUBLE_LINE" -> completedLines >= 2;
-            case "TRIPLE_LINE" -> completedLines >= 3;
-            default -> completedLines >= 1;
-        };
-    }
-
-    private boolean is2x2Complete(int[][] card, Set<Integer> called, int startRow, int startCol) {
-        return called.contains(card[startRow][startCol])
-                && called.contains(card[startRow][startCol + 1])
-                && called.contains(card[startRow + 1][startCol])
-                && called.contains(card[startRow + 1][startCol + 1]);
+        return WinningPatternGeometry.has(pattern)
+                && BingoPatternRules.wins(cardNumbers, calledSet, pattern);
     }
 
     /**
@@ -1361,6 +1242,38 @@ public class GameEngineService {
             return null;
         }
     }
+
+    /**
+     * Every pattern the engine can decide automatically: the canonical picker set
+     * (all grid-defined codes plus the whole-card house). Claims under anything
+     * outside this set are rejected as losses — the set is the single source of
+     * truth for {@link #isRecognizedPattern}.
+     */
+    static Set<String> recognizedPatternCodes() {
+        Set<String> codes = new LinkedHashSet<>(WinningPatternGeometry.codes());
+        codes.add("FULL_HOUSE");
+        return Collections.unmodifiableSet(codes);
+    }
+
+    static boolean isRecognizedPattern(String pattern) {
+        if (pattern == null || pattern.isBlank()) {
+            return false;
+        }
+        return recognizedPatternCodes().contains(pattern.trim().toUpperCase());
+    }
+
+    private boolean cardGridIsSane(int[][] card) {
+        if (card == null || card.length != 5) {
+            return false;
+        }
+        for (int[] row : card) {
+            if (row == null || row.length != 5) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 
     /**
      * Get current game state for a player
@@ -1419,6 +1332,34 @@ public class GameEngineService {
                 ? firstCardPref
                 : Boolean.TRUE.equals(game.getAutoMark());
 
+        // Whole-game results, so the ended board can list every winning and every
+        // banned card of the round, not just the caller's own.
+        List<GameStateResponse.WinnerCardView> winnerCards;
+        List<GameStateResponse.BannedCardView> bannedCards;
+        if (game.getStatus() == GameStatus.ENDED) {
+            List<BingoClaim> validClaims = bingoClaimRepository.findByGameIdAndResult(gameId, "VALID");
+            winnerCards = gameCardRepository.findByGameIdAndWinnerTrue(gameId).stream()
+                    .map(gc -> new GameStateResponse.WinnerCardView(
+                            gc.getCard().getId(),
+                            parseCardNumbers(gc.getCard().getNumbers()),
+                            validClaims.stream()
+                                    .filter(c -> c.getCardId() != null && c.getCardId().equals(gc.getCard().getId()))
+                                    .filter(c -> c.getRewardAmount() != null)
+                                    .map(BingoClaim::getRewardAmount)
+                                    .findFirst()
+                                    .orElse(null)))
+                    .toList();
+            bannedCards = gameCardRepository.findByGameId(gameId).stream()
+                    .filter(GameCard::isBanned)
+                    .map(gc -> new GameStateResponse.BannedCardView(
+                            gc.getCard().getId(),
+                            parseCardNumbers(gc.getCard().getNumbers())))
+                    .toList();
+        } else {
+            winnerCards = List.of();
+            bannedCards = List.of();
+        }
+
         return GameState.builder()
                 .gameId(gameId)
                 .status(game.getStatus())
@@ -1432,6 +1373,9 @@ public class GameEngineService {
                 .isWinner(anyWinner)
                 .rewardAmount(winnerReward)
                 .winnerCount(winnerCount)
+                .winnerCards(winnerCards)
+                .bannedCards(bannedCards)
+                .claimWindowEndsAt(claimWindowEndsAt(game))
                 .autoMark(autoMark)
                 .startTime(game.getStartTime())
                 .winningPattern(game.getWinningPattern())
@@ -1452,11 +1396,74 @@ public class GameEngineService {
 
         int playerCount = (int) gameCardRepository.countDistinctPlayersByGameId(gameId);
 
+        List<GameStateResponse.WinnerCardView> winnerCards;
+        List<GameStateResponse.BannedCardView> bannedCards;
+        if (game.getStatus() == GameStatus.ENDED) {
+            List<BingoClaim> validClaims = bingoClaimRepository.findByGameIdAndResult(gameId, "VALID");
+            winnerCards = gameCardRepository.findByGameIdAndWinnerTrue(gameId).stream()
+                    .map(gc -> new GameStateResponse.WinnerCardView(
+                            gc.getCard().getId(),
+                            parseCardNumbers(gc.getCard().getNumbers()),
+                            validClaims.stream()
+                                    .filter(c -> c.getCardId() != null && c.getCardId().equals(gc.getCard().getId()))
+                                    .filter(c -> c.getRewardAmount() != null)
+                                    .map(BingoClaim::getRewardAmount)
+                                    .findFirst()
+                                    .orElse(null)))
+                    .toList();
+            bannedCards = gameCardRepository.findByGameId(gameId).stream()
+                    .filter(GameCard::isBanned)
+                    .map(gc -> new GameStateResponse.BannedCardView(
+                            gc.getCard().getId(),
+                            parseCardNumbers(gc.getCard().getNumbers())))
+                    .toList();
+        } else {
+            winnerCards = List.of();
+            bannedCards = List.of();
+        }
+
         return AdminGameState.builder()
                 .game(game)
                 .calledNumbers(calledNumbers)
                 .playerCount(playerCount)
+                .winnerCards(winnerCards)
+                .bannedCards(bannedCards)
+                .claimWindowEndsAt(claimWindowEndsAt(game))
                 .build();
+    }
+
+    /**
+     * The players' window to claim Bingo: the review deadline, computed exactly
+     * as the automatic reviewer computes it — the oldest pending claim plus the
+     * tenant's review grace (10s by default). Null unless the game is paused on
+     * a claim, so screens only animate the countdown while it can actually be
+     * acted on.
+     */
+    private LocalDateTime claimWindowEndsAt(Game game) {
+        if (game.getStatus() != GameStatus.CLAIM_PENDING) {
+            return null;
+        }
+        int grace = reviewGraceSeconds(game);
+        return bingoClaimRepository
+                .findByGameIdAndResultAndValidatedAtIsNull(game.getId(), "VALID").stream()
+                .map(BingoClaim::getClaimedAt)
+                .filter(Objects::nonNull)
+                .min(LocalDateTime::compareTo)
+                .map(oldest -> oldest.plusSeconds(grace))
+                .orElse(null);
+    }
+
+    private int reviewGraceSeconds(Game game) {
+        if (automationConfigRepository != null) {
+            Integer grace = automationConfigRepository
+                    .findByAdminUserId(game.getAdminUserId())
+                    .map(AutomationConfig::getReviewGraceSeconds)
+                    .orElse(null);
+            if (grace != null) {
+                return grace;
+            }
+        }
+        return AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS;
     }
 
     @lombok.Builder
@@ -1465,6 +1472,14 @@ public class GameEngineService {
         private Game game;
         private List<Integer> calledNumbers;
         private int playerCount;
+        private List<GameStateResponse.WinnerCardView> winnerCards;
+        private List<GameStateResponse.BannedCardView> bannedCards;
+        /**
+         * When the game is paused on a claim: the moment the automatic reviewer
+         * decides every pending claim. Until then players can still claim Bingo.
+         * Null whenever the game is not waiting on a claim.
+         */
+        private java.time.LocalDateTime claimWindowEndsAt;
     }
 
     static java.util.List<Integer> parseMarkedNumbers(GameCard gameCard) {
@@ -1818,6 +1833,14 @@ public class GameEngineService {
         private boolean isWinner;
         private BigDecimal rewardAmount;
         private int winnerCount;
+        private List<GameStateResponse.WinnerCardView> winnerCards;
+        private List<GameStateResponse.BannedCardView> bannedCards;
+        /**
+         * When the game is paused on a claim: the moment the automatic reviewer
+         * decides every pending claim. Until then players can still claim Bingo.
+         * Null whenever the game is not waiting on a claim.
+         */
+        private java.time.LocalDateTime claimWindowEndsAt;
         private Boolean autoMark;
         private java.time.LocalDateTime startTime;
         private String winningPattern;

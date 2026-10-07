@@ -47,6 +47,14 @@ public class AutomationConfigRequest {
 
     private Boolean enabled;
 
+    /**
+     * Let the system decide claims on its own (default when omitted): approve a
+     * provably complete pattern, reject an incomplete one and ban the card, and
+     * leave anything unprovable with the admin. Set false to keep every claim
+     * manual.
+     */
+    private Boolean autoApprove;
+
     /** When true (with automation enabled), claims are auto-approved/rejected without the admin. */
     private Boolean autoReview;
 

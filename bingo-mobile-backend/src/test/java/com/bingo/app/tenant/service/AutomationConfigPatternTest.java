@@ -15,9 +15,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 /**
- * A row written before the winning-pattern picker changed still holds a retired
- * code. The admin UI no longer offers it, so reading the config must not hand
- * that stale value back to the screen.
+ * How a stored automation config's winning pattern is read back. Only the canonical
+ * 29 patterns are saveable, so a stored code — canonical or not — is passed through
+ * as-is for the admin to see; automatic games ignore it and randomise from the
+ * canonical list anyway.
  */
 class AutomationConfigPatternTest {
 
@@ -43,11 +44,11 @@ class AutomationConfigPatternTest {
     }
 
     @Test
-    @DisplayName("a retired stored pattern reads back as FULL_HOUSE")
-    void retiredStoredPatternReadsAsFullHouse() {
+    @DisplayName("a non-canonical stored pattern is returned unchanged, not guessed at")
+    void nonCanonicalStoredPatternIsUnchanged() {
         storedWith("SINGLE_LINE");
 
-        assertEquals("FULL_HOUSE", service.getConfig(1L).winningPattern());
+        assertEquals("SINGLE_LINE", service.getConfig(1L).winningPattern());
     }
 
     @Test

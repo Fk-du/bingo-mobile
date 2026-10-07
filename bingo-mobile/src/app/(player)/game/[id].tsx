@@ -7,14 +7,14 @@ import { getApiErrorMessage } from '@/api/client';
 import { CardTile } from '@/components/games/CardTile';
 import { FairnessPanel } from '@/components/games/FairnessPanel';
 import { StartCountdownBanner } from '@/components/games/StartCountdownBanner';
-import { WinnerModal } from '@/components/games/WinnerModal';
+import { ResultsBoard } from '@/components/games/ResultsBoard';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { PendingClaimCards } from '@/components/games/PendingClaimCards';
 import { CardCountFan } from '@/components/games/CardCountFan';
 import { useNumberAnnouncer } from '@/hooks/useNumberAnnouncer';
 import { Button, Card, Modal, Screen, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
-import { useCountdown } from '@/hooks/useCountdown';
+import { useCountdown, useCountdownTo, MAX_CLAIM_WINDOW_SECONDS, DEFAULT_CLAIM_WINDOW_SECONDS } from '@/hooks/useCountdown';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { patternProgress, patternCells } from '@/lib/pattern';
 import { useGameStore } from '@/store/game.store';
@@ -242,12 +242,14 @@ export default function LiveGameScreen() {
   // Countdown and winner result
   const isCountingDown = gameStatus === GameStatus.STARTING;
   const countdownSeconds = useCountdown(startTime, isCountingDown);
-  const winningCard = useMemo(
-    () => playerCards?.find((c) => c.winner) ?? null,
-    [playerCards]
+  const claimWindowActive = gameStatus === GameStatus.CLAIM_PENDING;
+  const claimWindowEnds = state?.claimWindowEndsAt ?? null;
+  const claimWindowSeconds = useCountdownTo(
+    claimWindowEnds,
+    claimWindowActive,
+    MAX_CLAIM_WINDOW_SECONDS,
+    DEFAULT_CLAIM_WINDOW_SECONDS
   );
-  const [winnerModalSeen, setWinnerModalSeen] = useState(false);
-  const showWinnerModal = gameStatus === GameStatus.ENDED && Boolean(state?.isWinner) && !winnerModalSeen;
 
   const isManual = !autoMarkPreferred;
   const lastCalledNumber =
@@ -703,21 +705,32 @@ export default function LiveGameScreen() {
         <StartCountdownBanner status={game.gameStatus} reason={startReason} seconds={countdownSeconds} />
 
         {game.gameStatus === GameStatus.ENDED && (
-          <Card
-            className={
-              state?.isWinner
-                ? 'border-bp-success40 bg-bp-success10'
-                : 'border-bp-borderInactive bg-bp-surface'
-            }
-          >
-            <Text
-              className={`text-center text-base font-bold ${
-                state?.isWinner ? 'text-emerald-500' : 'text-bp-textSecondary'
-              }`}
+          <>
+            <Card
+              className={
+                state?.isWinner
+                  ? 'border-bp-success40 bg-bp-success10'
+                  : 'border-bp-borderInactive bg-bp-surface'
+              }
             >
-              {state?.isWinner ? t('game.youWon') ?? '🎉 BINGO! You Won! 🎉' : (t('game.gameOver') ?? 'Game Over')}
-            </Text>
-          </Card>
+              <Text
+                className={`text-center text-base font-bold ${
+                  state?.isWinner ? 'text-emerald-500' : 'text-bp-textSecondary'
+                }`}
+              >
+                {state?.isWinner ? t('game.youWon') ?? '🎉 BINGO! You Won! 🎉' : (t('game.gameOver') ?? 'Game Over')}
+              </Text>
+            </Card>
+
+            {/* The room's results: every winner's card (tap to open it) and every
+                banned card. No admin decided this — the engine auto-validated every
+                claim, so what the room sees is what was proven. */}
+            <ResultsBoard
+              winnerCards={state?.winnerCards ?? []}
+              bannedCards={state?.bannedCards ?? []}
+              calledNumbers={calledNumbers}
+            />
+          </>
         )}
 
         {/* The finished game stays on screen, but the moment the admin opens the
@@ -765,11 +778,19 @@ export default function LiveGameScreen() {
           </Card>
         )}
 
-        {game.restartNotice ? (
+        {claimWindowActive && (
           <Card className="border-bp-gold40 bg-bp-gold10">
-            <Text className="text-center text-sm font-bold text-amber-500">🔁 {game.restartNotice}</Text>
+            <Text className="text-center text-xs font-bold uppercase tracking-[0.16em] text-bp-goldInk">
+              {t('game.claimWindowTitle') ?? 'Bingo claim window'}
+            </Text>
+            <Text className="text-center text-4xl font-black text-bp-goldInk">
+              {claimWindowSeconds}
+            </Text>
+            <Text className="text-center text-xs text-bp-goldInk">
+              {t('game.claimWindowHint') ?? 'Others can still claim Bingo until this timer ends.'}
+            </Text>
           </Card>
-        ) : null}
+        )}
 
         {/* What is actually under review: the claimed cards with every called
             number marked, instead of a bare "claim pending" line. The panel goes
@@ -1020,15 +1041,6 @@ export default function LiveGameScreen() {
           onPreviewed={() => void loadState()}
         />
       )}
-      <WinnerModal
-        visible={showWinnerModal}
-        card={winningCard}
-        calledNumbers={calledNumbers}
-        rewardAmount={state?.rewardAmount ?? null}
-        winners={state?.winnerCount ?? null}
-        onClose={() => setWinnerModalSeen(true)}
-      />
-
       {patternPreviewOpen && winningPattern && (
         <Modal onClose={() => setPatternPreviewOpen(false)}>
           <Card className="gap-3">
