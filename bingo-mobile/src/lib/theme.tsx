@@ -38,7 +38,7 @@ export const PALETTES: Record<Theme, ThemeColors> = {
     primaryDisabled: '#3A357A',
     secondary: '#FFB454',
     accent: '#36E4B5',
-    gold: '#F2C94C',
+    gold: '#8B5E3C',
     warning: '#f2994a',
     success: '#27ae60',
     danger: '#FF5C6C',
@@ -58,7 +58,7 @@ export const PALETTES: Record<Theme, ThemeColors> = {
     primaryDisabled: '#3A357A',
     secondary: '#FFB454',
     accent: '#36E4B5',
-    gold: '#F2C94C',
+    gold: '#8B5E3C',
     warning: '#f2994a',
     success: '#27ae60',
     danger: '#FF5C6C',
@@ -88,7 +88,14 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
-  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    colorScheme.set(theme);
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    }
+    void AsyncStorage.setItem(STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     let mounted = true;
@@ -100,18 +107,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Ignore storage errors; fall back to dark
       }
       if (mounted && (stored === 'light' || stored === 'dark')) setTheme(stored);
-      if (mounted) setReady(true);
     })();
     return () => {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    colorScheme.set(theme);
-    void AsyncStorage.setItem(STORAGE_KEY, theme);
-  }, [theme, ready]);
 
   const toggle = useCallback(() => setTheme((p) => (p === 'dark' ? 'light' : 'dark')), []);
   const setAndPersist = useCallback((t: Theme) => setTheme(t), []);

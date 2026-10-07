@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import { AppTextInput, Button, Card, FieldLabel, Screen, Subtitle, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { Role } from '@/types';
 
 export default function LoginScreen() {
+  const { colors } = useTheme();
   const t = useTranslate();
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
@@ -67,7 +69,7 @@ export default function LoginScreen() {
         className="gap-6"
       >
         <View>
-          <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+          <Text className="text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: colors.textInactive }}>
             {t('auth.loginEyebrow') ?? 'Welcome back'}
           </Text>
           <Title className="mt-1">{t('common.appName') ?? 'BingoPlus'}</Title>
@@ -100,7 +102,7 @@ export default function LoginScreen() {
           </Button>
 
           {error ? (
-            <View className="rounded-xl border border-bp-danger40 bg-bp-danger15 px-4 py-3">
+            <View className="rounded-xl border px-4 py-3" style={{ borderColor: colors.danger + '40', backgroundColor: colors.danger + '15' }}>
               <Text className="text-red-500 text-sm">{error}</Text>
             </View>
           ) : null}

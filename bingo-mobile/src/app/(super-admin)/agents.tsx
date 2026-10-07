@@ -5,6 +5,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import { agentsApi } from '@/api';
 import { AppTextInput, Button, Card, EmptyState, Modal, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { AdminWarningResponse, AgentResponse, AgentStatsResponse } from '@/types';
 
 const WARN_PRESETS = [
@@ -16,6 +17,7 @@ const WARN_PRESETS = [
 
 export default function SuperAdminAgentsScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const qc = useQueryClient();
   const [warnAgent, setWarnAgent] = useState<AgentResponse | null>(null);
   const [suspendAgent, setSuspendAgent] = useState<AgentResponse | null>(null);
@@ -107,10 +109,10 @@ export default function SuperAdminAgentsScreen() {
       <ScrollView contentContainerClassName="gap-4 pb-8">
         {pending.length > 0 && (
           <Card>
-            <Text className="text-[11px] uppercase tracking-[0.24em] text-bp-textSecondary">
+            <Text className="text-[11px] uppercase tracking-[0.24em]" style={{ color: colors.textSecondary }}>
               {t('super.pendingApprovalHeader') ?? 'Pending approval'}
             </Text>
-            <Text className="text-bp-textPrimary text-lg font-semibold mt-1">
+            <Text className="text-lg font-semibold mt-1" style={{ color: colors.textPrimary }}>
               {t('super.awaitingReviewAgents', { count: pending.length }) ?? `${pending.length} agent(s) awaiting review`}
             </Text>
             <View className="gap-2 mt-4">
@@ -121,8 +123,8 @@ export default function SuperAdminAgentsScreen() {
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1 pr-2">
-                      <Text className="text-bp-textPrimary font-semibold">{agentName(a)}</Text>
-                      <Text className="text-bp-textSecondary text-xs">
+                      <Text className="font-semibold" style={{ color: colors.textPrimary }}>{agentName(a)}</Text>
+                      <Text className="text-xs" style={{ color: colors.textSecondary }}>
                         {t('super.idLabel') ?? 'ID'} {a.adminUserId}
                       </Text>
                     </View>
@@ -153,10 +155,10 @@ export default function SuperAdminAgentsScreen() {
         )}
 
         <Card>
-          <Text className="text-[11px] uppercase tracking-[0.24em] text-bp-textSecondary">
+          <Text className="text-[11px] uppercase tracking-[0.24em]" style={{ color: colors.textSecondary }}>
             {t('super.registeredAgents') ?? 'Registered agents'}
           </Text>
-          <Text className="text-bp-textPrimary text-lg font-semibold mt-1">
+          <Text className="text-lg font-semibold mt-1" style={{ color: colors.textPrimary }}>
             {t('super.totalLabel', { count: agents.length }) ?? `${agents.length} total`}
           </Text>
           {approved.length === 0 && pending.length === 0 ? (
@@ -175,8 +177,8 @@ export default function SuperAdminAgentsScreen() {
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1 pr-2">
-                      <Text className="text-bp-textPrimary font-semibold">{agentName(a)}</Text>
-                      <Text className="text-bp-textSecondary text-xs">
+                      <Text className="font-semibold" style={{ color: colors.textPrimary }}>{agentName(a)}</Text>
+                      <Text className="text-xs" style={{ color: colors.textSecondary }}>
                         {t('super.idLabel') ?? 'ID'} {a.adminUserId}
                       </Text>
                     </View>
@@ -184,10 +186,10 @@ export default function SuperAdminAgentsScreen() {
                   </View>
                   <View className="flex-row gap-2 flex-wrap">
                     <Button variant="green" style={{ flex: 1 }} onPress={() => setStatsAgent(a)}>
-                      <Text className="text-bp-successInk text-sm font-semibold">{t('super.stats') ?? 'Stats'}</Text>
+                      <Text className="text-sm font-semibold" style={{ color: colors.success }}>{t('super.stats') ?? 'Stats'}</Text>
                     </Button>
                     <Button variant="ghost" style={{ flex: 1 }} onPress={() => setWarnAgent(a)}>
-                      <Text className="text-bp-textSecondary text-sm">{t('super.warn') ?? 'Warn'}</Text>
+                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('super.warn') ?? 'Warn'}</Text>
                     </Button>
                     {a.active ? (
                       <Button variant="danger" style={{ flex: 1 }} onPress={() => setSuspendAgent(a)}>
@@ -291,17 +293,18 @@ function InviteLinkModal({
   onClose: () => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   return (
     <Modal onClose={onClose}>
       <Card className="gap-3">
-        <Text className="text-bp-textPrimary font-bold">
+        <Text className="font-bold" style={{ color: colors.textPrimary }}>
           {t('super.inviteAgentTitle') ?? 'New agent invite'}
         </Text>
-        <Text className="text-bp-textSecondary text-sm">
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>
           {t('super.inviteAgentDesc') ?? 'Share this link with your agent. It works once, opened in Telegram.'}
         </Text>
-        <View className="rounded-xl bg-bp-surfaceAlt border border-bp-borderInactive px-3 py-2">
-          <Text className="text-bp-textSecondary text-xs" numberOfLines={3}>
+        <View className="rounded-xl px-3 py-2" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}>
+          <Text className="text-xs" style={{ color: colors.textSecondary }} numberOfLines={3}>
             {link}
           </Text>
         </View>
@@ -312,7 +315,7 @@ function InviteLinkModal({
             </Text>
           </Button>
           <Button variant="neutral" style={{ flex: 1 }} onPress={onClose}>
-            <Text className="text-bp-textPrimary text-sm">{t('super.close') ?? 'Close'}</Text>
+            <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('super.close') ?? 'Close'}</Text>
           </Button>
         </View>
       </Card>
@@ -331,6 +334,7 @@ function WarnDialog({
   onWarn: (reason: string) => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   const [preset, setPreset] = useState<string>('');
   const [custom, setCustom] = useState('');
 
@@ -343,9 +347,9 @@ function WarnDialog({
   return (
     <Modal onClose={onClose}>
       <Card className="gap-3">
-        <Text className="text-bp-textPrimary font-bold">{t('super.warnAgent') ?? 'Warn agent'}</Text>
-        <Text className="text-bp-textSecondary text-sm">{agent.businessName ?? `@${agent.username ?? agent.adminUserId}`}</Text>
-        <Text className="text-bp-textSecondary text-xs">{t('super.reasonLabel') ?? 'Reason'}</Text>
+        <Text className="font-bold" style={{ color: colors.textPrimary }}>{t('super.warnAgent') ?? 'Warn agent'}</Text>
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>{agent.businessName ?? `@${agent.username ?? agent.adminUserId}`}</Text>
+        <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('super.reasonLabel') ?? 'Reason'}</Text>
         {WARN_PRESETS.map((key) => {
           const selected = preset === key;
           return (
@@ -372,7 +376,7 @@ function WarnDialog({
             <Text className="text-white text-sm font-semibold">{t('super.warnBtn') ?? 'Warn'}</Text>
           </Button>
           <Button variant="neutral" style={{ flex: 1 }} onPress={onClose}>
-            <Text className="text-bp-textPrimary text-sm">{t('super.cancel') ?? 'Cancel'}</Text>
+            <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('super.cancel') ?? 'Cancel'}</Text>
           </Button>
         </View>
       </Card>
@@ -391,22 +395,23 @@ function SuspendConfirmDialog({
   onConfirm: () => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   return (
     <Modal onClose={onClose}>
       <Card className="gap-3">
-        <Text className="text-bp-textPrimary font-bold">
+        <Text className="font-bold" style={{ color: colors.textPrimary }}>
           {t('super.suspendTitle', { name: agent.businessName ?? `@${agent.username ?? agent.adminUserId}` }) ?? 'Suspend agent?'}
         </Text>
-        <Text className="text-bp-textSecondary text-sm">
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>
           {t('super.suspendDesc') ??
             "This will end all of the agent's active games and block their players from joining or playing until the agent is resumed."}
         </Text>
-        <View className="flex-row gap-2">
+<View className="flex-row gap-2">
           <Button variant="danger" style={{ flex: 1 }} onPress={onConfirm}>
             <Text className="text-white text-sm font-semibold">{t('super.suspendBtn') ?? 'Suspend'}</Text>
           </Button>
           <Button variant="neutral" style={{ flex: 1 }} onPress={onClose}>
-            <Text className="text-bp-textPrimary text-sm">{t('super.cancel') ?? 'Cancel'}</Text>
+            <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('super.cancel') ?? 'Cancel'}</Text>
           </Button>
         </View>
       </Card>
@@ -434,18 +439,19 @@ function DeleteAgentDialog({
   onConfirm: () => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   return (
     <Modal onClose={onClose}>
-      <Card className="gap-3 border-red-500/40">
-        <Text className="text-bp-textPrimary font-bold">
+      <Card className="gap-3" style={{ borderColor: colors.danger + '66', borderWidth: 1 }}>
+        <Text className="font-bold" style={{ color: colors.textPrimary }}>
           {t('super.deleteTitle', { name: agent.businessName ?? `@${agent.username ?? agent.adminUserId}` }) ??
             'Delete agent permanently?'}
         </Text>
-        <Text className="text-bp-textSecondary text-sm">
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>
           {t('super.deleteDesc') ??
             "This permanently deletes the agent, every player registered under them, and their whole room — all games, cards, wallets and transaction history. It cannot be undone."}
         </Text>
-        <Text className="text-bp-textSecondary text-xs">
+        <Text className="text-xs" style={{ color: colors.textSecondary }}>
           {t('super.deleteRefusalHint') ??
             'If a game is still running or a payment is still pending, the delete is refused. Suspend the agent first, settle the payments, then delete.'}
         </Text>
@@ -456,7 +462,7 @@ function DeleteAgentDialog({
             </Text>
           </Button>
           <Button variant="neutral" style={{ flex: 1 }} disabled={busy} onPress={onClose}>
-            <Text className="text-bp-textPrimary text-sm">{t('super.cancel') ?? 'Cancel'}</Text>
+            <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('super.cancel') ?? 'Cancel'}</Text>
           </Button>
         </View>
       </Card>
@@ -479,50 +485,51 @@ function StatsDialog({
   onClose: () => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   const isFetching = loading && !stats;
-  const rows: { label: string; value: string; cls?: string }[] = [
-    { label: t('super.balance') ?? 'Balance', value: stats ? stats.balance.toLocaleString() : '—', cls: 'text-bp-goldInk' },
+  const rows: { label: string; value: string; color?: string }[] = [
+    { label: t('super.balance') ?? 'Balance', value: stats ? stats.balance.toLocaleString() : '—', color: colors.gold },
     { label: t('super.agentsWaiting') ?? 'Total Agents', value: stats ? String(stats.totalPlayers) : '—' },
     { label: t('super.barGames') ?? 'Games', value: stats ? String(stats.totalGames) : '—' },
     { label: t('super.completedStat') ?? 'Completed', value: stats ? String(stats.endedGames) : '—' },
     { label: t('super.transactions') ?? 'Transactions', value: stats ? String(stats.totalTransactions) : '—' },
-    { label: t('super.commission') ?? 'Commission', value: stats ? stats.totalCommission.toLocaleString() : '—', cls: 'text-bp-accentInk' },
+    { label: t('super.commission') ?? 'Commission', value: stats ? stats.totalCommission.toLocaleString() : '—', color: colors.accent },
   ];
 
   return (
     <Modal onClose={onClose}>
       <Card className="gap-3">
-        <Text className="text-bp-textPrimary font-bold">{t('super.agentStats') ?? 'Agent statistics'}</Text>
-        <Text className="text-bp-textSecondary text-sm">
+        <Text className="font-bold" style={{ color: colors.textPrimary }}>{t('super.agentStats') ?? 'Agent statistics'}</Text>
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>
           {agent.businessName ?? `@${agent.username ?? agent.adminUserId}`}
         </Text>
         {isFetching ? (
-          <Text className="text-bp-textSecondary text-sm">{t('super.status') ?? 'Loading...'}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('super.status') ?? 'Loading...'}</Text>
         ) : (
           <View className="flex-row flex-wrap gap-2">
             {rows.map((r) => (
-              <View key={r.label} className="bg-bp-surfaceAlt border border-bp-borderInactive rounded-xl px-3 py-2" style={{ width: '48%' }}>
-                <Text className="text-bp-textInactive text-[10px] uppercase">{r.label}</Text>
-                <Text className={`text-bp-textPrimary text-lg font-bold ${r.cls ?? ''}`}>{r.value}</Text>
+              <View key={r.label} className="rounded-xl px-3 py-2" style={{ width: '48%', backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}>
+                <Text className="text-[10px] uppercase" style={{ color: colors.textInactive }}>{r.label}</Text>
+                <Text className="text-lg font-bold" style={{ color: r.color ?? colors.textPrimary }}>{r.value}</Text>
               </View>
             ))}
           </View>
         )}
-        <Text className="text-bp-textSecondary text-xs mt-1">{t('super.warningsLabel') ?? 'Warnings'}</Text>
+        <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{t('super.warningsLabel') ?? 'Warnings'}</Text>
         {warnings.length === 0 ? (
-          <Text className="text-bp-textSecondary text-sm">{t('super.noWarningsRecorded') ?? 'No warnings recorded.'}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('super.noWarningsRecorded') ?? 'No warnings recorded.'}</Text>
         ) : (
           <View className="gap-2">
             {warnings.slice(0, 5).map((w) => (
-              <View key={w.id} className="border border-amber-400/30 bg-amber-400/5 rounded-xl px-3 py-2">
-                <Text className="text-bp-textPrimary text-sm">{w.reason}</Text>
-                <Text className="text-bp-textInactive text-xs mt-0.5">{new Date(w.createdAt).toLocaleDateString()}</Text>
+              <View key={w.id} className="rounded-xl px-3 py-2" style={{ borderColor: colors.warning + '33', backgroundColor: colors.warning + '0d', borderWidth: 1 }}>
+                <Text className="text-sm" style={{ color: colors.textPrimary }}>{w.reason}</Text>
+                <Text className="text-xs mt-0.5" style={{ color: colors.textInactive }}>{new Date(w.createdAt).toLocaleDateString()}</Text>
               </View>
             ))}
           </View>
         )}
         <Button variant="neutral" onPress={onClose} style={{ marginTop: 8 }}>
-          <Text className="text-bp-textPrimary text-sm">{t('super.close') ?? 'Close'}</Text>
+          <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('super.close') ?? 'Close'}</Text>
         </Button>
       </Card>
     </Modal>
@@ -540,13 +547,14 @@ function PressableRow({
   label: string;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   return (
     <Button
       variant={selected ? 'danger' : 'neutral'}
       onPress={onPress}
       style={{ paddingVertical: 10 }}
     >
-      <Text className={selected ? 'text-white' : 'text-bp-textPrimary text-sm'}>{label}</Text>
+      <Text className={selected ? 'text-white' : 'text-sm'} style={{ color: selected ? '#FFFFFF' : colors.textPrimary }}>{label}</Text>
     </Button>
   );
 }

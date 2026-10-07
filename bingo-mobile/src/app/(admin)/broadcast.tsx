@@ -3,9 +3,11 @@ import { ScrollView, Text } from 'react-native';
 import { broadcastApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Screen, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 
 export default function AdminBroadcastScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function AdminBroadcastScreen() {
             style={{ minHeight: 120 }}
           />
           {result ? (
-            <Text className={isError ? 'text-bp-dangerInk text-sm' : 'text-bp-accentInk text-sm'}>{result}</Text>
+            <Text className="text-sm" style={{ color: isError ? colors.danger : colors.accent }}>{result}</Text>
           ) : null}
           <Button disabled={sending || !message.trim()} onPress={() => void send()}>
             {sending ? (t('admin.sending') ?? 'Sending…') : (t('admin.sendBroadcast') ?? 'Send broadcast')}

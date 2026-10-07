@@ -6,10 +6,12 @@ import { gamesApi, reportsApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Screen, ScreenHeader, Subtitle, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { AdminGameResponse, GameStatus } from '@/types';
 
 export default function AdminDashboardScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const router = useRouter();
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -83,11 +85,11 @@ export default function AdminDashboardScreen() {
               onPress={() => router.push('/(admin)/new-game')}
               className="active:opacity-80"
             >
-              <Card className="flex-row justify-between items-center bg-bp-primary15 border-bp-primary40">
-                <Text className="text-bp-textPrimary font-semibold">
+              <Card className="flex-row justify-between items-center" style={{ backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }}>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                   {t('admin.gamesManageTitle') ?? 'Game management'}
                 </Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -95,8 +97,8 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('admin.playersTitle') ?? 'Player registry'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.playersTitle') ?? 'Player registry'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -104,8 +106,8 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('admin.topUpTitle') ?? 'Top-up approvals'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.topUpTitle') ?? 'Top-up approvals'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -113,8 +115,8 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('admin.wdTitle') ?? 'Payout requests'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.wdTitle') ?? 'Payout requests'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -122,8 +124,8 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('admin.cardsTitle') ?? 'Card pool'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.cardsTitle') ?? 'Card pool'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -131,8 +133,8 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('admin.broadcastTitle') ?? 'Broadcast'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.broadcastTitle') ?? 'Broadcast'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -142,14 +144,14 @@ export default function AdminDashboardScreen() {
               <Card>
                 <View className="flex-row justify-between items-center">
                   <View className="gap-0.5">
-                    <Text className="text-bp-textPrimary font-semibold">
+                    <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                       {t('admin.profileTitle') ?? 'Profile'}
                     </Text>
-                    <Text className="text-bp-textSecondary text-xs">
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
                       {t('admin.profileMenuDesc') ?? 'Invite players · Deposit account · Language'}
                     </Text>
                   </View>
-                  <Text className="text-bp-primary">›</Text>
+                  <Text style={{ color: colors.primary }}>›</Text>
                 </View>
               </Card>
             </Pressable>
@@ -158,8 +160,8 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('admin.ofTitle') ?? 'Owner fees'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.ofTitle') ?? 'Owner fees'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
             <Pressable
@@ -167,18 +169,18 @@ export default function AdminDashboardScreen() {
               className="active:opacity-80"
             >
               <Card className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold">{t('mobile.notifications') ?? 'Notifications'}</Text>
-                <Text className="text-bp-primary">›</Text>
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('mobile.notifications') ?? 'Notifications'}</Text>
+                <Text style={{ color: colors.primary }}>›</Text>
               </Card>
             </Pressable>
-            <Text className="text-bp-textSecondary text-xs uppercase tracking-wider mt-2">
+            <Text className="text-xs uppercase tracking-wider mt-2" style={{ color: colors.textSecondary }}>
               {t('admin.activeGames') ?? 'Active games'}
             </Text>
           </View>
         }
         ListEmptyComponent={
           <Card>
-            <Text className="text-bp-textSecondary text-center">
+            <Text className="text-center" style={{ color: colors.textSecondary }}>
               {t('admin.noGamesYet') ?? 'No games yet. Create your first game!'}
             </Text>
           </Card>
@@ -188,10 +190,10 @@ export default function AdminDashboardScreen() {
           return (
             <Card className="gap-2">
               <View className="flex-row justify-between items-center">
-                <Text className="text-bp-textPrimary font-semibold text-lg">
+                <Text className="font-semibold text-lg" style={{ color: colors.textPrimary }}>
                   {t('game.gameNumber', { id: String(item.id) }) ?? `Game #${item.id}`}
                 </Text>
-                <Text className="text-bp-accentInk">{t(`status.${item.status}`) ?? item.status}</Text>
+                <Text style={{ color: colors.accent }}>{t(`status.${item.status}`) ?? item.status}</Text>
               </View>
               {open ? (
                 <>
@@ -269,6 +271,7 @@ function PrizeEditor({
   onSave: (id: number, amount: number) => Promise<void>;
 }) {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [amount, setAmount] = useState(currentPrize == null ? '' : String(currentPrize));
   const [suggestion, setSuggestion] = useState<{ min: number; max: number; prize: number } | null>(null);
 
@@ -297,16 +300,15 @@ function PrizeEditor({
   const saved = currentPrize != null && Number(currentPrize) === parsed;
 
   if (min === 0 && max === 0) {
-    // Nothing has been collected yet, so there is no band to set a prize in.
     return (
-      <Text className="text-bp-textSecondary text-xs">
+      <Text className="text-xs" style={{ color: colors.textSecondary }}>
         {t('admin.prizeAfterFirstPlayer') ?? 'The prize can be set once the first player joins.'}
       </Text>
     );
   }
 
   return (
-    <View className="gap-2 rounded-xl border border-bp-border p-3">
+    <View className="gap-2 rounded-xl border p-3" style={{ borderColor: colors.borderInactive }}>
       <FieldLabel>
         {t('admin.prizeAmount') ?? 'Prize for the winners'}{' '}
         {t('admin.prizeRange', { min: String(min), max: String(max) }) ?? `(${min} – ${max})`}
@@ -328,7 +330,7 @@ function PrizeEditor({
         </Button>
       </View>
       {!valid && amount.trim() !== '' ? (
-        <Text className="text-bp-danger text-xs">
+        <Text className="text-xs" style={{ color: colors.danger }}>
           {t('admin.prizeOutOfRange', { min: String(min), max: String(max) }) ??
             `Enter a prize between ${min} and ${max}.`}
         </Text>
@@ -345,9 +347,10 @@ function PrizeEditor({
 }
 
 function QuickStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  const { colors } = useTheme();
   return (
     <Card className="flex-1 p-3 items-center">
-      <Title className={`text-xl ${accent ? 'text-bp-primary' : ''}`}>{value}</Title>
+      <Title className="text-xl" style={accent ? { color: colors.primary } : undefined}>{value}</Title>
       <Subtitle className="text-xs text-center">{label}</Subtitle>
     </Card>
   );

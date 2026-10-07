@@ -3,10 +3,12 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { broadcastApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Screen, SectionHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 
 const TARGETS = ['all', 'agents', 'players'] as const;
 
 export default function SuperAdminBroadcastScreen() {
+  const { colors } = useTheme();
   const t = useTranslate();
   const [target, setTarget] = useState<(typeof TARGETS)[number]>('all');
   const [message, setMessage] = useState('');
@@ -58,11 +60,17 @@ export default function SuperAdminBroadcastScreen() {
               <Pressable
                 key={k}
                 onPress={() => setTarget(k)}
-                className={`flex-1 rounded-full border px-3 py-2 items-center ${
-                  target === k ? 'bg-bp-primary border-bp-primary' : 'border-bp-borderInactive'
-                }`}
+                className="flex-1 rounded-full border px-3 py-2 items-center"
+                style={
+                  target === k
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                    : { borderColor: colors.borderInactive }
+                }
               >
-                <Text className={target === k ? 'text-white' : 'text-bp-textSecondary'}>
+                <Text
+                  className={target === k ? 'text-white' : undefined}
+                  style={target === k ? undefined : { color: colors.textSecondary }}
+                >
                   {targetLabel(k)}
                 </Text>
               </Pressable>
@@ -79,7 +87,7 @@ export default function SuperAdminBroadcastScreen() {
             style={{ minHeight: 120 }}
           />
           {result ? (
-            <Text className={isError ? 'text-bp-dangerInk text-sm' : 'text-bp-accentInk text-sm'}>{result}</Text>
+            <Text className="text-sm" style={{ color: isError ? colors.danger : colors.accent }}>{result}</Text>
           ) : null}
           <Button disabled={sending || !message.trim()} onPress={() => void send()}>
             {sending ? (t('admin.sending') ?? 'Sending…') : (t('admin.sendBroadcast') ?? 'Send Broadcast')}

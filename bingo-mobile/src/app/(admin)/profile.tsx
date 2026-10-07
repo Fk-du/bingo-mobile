@@ -6,12 +6,14 @@ import { authApi, inviteApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Screen, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
 
 const LOCALES = ['en', 'am', 'ti'] as const;
 
 export default function AdminProfileScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -94,12 +96,12 @@ export default function AdminProfileScreen() {
             textAlignVertical="top"
             style={{ minHeight: 100 }}
           />
-          <Text className="text-bp-textSecondary text-xs">
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>
             {t('admin.depositAccountInfoHint') ?? 'TeleBirr number, bank account, or any payment details players should send to'}
           </Text>
 
-          {error ? <Text className="text-bp-dangerInk text-sm">✕ {error}</Text> : null}
-          {saved ? <Text className="text-bp-accentInk text-sm">{t('admin.savedSuccessfully') ?? 'Saved successfully.'}</Text> : null}
+          {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
+          {saved ? <Text className="text-sm" style={{ color: colors.accent }}>{t('admin.savedSuccessfully') ?? 'Saved successfully.'}</Text> : null}
 
           <Button disabled={saving} onPress={() => void save()}>
             {saving ? (t('admin.saving') ?? 'Saving…') : (t('admin.save') ?? 'Save')}
@@ -111,40 +113,40 @@ export default function AdminProfileScreen() {
             onPress={() => setShowInvite((v) => !v)}
             className="flex-row items-center justify-between active:opacity-80"
           >
-            <Text className="text-bp-textPrimary font-semibold">
-              {t('admin.invitePlayerTitle') ?? 'Invite a Player'}
-            </Text>
-            <Text className="text-bp-primary">{showInvite ? (t('admin.hideInvite') ?? '−') : '›'}</Text>
-          </Pressable>
+             <Text className="font-semibold" style={{ color: colors.textPrimary }}>
+               {t('admin.invitePlayerTitle') ?? 'Invite a Player'}
+             </Text>
+             <Text style={{ color: colors.primary }}>{showInvite ? (t('admin.hideInvite') ?? '−') : '›'}</Text>
+           </Pressable>
 
-          {showInvite && (
-            <View className="gap-2 mt-3">
-              <Text className="text-bp-textSecondary text-xs">
-                {t('admin.inviteShareDesc') ?? 'Share your link — players who register through it will join your room.'}
-              </Text>
-              {stats && (
-                <View className="flex-row gap-2 mt-1">
-                  <View className="flex-1 rounded-xl bg-bp-surfaceAlt px-3 py-2 items-center">
-                    <Text className="text-bp-textPrimary text-lg font-bold">{stats.totalRegistrations ?? 0}</Text>
-                    <Text className="text-bp-textSecondary text-[10px]">{t('admin.playersJoined') ?? 'Players joined'}</Text>
-                  </View>
-                  <View className="flex-1 rounded-xl bg-bp-surfaceAlt px-3 py-2 items-center">
-                    <Text className="text-bp-textPrimary text-lg font-bold">{stats.activeCodes ?? 0}</Text>
-                    <Text className="text-bp-textSecondary text-[10px]">{t('admin.activeLinks') ?? 'Active links'}</Text>
-                  </View>
-                </View>
-              )}
-              {link ? (
-                <View className="rounded-xl bg-bp-surfaceAlt border border-bp-borderInactive px-3 py-2">
-                  <Text className="text-bp-textSecondary text-xs" numberOfLines={3}>
-                    {link}
-                  </Text>
-                </View>
-              ) : (
-                <Text className="text-bp-textSecondary text-xs">
-                  {t('admin.noPlayersYet') ?? 'No players yet. Share your invite link!'}
-                </Text>
-              )}
+           {showInvite && (
+             <View className="gap-2 mt-3">
+               <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                 {t('admin.inviteShareDesc') ?? 'Share your link — players who register through it will join your room.'}
+               </Text>
+               {stats && (
+                 <View className="flex-row gap-2 mt-1">
+                   <View className="flex-1 rounded-xl px-3 py-2 items-center" style={{ backgroundColor: colors.surfaceAlt }}>
+                     <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{stats.totalRegistrations ?? 0}</Text>
+                     <Text className="text-[10px]" style={{ color: colors.textSecondary }}>{t('admin.playersJoined') ?? 'Players joined'}</Text>
+                   </View>
+                   <View className="flex-1 rounded-xl px-3 py-2 items-center" style={{ backgroundColor: colors.surfaceAlt }}>
+                     <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{stats.activeCodes ?? 0}</Text>
+                     <Text className="text-[10px]" style={{ color: colors.textSecondary }}>{t('admin.activeLinks') ?? 'Active links'}</Text>
+                   </View>
+                 </View>
+               )}
+               {link ? (
+                 <View className="rounded-xl border px-3 py-2" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}>
+                   <Text className="text-xs" style={{ color: colors.textSecondary }} numberOfLines={3}>
+                     {link}
+                   </Text>
+                 </View>
+               ) : (
+                 <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                   {t('admin.noPlayersYet') ?? 'No players yet. Share your invite link!'}
+                 </Text>
+               )}
               <View className="flex-row gap-2">
                 <Button variant="primary" disabled={!link} onPress={() => void handleCopy()} style={{ flex: 1 }}>
                   {copied ? (t('admin.copied') ?? '✓ Copied!') : (t('admin.copyLink') ?? 'Copy Link')}
@@ -158,7 +160,7 @@ export default function AdminProfileScreen() {
         </Card>
 
         <Card>
-          <Text className="text-bp-textPrimary font-semibold mb-3">{t('player.language') ?? 'Language'}</Text>
+          <Text className="font-semibold mb-3" style={{ color: colors.textPrimary }}>{t('player.language') ?? 'Language'}</Text>
           <View className="flex-row gap-2">
             {LOCALES.map((locale) => {
               const active = locale === getClientLocale();
@@ -169,7 +171,7 @@ export default function AdminProfileScreen() {
                   onPress={() => void switchLanguage(locale)}
                   style={{ flex: 1, paddingVertical: 10 }}
                 >
-                  <Text className={active ? 'text-white' : 'text-bp-textSecondary'}>
+                  <Text style={{ color: active ? '#FFFFFF' : colors.textSecondary }}>
                     {locale === 'en'
                       ? (t('player.english') ?? 'English')
                       : locale === 'am'

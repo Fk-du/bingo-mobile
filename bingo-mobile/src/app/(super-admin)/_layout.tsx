@@ -31,13 +31,14 @@ export default function SuperAdminLayout() {
   };
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.textInactive,
-        headerTitleStyle: { color: colors.textPrimary },
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textInactive,
+          headerTitleStyle: { color: colors.textPrimary },
+        }}
+      >
       <Stack.Screen
         name="index"
         options={{
@@ -45,13 +46,13 @@ export default function SuperAdminLayout() {
           headerRight: () => (
             <View className="flex-row items-center gap-2">
               <ThemeToggleButton />
-              <Pressable onPress={handleLogout} className="px-3 py-1 rounded-full bg-bp-danger20">
-                <Text className="text-bp-dangerInk text-sm">{t('common.logout') ?? 'Log out'}</Text>
+              <Pressable onPress={handleLogout} className="px-3 py-1 rounded-full" style={{ backgroundColor: colors.danger + '20' }}>
+                <Text className="text-sm" style={{ color: colors.danger }}>{t('common.logout') ?? 'Log out'}</Text>
               </Pressable>
             </View>
           ),
           headerLeft: () => (
-            <Text className="text-bp-textPrimary font-bold">
+            <Text className="font-bold" style={{ color: colors.textPrimary }}>
               {user?.firstName ?? user?.username ?? ''}
             </Text>
           ),
@@ -64,6 +65,7 @@ export default function SuperAdminLayout() {
       <Stack.Screen name="config" options={{ title: t('super.cfgTitle') ?? 'Platform settings' }} />
       <Stack.Screen name="owner-fees" options={{ title: t('super.sfTitle') ?? 'Agent fee ledger' }} />
       <Stack.Screen name="notifications" options={{ title: t('mobile.notifications') ?? 'Notifications' }} />
-    </Stack>
+      </Stack>
+    </View>
   );
 }

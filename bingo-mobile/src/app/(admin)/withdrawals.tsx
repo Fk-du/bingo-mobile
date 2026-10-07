@@ -5,6 +5,7 @@ import { withdrawalsApi } from '@/api';
 import { AppTextInput, Button, Card, EmptyState, Screen, ScreenHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { RequestStatus, WithdrawalResponse } from '@/types';
 
 type Tab = RequestStatus;
@@ -27,6 +28,7 @@ function capCount(n: number): string {
 
 export default function AdminWithdrawalsScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [tab, setTab] = useState<Tab>(RequestStatus.PENDING);
   const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [preset, setPreset] = useState('');
@@ -80,7 +82,7 @@ export default function AdminWithdrawalsScreen() {
 
   const chip = (label: string, active: boolean, onPress: () => void) => (
     <Button variant={active ? 'primary' : 'outline'} onPress={onPress} className="flex-1" style={{ paddingVertical: 8 }}>
-      <Text className={active ? 'text-white' : 'text-bp-textSecondary text-xs'}>{label}</Text>
+      <Text style={{ color: active ? '#FFFFFF' : colors.textSecondary }} className="text-xs">{label}</Text>
     </Button>
   );
 
@@ -95,8 +97,8 @@ export default function AdminWithdrawalsScreen() {
       </View>
 
       {actionMsg ? (
-        <View className={`mb-3 rounded-xl border px-4 py-3 ${actionMsg.isError ? 'border-bp-danger40 bg-bp-danger10' : 'border-bp-accent40 bg-bp-accent10'}`}>
-          <Text className={actionMsg.isError ? 'text-bp-dangerInk text-sm' : 'text-bp-accentInk text-sm'}>
+        <View className="mb-3 rounded-xl border px-4 py-3" style={{ borderColor: actionMsg.isError ? '#FF5C6C40' : '#36E4B540', backgroundColor: actionMsg.isError ? '#FF5C6C10' : '#36E4B510' }}>
+          <Text className="text-sm" style={{ color: actionMsg.isError ? colors.danger : colors.accent }}>
             {actionMsg.isError ? '✕ ' : '✓ '}
             {actionMsg.text}
           </Text>
@@ -126,16 +128,16 @@ export default function AdminWithdrawalsScreen() {
           return (
             <Card className="gap-2">
               <View className="flex-row items-center justify-between">
-                <Text className="text-bp-textPrimary font-semibold">
+                <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                   {t('admin.wdCoins', { amount: String(item.amount) }) ?? `${item.amount} birr`}
                 </Text>
                 <StatusPill status={item.status} />
               </View>
               {item.payoutDetails ? (
-                <Text className="text-bp-textSecondary text-sm">{item.payoutDetails}</Text>
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>{item.payoutDetails}</Text>
               ) : null}
               {item.rejectionReason ? (
-                <Text className="text-bp-dangerInk text-xs">
+                <Text className="text-xs" style={{ color: colors.danger }}>
                   {t('admin.wdReason', { reason: item.rejectionReason }) ?? `Reason: ${item.rejectionReason}`}
                 </Text>
               ) : null}
@@ -161,7 +163,7 @@ export default function AdminWithdrawalsScreen() {
 
               {isRejecting ? (
                 <View className="gap-2">
-                  <Text className="text-bp-textSecondary text-xs">{t('admin.wdSelectReason') ?? 'Select a reason'}</Text>
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('admin.wdSelectReason') ?? 'Select a reason'}</Text>
                   {REJECT_PRESETS.map((r) => {
                     const selected = preset === r;
                     return (
@@ -213,13 +215,14 @@ export default function AdminWithdrawalsScreen() {
 }
 
 function PresetRow({ selected, onPress, label }: { selected: boolean; onPress: () => void; label: string }) {
+  const { colors } = useTheme();
   return (
     <Button
       variant={selected ? 'danger' : 'outline'}
       onPress={onPress}
       style={{ paddingVertical: 10 }}
     >
-      <Text className={selected ? 'text-white' : 'text-bp-textPrimary text-sm'}>{label}</Text>
+      <Text className={selected ? 'text-white' : 'text-sm'} style={{ color: selected ? '#FFFFFF' : colors.textPrimary }}>{label}</Text>
     </Button>
   );
 }

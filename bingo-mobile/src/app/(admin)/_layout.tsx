@@ -12,13 +12,14 @@ export default function AdminLayout() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
-        headerTintColor: colors.textInactive,
-        headerTitleStyle: { color: colors.textPrimary },
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textInactive,
+          headerTitleStyle: { color: colors.textPrimary },
+        }}
+      >
       <Stack.Screen
         name="index"
         options={{
@@ -26,13 +27,13 @@ export default function AdminLayout() {
           headerRight: () => (
             <View className="flex-row items-center gap-2">
               <ThemeToggleButton />
-              <Pressable onPress={() => void logout()} className="px-3 py-1 rounded-full bg-bp-danger20">
-                <Text className="text-bp-dangerInk text-sm">{t('common.logout') ?? 'Log out'}</Text>
+              <Pressable onPress={() => void logout()} className="px-3 py-1 rounded-full" style={{ backgroundColor: colors.danger + '20' }}>
+                <Text className="text-sm" style={{ color: colors.danger }}>{t('common.logout') ?? 'Log out'}</Text>
               </Pressable>
             </View>
           ),
           headerLeft: () => (
-            <Text className="text-bp-textPrimary font-bold">
+            <Text className="font-bold" style={{ color: colors.textPrimary }}>
               {t('admin.welcomeBack') ?? 'Welcome back,'} {user?.firstName ?? ''}
             </Text>
           ),
@@ -54,6 +55,7 @@ export default function AdminLayout() {
       <Stack.Screen name="broadcast" options={{ title: t('admin.broadcastTitle') ?? 'Broadcast' }} />
       <Stack.Screen name="owner-fees" options={{ title: t('admin.ofTitle') ?? 'Owner fees' }} />
       <Stack.Screen name="notifications" options={{ title: t('mobile.notifications') ?? 'Notifications' }} />
-    </Stack>
+      </Stack>
+    </View>
   );
 }

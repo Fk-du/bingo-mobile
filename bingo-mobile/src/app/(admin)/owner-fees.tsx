@@ -6,10 +6,12 @@ import { agentsApi, screenshotsApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Modal, Screen, ScreenHeader, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { OwnerFeeSettlementResponse } from '@/types';
 
 export default function AdminOwnerFeesScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const summaryQuery = useQuery({
     queryKey: ['admin/fee-summary'],
     queryFn: () => agentsApi.getFeeSummary(),
@@ -81,7 +83,7 @@ export default function AdminOwnerFeesScreen() {
         </View>
 
         <Card className="gap-3">
-          <Text className="text-bp-textPrimary font-semibold">{t('admin.payOwnerFees') ?? 'Record a payment'}</Text>
+          <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.payOwnerFees') ?? 'Record a payment'}</Text>
           <FieldLabel>{t('admin.amount') ?? 'Amount'}</FieldLabel>
           <AppTextInput value={amount} onChangeText={setAmount} keyboardType="numeric" placeholder={t('admin.enterAmountPaid') ?? 'Amount paid'} />
           <FieldLabel>{t('admin.transferScreenshot') ?? 'Transfer proof'}</FieldLabel>
@@ -95,8 +97,8 @@ export default function AdminOwnerFeesScreen() {
               </Card>
             </Pressable>
           ) : null}
-          {error ? <Text className="text-bp-dangerInk text-sm">✕ {error}</Text> : null}
-          {notice ? <Text className="text-bp-accentInk text-sm">✓ {notice}</Text> : null}
+          {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
+          {notice ? <Text className="text-sm" style={{ color: colors.accent }}>✓ {notice}</Text> : null}
           <Button disabled={busy} onPress={() => void submit()}>
             {busy ? (t('admin.submitting') ?? 'Submitting…') : (t('admin.submitCashPayment') ?? 'Submit payment')}
           </Button>
@@ -110,19 +112,19 @@ export default function AdminOwnerFeesScreen() {
           scrollEnabled={false}
           ListEmptyComponent={
             <Card>
-              <Text className="text-bp-textSecondary text-center">
+              <Text className="text-center" style={{ color: colors.textSecondary }}>
                 {t('admin.noSettlements') ?? 'No payments yet'}
               </Text>
             </Card>
           }
           renderItem={({ item }) => (
             <Card className="gap-1">
-              <Text className="text-bp-textPrimary font-semibold">
+              <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                 {t('admin.cashPaid', { amount: String(item.amount) }) ?? `${item.amount} birr paid`}
               </Text>
-              <Text className="text-bp-textSecondary text-xs">{t(`status.${item.status}`) ?? item.status}</Text>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>{t(`status.${item.status}`) ?? item.status}</Text>
               {item.rejectionReason ? (
-                <Text className="text-bp-dangerInk text-xs">
+                <Text className="text-xs" style={{ color: colors.danger }}>
                   {t('admin.wdReason', { reason: item.rejectionReason }) ?? `Reason: ${item.rejectionReason}`}
                 </Text>
               ) : null}
@@ -137,19 +139,21 @@ export default function AdminOwnerFeesScreen() {
 }
 
 function Metric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  const { colors } = useTheme();
   return (
     <Card className="flex-1 p-3 items-center">
-      <Title className={`text-xl ${accent ? 'text-bp-goldInk' : ''}`}>{value}</Title>
-      <Text className="text-bp-textSecondary text-xs text-center">{label}</Text>
+      <Title className={`text-xl ${accent ? '' : ''}`} style={accent ? { color: colors.gold } : undefined}>{value}</Title>
+      <Text className="text-xs text-center" style={{ color: colors.textSecondary }}>{label}</Text>
     </Card>
   );
 }
 
 function ZoomModal({ url, onClose }: { url: string; onClose: () => void }) {
+  const { colors } = useTheme();
   return (
     <Modal onClose={onClose}>
       <Card className="items-center gap-2">
-        <Text className="text-bp-textSecondary text-xs">Proof</Text>
+        <Text className="text-xs" style={{ color: colors.textSecondary }}>Proof</Text>
         <Button variant="outline" onPress={onClose}>
           Close
         </Button>

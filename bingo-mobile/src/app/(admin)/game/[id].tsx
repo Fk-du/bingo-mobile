@@ -6,6 +6,7 @@ import { Button, Card, Screen } from '@/components/ui';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { ResultsBoard } from '@/components/games/ResultsBoard';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { useGameStore } from '@/store/game.store';
 import { AdminGameStateResponse, GameStatus } from '@/types';
@@ -14,6 +15,7 @@ export default function AdminLiveGameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const gameId = Number(id);
   const t = useTranslate();
+  const { colors } = useTheme();
 
   const [state, setState] = useState<AdminGameStateResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,10 +97,10 @@ export default function AdminLiveGameScreen() {
   return (
     <Screen>
       <View className="pb-1">
-        <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+        <Text className="text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: colors.textInactive }}>
           {t('admin.adgEyebrow') ?? 'Live game'}
         </Text>
-        <Text className="mt-1 text-2xl font-bold text-bp-textPrimary">
+        <Text className="mt-1 text-2xl font-bold" style={{ color: colors.textPrimary }}>
           {t('admin.adgTitle', { id: String(gameId) }) ?? `Game #${gameId}`}
         </Text>
       </View>
@@ -109,13 +111,13 @@ export default function AdminLiveGameScreen() {
       >
         <Card className="flex-row justify-between">
           <View>
-            <Text className="text-bp-textSecondary text-xs">{t('admin.status') ?? 'Status'}</Text>
-            <Text className="text-bp-textPrimary font-bold">{state?.status ?? '—'}</Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('admin.status') ?? 'Status'}</Text>
+            <Text className="font-bold" style={{ color: colors.textPrimary }}>{state?.status ?? '—'}</Text>
           </View>
         </Card>
 
         {loadError != null && (
-          <Card className="border-bp-danger50 bg-bp-danger15">
+          <Card className="border-red-400/40 bg-red-400/10">
             <Text className="text-center text-[10px] font-bold text-red-500">
               {t('admin.liveSyncError') ?? 'Live update failed'} — {loadError}
             </Text>
@@ -128,10 +130,10 @@ export default function AdminLiveGameScreen() {
         />
 
         <Card>
-          <Text className="text-bp-textSecondary text-xs">{t('admin.prizePoolLabel') ?? 'Collected'}</Text>
-          <Text className="text-bp-textPrimary font-bold text-2xl">{pool}</Text>
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('admin.prizePoolLabel') ?? 'Collected'}</Text>
+          <Text className="font-bold text-2xl" style={{ color: colors.textPrimary }}>{pool}</Text>
           {state?.prizeAmount != null && state.prizeAmount > 0 && (
-            <Text className="text-bp-textSecondary text-xs">
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
               {t('game.prizeAmount', {}) ?? `Prize ${state.prizeAmount}`}
             </Text>
           )}
@@ -158,7 +160,7 @@ export default function AdminLiveGameScreen() {
         {/* Read-only results. Every claim was decided by the engine from the
             server truth, so the admin has nothing to approve — the board is the
             same one the room sees. */}
-        <Text className="text-bp-textSecondary text-xs uppercase tracking-wider">
+        <Text className="text-xs uppercase tracking-wider" style={{ color: colors.textSecondary }}>
           {t('admin.resultsTitle') ?? 'Results'}
         </Text>
         {state?.status === GameStatus.ENDED ? (
@@ -169,7 +171,7 @@ export default function AdminLiveGameScreen() {
           />
         ) : (
           <Card>
-            <Text className="text-bp-textSecondary text-center">
+            <Text className="text-center" style={{ color: colors.textSecondary }}>
               {t('admin.resultsAfterEnd') ?? 'The winners and banned cards appear here when the game ends.'}
             </Text>
           </Card>

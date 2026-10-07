@@ -4,12 +4,14 @@ import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
 import { Button, Card, EmptyState, Screen, ScreenBackButton, ScreenHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { getClientLocale } from '@/lib/clientTranslations';
 import { PlayerGameResponse } from '@/types';
 
 export default function PlayerMyGamesScreen() {
   const t = useTranslate();
   const router = useRouter();
+  const { colors } = useTheme();
 
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['player/my-games'],
@@ -46,25 +48,25 @@ export default function PlayerMyGamesScreen() {
           return (
             <Card className="gap-2">
               <View className="flex-row items-center justify-between gap-2">
-                <Text className="text-bp-textPrimary font-semibold text-lg flex-1">
+                <Text className="font-semibold text-lg flex-1" style={{ color: colors.textPrimary }}>
                   {t('game.gameNumber', { id: String(item.id) }) ?? `Game #${item.id}`}
                 </Text>
-                <Text className="text-bp-textSecondary text-sm flex-1 text-right">
+                <Text className="text-sm flex-1 text-right" style={{ color: colors.textSecondary }}>
                   {item.winningPattern ?? ''}
                 </Text>
               </View>
               <View className="flex-row flex-wrap gap-3 items-center mt-1">
-                <Text className="text-bp-textSecondary text-sm">
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>
                   {t('mobile.jackpotPrize') ?? 'Prize'}:{' '}
                   {item.prizeAmount == null ? '—' : item.prizeAmount}
                 </Text>
-                <Text className="text-bp-textSecondary text-sm">
+                <Text className="text-sm" style={{ color: colors.textSecondary }}>
                   {t('admin.entryFee') ?? 'Entry'}: {item.entryFee}
                 </Text>
                 <StatusPill status={item.status} />
               </View>
               <View className="flex-row justify-between items-center">
-                <Text className="text-bp-textSecondary text-xs">
+                <Text className="text-xs" style={{ color: colors.textSecondary }}>
                   {new Date(item.createdAt ?? new Date().toISOString()).toLocaleDateString()}
                 </Text>
                 <Button
@@ -72,7 +74,7 @@ export default function PlayerMyGamesScreen() {
                   onPress={() => router.push({ pathname: '/(player)/game/[id]', params: { id: String(item.id) } })}
                   style={{ paddingVertical: 6, paddingHorizontal: 12 }}
                 >
-                  <Text className="text-bp-primary text-xs font-semibold">
+                  <Text className="text-xs font-semibold" style={{ color: colors.primary }}>
                     {open ? (t('player.openSeat') ?? 'Open') : (t('player.viewDetails') ?? 'Details')}
                   </Text>
                 </Button>

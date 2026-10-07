@@ -1,13 +1,10 @@
 import { Pressable, Text, View } from 'react-native';
+import { useTheme } from '@/lib/theme';
 
 const LETTERS = ['B', 'I', 'N', 'G', 'O'];
-const LETTER_COLORS = [
-  'bg-cyan-400/20 border-cyan-400/40 text-cyan-500',
-  'bg-emerald-400/20 border-emerald-400/40 text-emerald-500',
-  'bg-amber-400/20 border-amber-400/40 text-amber-500',
-  'bg-bp-gold20 border-bp-gold50 text-bp-goldInk',
-  'bg-rose-400/20 border-rose-400/40 text-rose-500',
-];
+const LETTER_BORDERS = ['#0891b2', '#059669', '#d97706', '#8B5E3C', '#e11d48'];
+const LETTER_BACKGROUNDS = ['#0891b215', '#05966915', '#d9770615', '#8B5E3C15', '#e11d4815'];
+const LETTER_INKS = ['#0891b2', '#059669', '#d97706', '#b8860b', '#e11d48'];
 
 // State colours live here rather than in swapped classNames. Tailwind compiles
 // shadow-lg to a `--tw-shadow` variable and every `bp-*` colour to another
@@ -48,22 +45,27 @@ export function CardGrid({
   onLongPressCard,
   markColor = DEFAULT_MARK,
 }: CardGridProps) {
+  const { colors } = useTheme();
   const calledSet = new Set(called);
   const markedSet = new Set(marked);
   const rows = numbers.slice(0, 5);
 
   return (
     <View
-      className="w-full rounded-xl border border-bp-border bg-bp-background p-1.5"
-      style={{ gap: 2, ...(selected ? { borderColor: '#6B5BFF' } : {}) }}
+      className="w-full rounded-xl border p-1.5"
+      style={{ gap: 2, borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt, ...(selected ? { borderColor: colors.primary } : {}) }}
     >
       <View className="flex-row" style={{ gap: 2 }}>
         {LETTERS.map((letter, index) => (
           <View
             key={letter}
-            className={`flex-1 aspect-square items-center justify-center rounded border font-bold ${LETTER_COLORS[index]}`}
+            className="flex-1 aspect-square items-center justify-center rounded border font-bold"
+            style={{
+              borderColor: LETTER_BORDERS[index],
+              backgroundColor: LETTER_BACKGROUNDS[index],
+            }}
           >
-            <Text className="font-bold text-[12px]">{letter}</Text>
+            <Text className="font-bold text-[12px]" style={{ color: LETTER_INKS[index] }}>{letter}</Text>
           </View>
         ))}
       </View>
@@ -74,19 +76,21 @@ export function CardGrid({
             const isLast = !isFree && lastCalledNumber != null && n === lastCalledNumber;
             const isDaubed = isFree ? false : markedSet.has(n) || calledSet.has(n);
             const display = isFree ? 'F' : n;
+            const defaultCellStyle = { borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt };
+            const defaultInk = { color: colors.textSecondary };
             const cellStyle = isFree
               ? { backgroundColor: GOLD, borderColor: GOLD }
               : isLast
                 ? { backgroundColor: GOLD, borderColor: GOLD, boxShadow: '0 6px 14px rgba(0,0,0,0.35)' }
                 : isDaubed
                   ? { backgroundColor: markColor.fill, borderColor: markColor.border }
-                  : undefined;
+                  : defaultCellStyle;
             const inkStyle =
               isFree || isLast
                 ? { color: LAST_INK }
                 : isDaubed
                   ? { color: '#ffffff' }
-                  : undefined;
+                  : defaultInk;
             return (
               <Pressable
                 key={`${r}-${c}`}
@@ -98,9 +102,7 @@ export function CardGrid({
               >
                 <View className="flex-1 items-center justify-center">
                   <View className="w-6 h-6 rounded-full items-center justify-center border" style={cellStyle}>
-                    <Text className="font-black text-[13px] text-bp-textSecondary" style={inkStyle}>
-                      {display}
-                    </Text>
+                    <Text className="font-black text-[13px]" style={{ color: isFree || isLast ? LAST_INK : isDaubed ? '#ffffff' : colors.textSecondary }}>{display}</Text>
                   </View>
                 </View>
               </Pressable>

@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
 import { getApiErrorMessage } from '@/api/client';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 
 /** Biggest choice first, so the top of the stack is the largest circle. */
 const CHOICES = [10, 5, 2, 1];
@@ -26,6 +27,7 @@ interface CardCountFanProps {
  */
 export function CardCountFan({ gameId, entryFee, onClose, onPreviewed }: CardCountFanProps) {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [loadingCount, setLoadingCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +39,6 @@ export function CardCountFan({ gameId, entryFee, onClose, onPreviewed }: CardCou
       onPreviewed?.();
       onClose();
     } catch (e) {
-      // Stays put so the player can retry or pick a different count.
       setError(getApiErrorMessage(e));
     } finally {
       setLoadingCount(null);
@@ -46,18 +47,16 @@ export function CardCountFan({ gameId, entryFee, onClose, onPreviewed }: CardCou
 
   return (
     <>
-      {/* Swallows taps outside the fan so the stack can be dismissed the way a
-          dialog would be, without actually putting a dialog on screen. */}
       <Pressable accessibilityElementsHidden onPress={onClose} className="absolute inset-0" />
 
       <View className="absolute bottom-24 right-4 items-end" style={{ gap: 8 }}>
-        <Text className="text-[11px] text-bp-textSecondary">
+        <Text className="text-[11px]" style={{ color: colors.textSecondary }}>
           {entryFee} {t('game.coinsPerCard') ?? 'birr per card'}
         </Text>
 
         {error ? (
-          <View className="max-w-[220px] rounded-xl border border-bp-danger40 bg-bp-danger15 px-3 py-2">
-            <Text className="text-bp-dangerInk text-[11px]">{error}</Text>
+          <View className="max-w-[220px] rounded-xl border px-3 py-2" style={{ borderColor: '#FF5C6C40', backgroundColor: '#FF5C6C15' }}>
+            <Text className="text-[11px]" style={{ color: colors.danger }}>{error}</Text>
           </View>
         ) : null}
 
@@ -70,10 +69,12 @@ export function CardCountFan({ gameId, entryFee, onClose, onPreviewed }: CardCou
               disabled={busy}
               accessibilityRole="button"
               accessibilityLabel={`${n} ${t('game.cards') ?? 'cards'}`}
-              className="items-center justify-center rounded-full border-2 border-bp-primary bg-bp-primary active:opacity-80"
+              className="items-center justify-center rounded-full border-2 active:opacity-80"
               style={{
                 width: SIZE,
                 height: SIZE,
+                borderColor: colors.primary,
+                backgroundColor: colors.primary,
                 opacity: busy ? (loadingCount === n ? 0.7 : 0.35) : 1,
               }}
             >

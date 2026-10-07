@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { gamesApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Modal, Screen, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { AutomationConfig, CreateGameRequest } from '@/types';
 
 const WINNING_PATTERNS = [
@@ -88,6 +89,7 @@ function AutomationCard({
   t: ReturnType<typeof useTranslate>;
   disabled?: boolean;
 }) {
+  const { colors } = useTheme();
   const [busy, setBusy] = useState<'auto' | 'manual' | 'save' | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,8 +132,8 @@ function AutomationCard({
   return (
     <Card className="gap-3">
       <View>
-        <Text className="text-bp-textSecondary text-[11px] uppercase tracking-wider">{t('admin.gameMode') ?? 'Game mode'}</Text>
-        <Text className="text-bp-textPrimary font-semibold">
+        <Text className="text-[11px] uppercase tracking-wider" style={{ color: colors.textSecondary }}>{t('admin.gameMode') ?? 'Game mode'}</Text>
+        <Text className="font-semibold" style={{ color: colors.textPrimary }}>
           {disabled ? (t('admin.oneGameAtATime') ?? 'Finish your current game to create another') : (t('admin.manualOrAutomatic') ?? 'Manual or automatic')}
         </Text>
       </View>
@@ -156,9 +158,9 @@ function AutomationCard({
       </View>
 
       {notice ? (
-        <Text className="text-bp-accentInk text-sm">✓ {notice}</Text>
+        <Text className="text-sm" style={{ color: colors.accent }}>✓ {notice}</Text>
       ) : null}
-      {error ? <Text className="text-bp-dangerInk text-sm">✕ {error}</Text> : null}
+      {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
 
       {enabled && (
         <View className="gap-3 mt-1">
@@ -184,7 +186,7 @@ function AutomationCard({
               keyboardType="numeric"
             />
           </FieldRow>
-          <Text className="text-bp-textSecondary text-xs">
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>
             {t('admin.rakePercentHint') ??
               'Used to suggest a prize for automated games. You still set the prize on each game before it starts.'}
           </Text>
@@ -231,6 +233,7 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 }
 
 function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
+  const { colors } = useTheme();
   const [entryFee, setEntryFee] = useState(DEFAULTS.entryFee);
   const [callInterval, setCallInterval] = useState(DEFAULTS.callInterval);
   const [winningPattern, setWinningPattern] = useState(WINNING_PATTERNS[0]);
@@ -264,14 +267,14 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
   return (
     <Card className="gap-3">
       <View>
-        <Text className="text-bp-textSecondary text-[11px] uppercase tracking-wider">{t('admin.createGame') ?? 'Create game'}</Text>
-        <Text className="text-bp-textPrimary font-semibold">{t('admin.newTableSetup') ?? 'New table setup'}</Text>
+        <Text className="text-[11px] uppercase tracking-wider" style={{ color: colors.textSecondary }}>{t('admin.createGame') ?? 'Create game'}</Text>
+        <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('admin.newTableSetup') ?? 'New table setup'}</Text>
       </View>
 
       {success ? (
-        <Text className="text-bp-accentInk text-sm">✓ {t('admin.gameCreatedNotice') ?? 'Game created'}</Text>
+        <Text className="text-sm" style={{ color: colors.accent }}>✓ {t('admin.gameCreatedNotice') ?? 'Game created'}</Text>
       ) : null}
-      {error ? <Text className="text-bp-dangerInk text-sm">✕ {error}</Text> : null}
+      {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
 
       <FieldRow label={t('admin.entryFee') ?? 'Entry fee'}>
         <AppTextInput value={entryFee} onChangeText={setEntryFee} keyboardType="numeric" placeholder="10" />
@@ -281,16 +284,16 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
       </FieldRow>
       <FieldRow label={t('admin.winningPattern') ?? 'Winning pattern'}>
         <Pressable onPress={() => setShowPattern(true)} className="active:opacity-80">
-          <View className="bg-bp-surfaceAlt border border-bp-borderInactive rounded-xl px-4 py-3">
-            <Text className="text-bp-textPrimary">{t(`patterns.${winningPattern}`) ?? winningPattern}</Text>
+          <View className="rounded-xl border px-4 py-3" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}>
+            <Text style={{ color: colors.textPrimary }}>{t(`patterns.${winningPattern}`) ?? winningPattern}</Text>
           </View>
         </Pressable>
       </FieldRow>
       <Pressable onPress={() => setAutoMark((v) => !v)} className="flex-row items-center gap-2">
-        <View className={`w-9 h-5 rounded-full px-0.5 justify-center ${autoMark ? 'bg-bp-primary' : 'bg-bp-textInactive'}`}>
+        <View className={`w-9 h-5 rounded-full px-0.5 justify-center ${autoMark ? '' : ''}`} style={{ backgroundColor: autoMark ? colors.primary : colors.textInactive }}>
           <View className={`h-4 w-4 rounded-full bg-white ${autoMark ? 'self-end' : ''}`} />
         </View>
-        <Text className="text-bp-textSecondary text-sm">{t('admin.autoMark') ?? 'Auto-mark'}</Text>
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('admin.autoMark') ?? 'Auto-mark'}</Text>
       </Pressable>
       <Button disabled={busy} onPress={() => void submit()}>
         {busy ? (t('admin.creating') ?? 'Creating…') : (t('admin.createGame') ?? 'Create game')}
@@ -299,25 +302,26 @@ function CreateGameForm({ t }: { t: ReturnType<typeof useTranslate> }) {
       {showPattern && (
         <Modal onClose={() => setShowPattern(false)}>
           <Card className="max-h-[70%]">
-            <Text className="text-bp-textPrimary font-semibold mb-2">{t('admin.winningPattern') ?? 'Winning pattern'}</Text>
+            <Text className="font-semibold mb-2" style={{ color: colors.textPrimary }}>{t('admin.winningPattern') ?? 'Winning pattern'}</Text>
             <ScrollView contentContainerStyle={{ gap: 8 }}>
               {WINNING_PATTERNS.map((p) => {
                 const selected = winningPattern === p;
                 return (
                   <Pressable
-                    key={p}
-                    onPress={() => {
-                      setWinningPattern(p);
-                      setShowPattern(false);
-                    }}
-                    className={`rounded-xl border px-4 py-3 ${selected ? 'border-bp-primary bg-bp-primary15' : 'border-bp-borderInactive'}`}
-                  >
-                    <Text className={selected ? 'text-bp-primary font-semibold' : 'text-bp-textPrimary'}>
-                      {t(`patterns.${p}`) ?? p}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                     key={p}
+                     onPress={() => {
+                       setWinningPattern(p);
+                       setShowPattern(false);
+                     }}
+                     className="rounded-xl border px-4 py-3"
+                     style={{ borderColor: selected ? colors.primary : colors.borderInactive, backgroundColor: selected ? colors.primary + '15' : 'transparent' }}
+                   >
+                     <Text className={selected ? 'font-semibold' : ''} style={{ color: selected ? colors.primary : colors.textPrimary }}>
+                       {t(`patterns.${p}`) ?? p}
+                     </Text>
+                   </Pressable>
+                 );
+               })}
             </ScrollView>
           </Card>
         </Modal>

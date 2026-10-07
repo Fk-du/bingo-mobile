@@ -4,6 +4,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { configApi, getApiErrorMessage, walletApi, withdrawalsApi } from '@/api';
 import { AppTextInput, Button, Card, Screen, ScreenHeader, Subtitle, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { RequestStatus, WithdrawalResponse } from '@/types';
 
 const QUICK_AMOUNTS = [10, 20, 50, 100];
@@ -12,6 +13,7 @@ const DEFAULT_MIN_WITHDRAWAL = 10;
 export default function PlayerWithdrawScreen() {
   const t = useTranslate();
   const qc = useQueryClient();
+  const { colors } = useTheme();
   const [amount, setAmount] = useState('');
   const [details, setDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -102,11 +104,11 @@ export default function PlayerWithdrawScreen() {
             onChangeText={setDetails}
             placeholder={t('mobile.payoutDetails') ?? 'Bank account or Telebirr number'}
           />
-          <Text className="text-bp-textSecondary text-xs">
+          <Text className="text-xs" style={{ color: colors.textSecondary }}>
             {t('player.withdrawHint') ?? 'e.g. CBE 1000987654321 or Telebirr +251912345678'}
           </Text>
 
-          {error ? <Text className="text-bp-dangerInk text-sm">✕ {error}</Text> : null}
+          {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
 
           <Button disabled={busy || !amount || !details.trim()} onPress={() => void send()}>
             {busy
@@ -116,11 +118,11 @@ export default function PlayerWithdrawScreen() {
         </Card>
 
         {submitted ? (
-          <Card className="border-bp-accent40 bg-bp-accent10">
-            <Text className="text-bp-accentInk font-semibold">
+          <Card style={{ borderColor: '#36E4B440', backgroundColor: '#36E4B510' }}>
+            <Text className="font-semibold" style={{ color: colors.accent }}>
               {t('player.payoutSuccessTitle') ?? 'Thank you!'}
             </Text>
-            <Text className="text-bp-textPrimary text-sm mt-1">
+            <Text className="text-sm mt-1" style={{ color: colors.textPrimary }}>
               {t('player.payoutSuccessMessage', {
                 amount: String(submitted.amount),
                 details: submitted.payoutDetails ?? details,
@@ -131,33 +133,34 @@ export default function PlayerWithdrawScreen() {
         ) : null}
 
         <Card className="gap-2">
-          <Text className="mb-1 text-bp-textPrimary font-semibold">
+          <Text className="mb-1 font-semibold" style={{ color: colors.textPrimary }}>
             {t('player.withdrawalHistory') ?? 'Withdrawal history'}
           </Text>
           {withdrawals.length === 0 ? (
-            <Text className="text-sm text-bp-textSecondary">
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>
               {t('player.noWithdrawals') ?? 'No withdrawals yet'}
             </Text>
           ) : (
             withdrawals.map((w) => (
               <View
                 key={w.id}
-                className="flex-row items-center justify-between bg-bp-surfaceAlt border border-bp-borderInactive rounded-xl px-3 py-2.5"
+                className="flex-row items-center justify-between rounded-xl px-3 py-2.5"
+                style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}
               >
                 <View className="flex-1 pr-3">
-                  <Text className="text-sm text-bp-textPrimary font-semibold">{w.amount.toLocaleString()}</Text>
-                  <Text className="text-xs text-bp-textSecondary">
+                  <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>{w.amount.toLocaleString()}</Text>
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
                     {new Date(w.createdAt).toLocaleDateString()}
                     {w.payoutDetails ? ` · ${w.payoutDetails}` : ''}
                   </Text>
                   {w.status === RequestStatus.REJECTED && w.rejectionReason ? (
-                    <Text className="text-xs text-bp-dangerInk" numberOfLines={1}>
+                    <Text className="text-xs" style={{ color: colors.danger }} numberOfLines={1}>
                       {t('player.rejectedReason', { reason: w.rejectionReason }) ?? `Rejected: ${w.rejectionReason}`}
                     </Text>
                   ) : null}
                 </View>
-                <View className="rounded-full px-2 py-0.5 bg-bp-surfaceAlt">
-                  <Text className="text-[10px] font-semibold text-bp-textSecondary">
+                <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt }}>
+                  <Text className="text-[10px] font-semibold" style={{ color: colors.textSecondary }}>
                     {t(`status.${w.status}`) ?? w.status}
                   </Text>
                 </View>
@@ -166,7 +169,7 @@ export default function PlayerWithdrawScreen() {
           )}
         </Card>
 
-        <Text className="text-bp-textSecondary text-xs text-center">
+        <Text className="text-xs text-center" style={{ color: colors.textSecondary }}>
           {t('player.withdrawFooterHint') ?? 'Your withdrawal stays pending until the agent approves and pays it out.'}
         </Text>
       </ScrollView>

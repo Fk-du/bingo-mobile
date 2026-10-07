@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native';
 import { CardGrid } from '@/components/games/CardGrid';
+import { useTheme } from '@/lib/theme';
 import type { PreviewCardView, PlayerCardView } from '@/types';
 
 type Tone = 'preview' | 'registered' | 'live' | 'winner' | 'banned';
@@ -58,20 +59,18 @@ export function CardTile({
   markColor,
   footer,
 }: CardTileProps) {
+  const { colors } = useTheme();
   const dimmed = tone === 'banned';
   const status = renderStatus();
   const ringStyle = selected
-    ? { borderColor: '#6B5BFF', borderWidth: 2, borderRadius: 14, boxShadow: '0 0 12px rgba(107,91,255,0.55)' }
+    ? { borderColor: colors.primary, borderWidth: 2, borderRadius: 14, boxShadow: '0 0 12px rgba(107,91,255,0.55)' }
     : undefined;
 
   return (
     <View className="gap-1.5" style={{ width: '48%', ...ringStyle }}>
       <View className={`flex-row items-center gap-1.5 ${dimmed ? 'justify-end' : 'justify-between'}`}>
-        {/* A banned card shows its number at the bottom in red instead: the number
-            is what an admin needs to identify it, and it reads as part of the
-            penalty rather than as a neutral caption above a dimmed board. */}
         {!dimmed && (
-          <Text className="shrink text-[9px] font-bold uppercase tracking-wider text-bp-textSecondary">
+          <Text className="shrink text-[9px] font-bold uppercase tracking-wider" style={{ color: colors.textSecondary }}>
             {cardIdLabel}
           </Text>
         )}
@@ -112,9 +111,8 @@ export function CardTile({
           hitSlop={6}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: selected }}
-          className={`h-5 w-5 items-center justify-center rounded-full border ${
-            selected ? 'border-bp-primary bg-bp-primary' : 'border-bp-borderInactive bg-bp-surfaceAlt'
-          }`}
+          className="h-5 w-5 items-center justify-center rounded-full border"
+          style={{ borderColor: selected ? colors.primary : colors.borderInactive, backgroundColor: selected ? colors.primary : colors.surfaceAlt }}
         >
           {selected ? <Text className="text-[10px] leading-none text-white">✓</Text> : null}
         </Pressable>
@@ -127,15 +125,16 @@ export function CardTile({
             <Pressable
               onPress={onRegister}
               disabled={busy}
-              className="rounded-full border border-bp-gold40 bg-bp-gold10 px-2 py-1 active:opacity-70"
+              className="rounded-full border px-2 py-1 active:opacity-70"
+              style={{ borderColor: '#8B5E3C40', backgroundColor: '#8B5E3C10' }}
             >
-              <Text className="text-[9px] font-bold text-bp-goldInk">
+              <Text className="text-[9px] font-bold" style={{ color: colors.gold }}>
                 {busy
                   ? '…'
                   : t('game.registerCard') ?? 'Register card'}
               </Text>
             </Pressable>
-            {onRemove ? <RemoveButton onPress={onRemove} disabled={busy} t={t} /> : null}
+            {onRemove ? <RemoveButton onPress={onRemove} disabled={busy} t={t} colors={colors} /> : null}
           </View>
         );
       case 'registered':
@@ -144,7 +143,7 @@ export function CardTile({
             <Text className="text-[9px] font-bold uppercase tracking-wider text-emerald-500">
               {t('game.registeredBadge') ?? 'Registered'}
             </Text>
-            {onRemove ? <RemoveButton onPress={onRemove} disabled={busy} t={t} /> : null}
+            {onRemove ? <RemoveButton onPress={onRemove} disabled={busy} t={t} colors={colors} /> : null}
           </View>
         );
       case 'live':
@@ -152,8 +151,8 @@ export function CardTile({
           <Pressable
             onPress={onClaim}
             disabled={busy}
-            style={{ boxShadow: '0 0 12px rgba(235,87,87,0.35)' }}
-            className="rounded-full bg-bp-danger px-2.5 py-1 active:opacity-80"
+            style={{ boxShadow: '0 0 12px rgba(235,87,87,0.35)', backgroundColor: colors.danger, borderRadius: 999 }}
+            className="px-2.5 py-1 active:opacity-80"
           >
             <Text className="text-[9px] font-black tracking-[0.15em] text-white">
               {busy ? t('game.checking') ?? '✦ CHECKING…' : t('game.bingoBtn') ?? '✦ BINGO! ✦'}
@@ -162,13 +161,13 @@ export function CardTile({
         );
       case 'winner':
         return (
-          <Text className="rounded-full border border-bp-success40 bg-bp-success10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500">
+          <Text className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-500" style={{ borderColor: '#36E4B440', backgroundColor: '#36E4B510' }}>
             {t('game.winnerBadge') ?? 'Winner'}
           </Text>
         );
       case 'banned':
         return (
-          <Text className="rounded-full border border-bp-danger50 bg-bp-danger15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-500">
+          <Text className="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-500" style={{ borderColor: '#FF5C6C50', backgroundColor: '#FF5C6C15' }}>
             {t('game.bannedBadge') ?? 'Banned'}
           </Text>
         );
@@ -186,10 +185,12 @@ function RemoveButton({
   onPress,
   disabled,
   t,
+  colors,
 }: {
   onPress?: () => void;
   disabled?: boolean;
   t: CardTileProps['t'];
+  colors: { borderInactive: string; surfaceAlt: string; textSecondary: string };
 }) {
   return (
     <Pressable
@@ -198,9 +199,10 @@ function RemoveButton({
       hitSlop={6}
       accessibilityRole="button"
       accessibilityLabel={t('game.removeCard') ?? 'Remove card'}
-      className="h-5 w-5 items-center justify-center rounded-full border border-bp-borderInactive bg-bp-surfaceAlt active:opacity-70"
+      className="h-5 w-5 items-center justify-center rounded-full border active:opacity-70"
+      style={{ borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt }}
     >
-      <Text className="text-[10px] leading-none text-bp-textSecondary">✕</Text>
+      <Text className="text-[10px] leading-none" style={{ color: colors.textSecondary }}>✕</Text>
     </Pressable>
   );
 }

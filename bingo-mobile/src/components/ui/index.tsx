@@ -21,28 +21,16 @@ import { IconBack } from './icons';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'success' | 'gold' | 'neutral' | 'green';
 
-const VARIANT_STYLES: Record<Variant, string> = {
-  primary: 'bg-bp-primary',
-  secondary: 'bg-bp-secondary',
-  ghost: 'bg-transparent',
-  danger: 'bg-bp-danger',
-  outline: 'bg-transparent border border-bp-borderActive',
-  success: 'bg-bp-success',
-  gold: 'bg-bp-gold',
-  neutral: 'bg-bp-elevated border border-bp-borderInactive',
-  green: 'bg-transparent border border-bp-success',
-};
-
-const LABEL_STYLES: Record<Variant, string> = {
-  primary: 'text-white',
-  secondary: 'text-[#241a00] font-semibold',
-  ghost: 'text-bp-textSecondary',
-  danger: 'text-white',
-  outline: 'text-bp-primary',
-  success: 'text-white',
-  gold: 'text-[#1a1500] font-bold',
-  neutral: 'text-bp-textPrimary',
-  green: 'text-bp-successInk',
+const VARIANT_STYLES: Record<Variant, { bg?: string; text: string; border?: string }> = {
+  primary: { bg: '#6B5BFF', text: '#FFFFFF' },
+  secondary: { bg: '#FFB454', text: '#241a00' },
+  ghost: { text: 'textSecondary' },
+  danger: { bg: '#FF5C6C', text: '#FFFFFF' },
+  outline: { border: '#6B5BFF', text: '#6B5BFF' },
+  success: { bg: '#27ae60', text: '#FFFFFF' },
+  gold: { bg: '#8B5E3C', text: '#1a1500' },
+  neutral: { bg: 'elevated', border: 'borderInactive', text: 'textPrimary' },
+  green: { border: '#27ae60', text: '#27ae60' },
 };
 
 export function Button({
@@ -61,19 +49,28 @@ export function Button({
   className?: string;
   style?: any;
 }) {
+  const { colors } = useTheme();
   const parts = Children.toArray(children);
   const isTextLike = parts.length > 0 && parts.every((p) => typeof p === 'string' || typeof p === 'number');
+  const v = VARIANT_STYLES[variant];
+  const bgColor = v.bg === 'elevated' ? colors.elevated : v.bg;
+  const textColor = v.text === 'textPrimary' ? colors.textPrimary : v.text === 'textSecondary' ? colors.textSecondary : v.text;
+  const borderColor = v.border === 'borderInactive' ? colors.borderInactive : v.border;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={`rounded-xl px-4 py-3 items-center justify-center active:opacity-80 ${compact ? 'px-2 py-1.5 rounded-lg' : ''} ${VARIANT_STYLES[variant]} ${disabled ? 'opacity-40' : ''} ${className ?? ''}`}
-      style={style}
+      className={`rounded-xl px-4 py-3 items-center justify-center active:opacity-80 ${compact ? 'px-2 py-1.5 rounded-lg' : ''} ${className ?? ''}`}
+      style={[
+        { backgroundColor: bgColor, borderColor, borderWidth: v.border ? 1 : 0 },
+        disabled && { opacity: 0.4 },
+        style,
+      ]}
       {...rest}
     >
       {isTextLike ? (
-        <Text className={`${compact ? 'text-xs' : 'text-base'} ${LABEL_STYLES[variant]}`}>{parts}</Text>
+        <Text className={`${compact ? 'text-xs' : 'text-base'}`} style={{ color: textColor }}>{parts}</Text>
       ) : (
         children
       )}
@@ -90,10 +87,11 @@ export function Card({
   className?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { colors } = useTheme();
   return (
     <View
-      className={`bg-bp-surface rounded-2xl border border-bp-borderInactive p-4 ${className}`}
-      style={style}
+      className={`rounded-2xl p-4 ${className}`}
+      style={[{ backgroundColor: colors.surface, borderColor: colors.borderInactive, borderWidth: 1 }, style]}
     >
       {children}
     </View>
@@ -101,31 +99,35 @@ export function Card({
 }
 
 export function Screen({ children, className = '', ...rest }: ViewProps & { className?: string }) {
+  const { colors } = useTheme();
   return (
-    <View className={`flex-1 bg-bp-background px-4 pt-4 ${className}`} {...rest}>
+    <View className={`flex-1 px-4 pt-4 ${className}`} style={{ backgroundColor: colors.background }} {...rest}>
       {children}
     </View>
   );
 }
 
 export function Title({ children, className = '', ...rest }: TextProps & { className?: string }) {
+  const { colors } = useTheme();
   return (
-    <Text className={`text-2xl font-bold text-bp-textPrimary ${className}`} {...rest}>
+    <Text className={`text-2xl font-bold ${className}`} style={{ color: colors.textPrimary }} {...rest}>
       {children}
     </Text>
   );
 }
 
 export function Subtitle({ children, className = '', ...rest }: TextProps & { className?: string }) {
+  const { colors } = useTheme();
   return (
-    <Text className={`text-base text-bp-textSecondary ${className}`} {...rest}>
+    <Text className={`text-base ${className}`} style={{ color: colors.textSecondary }} {...rest}>
       {children}
     </Text>
   );
 }
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-  return <Text className="text-sm text-bp-textSecondary mb-1">{children}</Text>;
+  const { colors } = useTheme();
+  return <Text className="text-sm mb-1" style={{ color: colors.textSecondary }}>{children}</Text>;
 }
 
 export function AppTextInput(props: TextInputProps & { className?: string }) {
@@ -134,8 +136,8 @@ export function AppTextInput(props: TextInputProps & { className?: string }) {
   return (
     <TextInput
       placeholderTextColor={colors.textInactive}
-      className={`bg-bp-surfaceAlt border border-bp-borderInactive rounded-xl px-4 py-3 text-base text-bp-textPrimary ${className}`}
-      style={style}
+      className={`rounded-xl px-4 py-3 text-base ${className}`}
+      style={[{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1, color: colors.textPrimary }, style]}
       {...rest}
     />
   );
@@ -154,19 +156,18 @@ export function ScreenHeader({
   right,
 }: {
   title: string;
-  /** Defaults to the app name, so a screen with only a title still gets a label. */
   eyebrow?: string;
   description?: string;
-  /** Leading slot, used for a back control on screens reached from a menu. */
   left?: ReactNode;
   right?: ReactNode;
 }) {
   const t = useTranslate();
+  const { colors } = useTheme();
   return (
     <View className="flex-row items-start gap-3 pt-3 pb-5">
       {left ? <View className="shrink-0">{left}</View> : null}
       <View className="min-w-0 flex-1">
-        <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+        <Text className="text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: colors.textInactive }}>
           {eyebrow ?? t('common.appName') ?? 'BingoPlus'}
         </Text>
         <Title className="mt-1">{title}</Title>
@@ -184,12 +185,10 @@ export function ScreenHeader({
  * link has nothing to go back to, so it falls back to the player home rather
  * than dropping out of the app.
  *
- * `to` is for the screens whose origin is known and is not "whatever is
- * behind". Every player route shares one tab slot, so a pushed screen sits on
- * top of whichever tab the player came from and `back()` pops to that tab — the
- * settings screen reached from the game board's gear would go to the profile
- * instead. Naming the destination navigates there instead, and still pushes if
- * the route is not on the stack (a cold start, say).
+ * Back always goes one step first. `router.back()` pops the previous screen on
+ * the stack — the settings screen reached from the game board's gear returns
+ * to the game, not to the profile. `to` is only consulted when there is nothing
+ * behind to go back to (a cold start, say), and then it navigates there.
  */
 export function ScreenBackButton({ to, fallback = '/(player)' }: { to?: Href; fallback?: Href }) {
   const t = useTranslate();
@@ -197,11 +196,11 @@ export function ScreenBackButton({ to, fallback = '/(player)' }: { to?: Href; fa
   const { colors } = useTheme();
 
   const goBack = () => {
-    if (to) {
-      router.navigate(to);
+    if (router.canGoBack()) {
+      router.back();
       return;
     }
-    if (router.canGoBack()) router.back();
+    if (to) router.navigate(to);
     else router.replace(fallback);
   };
 
@@ -211,7 +210,8 @@ export function ScreenBackButton({ to, fallback = '/(player)' }: { to?: Href; fa
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={t('common.back') ?? 'Back'}
-      className="h-9 w-9 items-center justify-center rounded-full border border-bp-borderInactive bg-bp-surface active:opacity-70"
+      className="h-9 w-9 items-center justify-center rounded-full active:opacity-70"
+      style={[{ backgroundColor: colors.surface, borderColor: colors.borderInactive, borderWidth: 1 }]}
     >
       <IconBack color={colors.textSecondary} size={18} />
     </Pressable>
@@ -244,33 +244,24 @@ export function StatusPill({
   label?: string;
 }) {
   useTranslate();
-  const tone = statusTone(status);
-  const text = toneText(status);
+  const { colors } = useTheme();
+  const { style, color } = statusTone(status, colors);
   return (
-    <View className={`px-2.5 py-0.5 rounded-full border ${tone}`}>
-      <Text className={`text-[10px] uppercase font-bold tracking-[0.14em] ${text}`}>
+    <View className="px-2.5 py-0.5 rounded-full border" style={style}>
+      <Text className="text-[10px] uppercase font-bold tracking-[0.14em]" style={{ color }}>
         {label ?? translateClientMessage(`status.${status}`) ?? status.replace(/_/g, ' ')}
       </Text>
     </View>
   );
 }
 
-function statusTone(status: string): string {
+function statusTone(status: string, colors: { surfaceAlt: string; textSecondary: string }): { style: any; color: string } {
   const s = status.toLowerCase();
-  if (/(approved|open|active)/.test(s)) return 'border-bp-success40 bg-bp-success15';
-  if (/(pending|review)/.test(s)) return 'border-bp-warning40 bg-bp-warning15';
-  if (/(reject|inactive|ended|cancelled|canceled)/.test(s)) return 'border-bp-danger40 bg-bp-danger15';
-  if (/(progress|running|live)/.test(s)) return 'border-bp-danger40 bg-bp-danger10';
-  return 'border-bp-borderActive bg-bp-surfaceAlt';
-}
-
-function toneText(status: string): string {
-  const s = status.toLowerCase();
-  if (/(approved|open|active)/.test(s)) return 'text-emerald-500';
-  if (/(pending|review)/.test(s)) return 'text-amber-500';
-  if (/(reject|inactive|ended|cancelled|canceled)/.test(s)) return 'text-red-500';
-  if (/(progress|running|live)/.test(s)) return 'text-red-500';
-  return 'text-bp-textSecondary';
+  if (/(approved|open|active)/.test(s)) return { style: { borderColor: '#27ae6040', backgroundColor: '#27ae6015' }, color: '#059669' };
+  if (/(pending|review)/.test(s)) return { style: { borderColor: '#f2994a40', backgroundColor: '#f2994a15' }, color: '#d97706' };
+  if (/(reject|inactive|ended|cancelled|canceled)/.test(s)) return { style: { borderColor: '#FF5C6C40', backgroundColor: '#FF5C6C15' }, color: '#dc2626' };
+  if (/(progress|running|live)/.test(s)) return { style: { borderColor: '#FF5C6C40', backgroundColor: '#FF5C6C10' }, color: '#dc2626' };
+  return { style: { borderColor: '#6B5BFF', backgroundColor: colors.surfaceAlt }, color: colors.textSecondary };
 }
 
 /** Stat card matching the mini app's MetricCard: tinted container, plain value, optional note. */
@@ -285,21 +276,23 @@ export function Metric({
   tone?: 'default' | 'gold' | 'primary' | 'success' | 'warning' | 'danger';
   note?: string;
 }) {
-  const toneClass: Record<string, string> = {
-    default: 'border-bp-borderInactive bg-bp-surfaceAlt',
-    gold: 'border-bp-gold30 bg-bp-gold10',
-    primary: 'border-bp-primary30 bg-bp-primary10',
-    success: 'border-bp-success30 bg-bp-success10',
-    warning: 'border-bp-warning30 bg-bp-warning10',
-    danger: 'border-bp-danger30 bg-bp-danger10',
+  const { colors } = useTheme();
+  const toneStyle: Record<string, { border: string; bg: string }> = {
+    default: { border: colors.borderInactive, bg: colors.surfaceAlt },
+    gold: { border: '#8B5E3C30', bg: '#8B5E3C10' },
+    primary: { border: '#6B5BFF30', bg: '#6B5BFF10' },
+    success: { border: '#27ae6030', bg: '#27ae6010' },
+    warning: { border: '#f2994a30', bg: '#f2994a10' },
+    danger: { border: '#FF5C6C30', bg: '#FF5C6C10' },
   };
+  const t = toneStyle[tone];
   return (
-    <View className={`flex-1 rounded-2xl border p-4 ${toneClass[tone]}`}>
-      <Text className="text-[11px] font-medium uppercase tracking-[0.18em] text-bp-textSecondary">
+    <View className="flex-1 rounded-2xl border p-4" style={{ borderColor: t.border, backgroundColor: t.bg }}>
+      <Text className="text-[11px] font-medium uppercase tracking-[0.18em]" style={{ color: colors.textSecondary }}>
         {label}
       </Text>
-      <Text className="mt-1.5 text-2xl font-bold text-bp-textPrimary">{value}</Text>
-      {note ? <Text className="mt-1 text-xs text-bp-textSecondary">{note}</Text> : null}
+      <Text className="mt-1.5 text-2xl font-bold" style={{ color: colors.textPrimary }}>{value}</Text>
+      {note ? <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>{note}</Text> : null}
     </View>
   );
 }
@@ -316,17 +309,18 @@ export function SectionHeader({
   description?: string;
   action?: ReactNode;
 }) {
+  const { colors } = useTheme();
   return (
     <View className="flex-row flex-wrap items-end justify-between gap-3 pt-4 pb-2">
       <View className="min-w-0 flex-1">
         {eyebrow ? (
-          <Text className="text-[11px] font-medium uppercase tracking-[0.2em] text-bp-textInactive">
+          <Text className="text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: colors.textInactive }}>
             {eyebrow}
           </Text>
         ) : null}
         <Title className="mt-0.5 text-xl">{title}</Title>
         {description ? (
-          <Text className="mt-1 text-sm text-bp-textSecondary">{description}</Text>
+          <Text className="mt-1 text-sm" style={{ color: colors.textSecondary }}>{description}</Text>
         ) : null}
       </View>
       {action}
@@ -336,11 +330,12 @@ export function SectionHeader({
 
 /** Centered empty-state card. */
 export function EmptyState({ title, description }: { title: string; description?: string }) {
+  const { colors } = useTheme();
   return (
     <Card className="items-center p-8">
-      <Text className="text-bp-textPrimary font-semibold text-center">{title}</Text>
+      <Text className="font-semibold text-center" style={{ color: colors.textPrimary }}>{title}</Text>
       {description ? (
-        <Text className="text-bp-textSecondary text-sm text-center mt-1">{description}</Text>
+        <Text className="text-sm text-center mt-1" style={{ color: colors.textSecondary }}>{description}</Text>
       ) : null}
     </Card>
   );

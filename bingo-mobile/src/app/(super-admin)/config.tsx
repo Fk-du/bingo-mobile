@@ -4,6 +4,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { configApi } from '@/api';
 import { AppTextInput, Button, Card, EmptyState, FieldLabel, Screen, SectionHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 
 const LABEL_MAP: Record<string, string> = {
   cardSize: 'labelCardSize',
@@ -29,6 +30,7 @@ const HINT_MAP: Record<string, string> = {
 
 export default function SuperAdminConfigScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
@@ -87,7 +89,7 @@ export default function SuperAdminConfigScreen() {
       <ScrollView contentContainerClassName="gap-4 pb-8">
         {isLoading ? (
           <Card>
-            <Text className="text-bp-textSecondary">{t('common.loading') ?? 'Loading...'}</Text>
+            <Text style={{ color: colors.textSecondary }}>{t('common.loading') ?? 'Loading...'}</Text>
           </Card>
         ) : isError ? (
           <EmptyState title={t('super.loadConfigFailedDesc') ?? 'Failed to load config. Check your connection and try again.'} />
@@ -104,13 +106,13 @@ export default function SuperAdminConfigScreen() {
                     onChangeText={(v) => update(key, v)}
                   />
                   {hintFor(key) ? (
-                    <Text className="text-bp-textSecondary text-xs mt-1">{hintFor(key)}</Text>
+                    <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{hintFor(key)}</Text>
                   ) : null}
                 </View>
               ))}
             </Card>
             {message ? (
-              <Text className={message.isError ? 'text-bp-dangerInk text-sm' : 'text-bp-accentInk text-sm'}>
+              <Text className="text-sm" style={{ color: message.isError ? colors.danger : colors.accent }}>
                 {message.text}
               </Text>
             ) : null}

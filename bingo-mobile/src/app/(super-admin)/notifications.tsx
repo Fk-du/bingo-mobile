@@ -4,28 +4,29 @@ import { notificationsApi } from '@/api';
 import { Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale, translateClientMessage } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { AppNotification, NotificationType } from '@/types';
 
 const TYPE_COLORS: Record<string, string> = {
-  [NotificationType.DEPOSIT_REQUEST]: 'bg-bp-gold',
-  [NotificationType.WITHDRAWAL_REQUEST]: 'bg-bp-gold',
-  [NotificationType.MIN_WITHDRAWAL]: 'bg-bp-gold',
-  [NotificationType.MISSING_PAYMENT_SCREENSHOT]: 'bg-bp-gold',
-  [NotificationType.CLAIM_PENDING]: 'bg-amber-400',
-  [NotificationType.ADMIN_WARNING]: 'bg-amber-400',
-  [NotificationType.DEPOSIT_APPROVED]: 'bg-bp-accent',
-  [NotificationType.WITHDRAWAL_APPROVED]: 'bg-bp-accent',
-  [NotificationType.PLAYER_FUNDED]: 'bg-bp-accent',
-  [NotificationType.WIN]: 'bg-bp-accent',
-  [NotificationType.COMMISSION_CREDITED]: 'bg-bp-accent',
-  [NotificationType.ADMIN_APPROVED]: 'bg-bp-accent',
-  [NotificationType.ADMIN_RESUMED]: 'bg-bp-accent',
-  [NotificationType.ADMIN_SUSPENDED]: 'bg-bp-danger',
-  [NotificationType.DEPOSIT_REJECTED]: 'bg-bp-danger',
-  [NotificationType.WITHDRAWAL_REJECTED]: 'bg-bp-danger',
-  [NotificationType.ADMIN_REJECTED]: 'bg-bp-danger',
-  [NotificationType.CARD_BANNED]: 'bg-bp-danger',
-  [NotificationType.NEW_PLAYER]: 'bg-bp-primary',
+  [NotificationType.DEPOSIT_REQUEST]: '#8B5E3C',
+  [NotificationType.WITHDRAWAL_REQUEST]: '#8B5E3C',
+  [NotificationType.MIN_WITHDRAWAL]: '#8B5E3C',
+  [NotificationType.MISSING_PAYMENT_SCREENSHOT]: '#8B5E3C',
+  [NotificationType.CLAIM_PENDING]: '#d97706',
+  [NotificationType.ADMIN_WARNING]: '#d97706',
+  [NotificationType.DEPOSIT_APPROVED]: '#6B5BFF',
+  [NotificationType.WITHDRAWAL_APPROVED]: '#6B5BFF',
+  [NotificationType.PLAYER_FUNDED]: '#6B5BFF',
+  [NotificationType.WIN]: '#6B5BFF',
+  [NotificationType.COMMISSION_CREDITED]: '#6B5BFF',
+  [NotificationType.ADMIN_APPROVED]: '#6B5BFF',
+  [NotificationType.ADMIN_RESUMED]: '#6B5BFF',
+  [NotificationType.ADMIN_SUSPENDED]: '#FF5C6C',
+  [NotificationType.DEPOSIT_REJECTED]: '#FF5C6C',
+  [NotificationType.WITHDRAWAL_REJECTED]: '#FF5C6C',
+  [NotificationType.ADMIN_REJECTED]: '#FF5C6C',
+  [NotificationType.CARD_BANNED]: '#FF5C6C',
+  [NotificationType.NEW_PLAYER]: '#6B5BFF',
 };
 
 function relativeTime(iso: string, t: (key: string, params?: Record<string, string | number>) => string): string {
@@ -57,6 +58,7 @@ function localizedBody(n: AppNotification): string {
 }
 
 export default function SuperAdminNotificationsScreen() {
+  const { colors } = useTheme();
   const t = useTranslate();
   const qc = useQueryClient();
 
@@ -106,7 +108,7 @@ export default function SuperAdminNotificationsScreen() {
         action={
           hasUnread ? (
             <Pressable onPress={() => void markAllRead()} hitSlop={8}>
-              <Text className="text-bp-primary text-sm font-semibold">
+              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
                 {t('notifications.markAllRead') ?? 'Mark all as read'}
               </Text>
             </Pressable>
@@ -126,25 +128,25 @@ export default function SuperAdminNotificationsScreen() {
         }
         renderItem={({ item }) => {
           const unread = !item.readAt;
-          const dot = TYPE_COLORS[item.type] ?? 'bg-bp-textInactive';
+          const dot = TYPE_COLORS[item.type] ?? colors.textInactive;
           return (
             <Pressable onPress={() => void onPressItem(item)}>
-              <Card className={unread ? 'border-bp-borderActive' : 'opacity-60'}>
+              <Card className={unread ? '' : 'opacity-60'} style={unread ? { borderColor: colors.borderActive } : undefined}>
                 <View className="flex-row items-start gap-2">
                   <View className="flex-1 gap-0.5">
                     <View className="flex-row items-center gap-2">
-                      <Text className="text-bp-textPrimary font-semibold flex-1">
+                      <Text className="font-semibold flex-1" style={{ color: colors.textPrimary }}>
                         {localizedTitle(item, t)}
                       </Text>
                       {unread ? (
-                        <View className="flex-row items-center gap-1 bg-bp-surfaceAlt border border-bp-borderInactive rounded-full px-2 py-0.5">
-                          <View className={`h-1.5 w-1.5 rounded-full ${dot}`} />
-                          <Text className="text-bp-textSecondary text-[10px] font-bold">New</Text>
+                        <View className="flex-row items-center gap-1 rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}>
+                          <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
+                          <Text className="text-[10px] font-bold" style={{ color: colors.textSecondary }}>New</Text>
                         </View>
                       ) : null}
                     </View>
-                    <Text className="text-bp-textSecondary text-sm">{localizedBody(item)}</Text>
-                    <Text className="text-bp-textInactive text-xs mt-1">{relativeTime(item.createdAt, t)}</Text>
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>{localizedBody(item)}</Text>
+                    <Text className="text-xs mt-1" style={{ color: colors.textInactive }}>{relativeTime(item.createdAt, t)}</Text>
                   </View>
                 </View>
               </Card>

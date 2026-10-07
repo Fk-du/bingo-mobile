@@ -4,9 +4,11 @@ import { reportsApi } from '@/api';
 import { EmptyState, Metric, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { AdminGameResponse, GameStatus } from '@/types';
 
 export default function SuperAdminReportsScreen() {
+  const { colors } = useTheme();
   const t = useTranslate();
 
   const revenueQuery = useQuery({
@@ -84,9 +86,9 @@ export default function SuperAdminReportsScreen() {
           />
         }
         renderItem={({ item }) => (
-          <View className="rounded-[18px] border border-bp-borderInactive bg-bp-surface60 px-4 py-3 gap-1.5">
+          <View className="rounded-[18px] border px-4 py-3 gap-1.5" style={{ borderColor: colors.borderInactive, backgroundColor: colors.surface }}>
             <View className="flex-row items-center justify-between">
-              <Text className="text-bp-textPrimary font-semibold">#{item.id}</Text>
+              <Text className="font-semibold" style={{ color: colors.textPrimary }}>#{item.id}</Text>
               <StatusPill status={item.status} />
             </View>
             <View className="flex-row justify-between mt-1">
@@ -102,10 +104,11 @@ export default function SuperAdminReportsScreen() {
 }
 
 function Info({ label, value }: { label: string; value: string | number }) {
+  const { colors } = useTheme();
   return (
     <View className="flex-1 items-start">
-      <Text className="text-bp-textInactive text-[10px] uppercase">{label}</Text>
-      <Text className="text-bp-textPrimary text-sm">{value}</Text>
+      <Text className="text-[10px] uppercase" style={{ color: colors.textInactive }}>{label}</Text>
+      <Text className="text-sm" style={{ color: colors.textPrimary }}>{value}</Text>
     </View>
   );
 }

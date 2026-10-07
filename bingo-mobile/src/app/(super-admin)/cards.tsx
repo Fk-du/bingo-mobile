@@ -5,9 +5,11 @@ import { cardsApi } from '@/api';
 import { AppTextInput, Button, EmptyState, Metric, Screen, SectionHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { CardRequestResponse } from '@/types';
 
 export default function SuperAdminCardsScreen() {
+  const { colors } = useTheme();
   const t = useTranslate();
   const qc = useQueryClient();
   const [rejectId, setRejectId] = useState<number | null>(null);
@@ -77,7 +79,7 @@ export default function SuperAdminCardsScreen() {
       </View>
 
       {processError ? (
-        <View className="mb-4 rounded-xl border border-bp-danger40 bg-bp-danger15 px-4 py-3">
+        <View className="mb-4 rounded-xl border px-4 py-3" style={{ borderColor: colors.danger + '40', backgroundColor: colors.danger + '15' }}>
           <Text className="text-red-500 text-sm">✕ {processError}</Text>
         </View>
       ) : null}
@@ -95,7 +97,7 @@ export default function SuperAdminCardsScreen() {
         }
         contentContainerClassName="gap-3 pb-8"
         ListHeaderComponent={
-          <Text className="text-[11px] uppercase tracking-[0.24em] text-bp-textSecondary mt-2 mb-1">
+          <Text className="text-[11px] uppercase tracking-[0.24em] mt-2 mb-1" style={{ color: colors.textSecondary }}>
             {t('super.pendingWord') ?? 'Pending'}
           </Text>
         }
@@ -106,12 +108,12 @@ export default function SuperAdminCardsScreen() {
           />
         }
         renderItem={({ item }) => (
-          <View className="rounded-[18px] border border-bp-borderInactive bg-bp-surface60 p-4 gap-3">
+          <View className="rounded-[18px] border p-4 gap-3" style={{ borderColor: colors.borderInactive, backgroundColor: colors.surface }}>
             <View className="flex-1">
-              <Text className="text-bp-textPrimary font-semibold">
+              <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                 {t('super.agentId', { id: String(item.adminUserId) }) ?? `Agent ID ${item.adminUserId}`}
               </Text>
-              <Text className="text-bp-textSecondary text-xs mt-0.5">
+              <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
                 {t('super.requestsNewCards', { count: String(item.quantity) }) ?? `Requests ${item.quantity} new cards`} ·{' '}
                 {new Date(item.createdAt).toLocaleString()}
               </Text>
@@ -138,7 +140,7 @@ export default function SuperAdminCardsScreen() {
                     <Text className="text-white text-sm">{t('admin.confirm') ?? 'Confirm'}</Text>
                   </Button>
                   <Button variant="neutral" onPress={() => { setRejectId(null); setReason(''); }}>
-                    <Text className="text-bp-textPrimary text-sm">{t('admin.cancel') ?? 'Cancel'}</Text>
+                    <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('admin.cancel') ?? 'Cancel'}</Text>
                   </Button>
                 </>
               ) : (
@@ -146,7 +148,7 @@ export default function SuperAdminCardsScreen() {
                   variant="neutral"
                   onPress={() => { setRejectId(item.id); setReason(''); setProcessError(null); }}
                 >
-                  <Text className="text-bp-textPrimary text-sm">{t('super.rejectBtn') ?? 'Reject'}</Text>
+                  <Text className="text-sm" style={{ color: colors.textPrimary }}>{t('super.rejectBtn') ?? 'Reject'}</Text>
                 </Button>
               )}
             </View>
@@ -155,27 +157,28 @@ export default function SuperAdminCardsScreen() {
         ListFooterComponent={
           history.length > 0 ? (
             <View>
-              <Text className="text-[11px] uppercase tracking-[0.24em] text-bp-textSecondary mt-5 mb-2">
+              <Text className="text-[11px] uppercase tracking-[0.24em] mt-5 mb-2" style={{ color: colors.textSecondary }}>
                 {t('admin.history') ?? 'History'}
               </Text>
               {history.map((item) => (
                 <View
                   key={item.id}
-                  className="flex-row items-center justify-between gap-3 rounded-[18px] border border-bp-borderInactive bg-bp-surface60 px-4 py-3 mb-2"
+                  className="flex-row items-center justify-between gap-3 rounded-[18px] border px-4 py-3 mb-2"
+                  style={{ borderColor: colors.borderInactive, backgroundColor: colors.surface }}
                 >
                   <View className="flex-1 pr-2">
-                    <Text className="text-bp-textPrimary text-sm font-semibold">
+                    <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>
                       {t('super.agentId', { id: String(item.adminUserId) }) ?? `Agent ID ${item.adminUserId}`} ·{' '}
                       {t('super.requestsNewCards', { count: String(item.quantity) }) ?? `Requests ${item.quantity} new cards`}
                     </Text>
-                    <Text className="text-bp-textSecondary text-xs mt-0.5">
+                    <Text className="text-xs mt-0.5" style={{ color: colors.textSecondary }}>
                       {new Date(item.createdAt).toLocaleDateString()}
                       {item.approvedAt
                         ? ` · ${t('super.approvedOn') ?? 'approved'} ${new Date(item.approvedAt).toLocaleDateString()}`
                         : ''}
                     </Text>
                     {item.status === 'REJECTED' && item.rejectionReason ? (
-                      <Text className="text-bp-dangerInk text-xs mt-0.5">
+                      <Text className="text-xs mt-0.5" style={{ color: colors.danger }}>
                         {t('admin.wdReason', { reason: item.rejectionReason }) ?? `Reason: ${item.rejectionReason}`}
                       </Text>
                     ) : null}

@@ -6,6 +6,7 @@ import { PaymentProof } from '@/components/PaymentProof';
 import { AppTextInput, Button, Card, EmptyState, Metric, Modal, Screen, ScreenHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { CoinRequestResponse, RequestStatus } from '@/types';
 
 type Tab = Exclude<RequestStatus, RequestStatus.CANCELLED>;
@@ -21,6 +22,7 @@ const COMMON_REASONS = [
 
 export default function AdminCoinsScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [tab, setTab] = useState<Tab>(RequestStatus.PENDING);
   const [reviewing, setReviewing] = useState<CoinRequestResponse | null>(null);
 
@@ -44,7 +46,7 @@ export default function AdminCoinsScreen() {
 
   const chip = (label: string, active: boolean, onPress: () => void) => (
     <Button variant={active ? 'primary' : 'outline'} onPress={onPress} className="flex-1" style={{ paddingVertical: 8 }}>
-      <Text className={active ? 'text-white' : 'text-bp-textSecondary text-xs'}>{label}</Text>
+      <Text style={{ color: active ? '#FFFFFF' : colors.textSecondary }} className="text-xs">{label}</Text>
     </Button>
   );
 
@@ -90,10 +92,10 @@ export default function AdminCoinsScreen() {
             <View className="flex-row items-center gap-3">
               <PaymentProof url={item.screenshotUrl} size={48} />
               <View className="flex-1">
-                <Text className="text-bp-textPrimary text-sm font-semibold">
+                <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>
                   {t('admin.wdCoins', { amount: String(item.amount) }) ?? `${item.amount} birr`}
                 </Text>
-                <Text className="text-bp-textSecondary text-xs">
+                <Text className="text-xs" style={{ color: colors.textSecondary }}>
                   {playerLabel(item.userId)} · {new Date(item.createdAt).toLocaleDateString()}
                 </Text>
               </View>
@@ -106,7 +108,7 @@ export default function AdminCoinsScreen() {
               )}
             </View>
             {item.rejectionReason ? (
-              <Text className="text-bp-dangerInk text-xs">
+              <Text className="text-xs" style={{ color: colors.danger }}>
                 {t('player.reason', { reason: item.rejectionReason }) ?? `Reason: ${item.rejectionReason}`}
               </Text>
             ) : null}
@@ -140,6 +142,7 @@ function ReviewDialog({
   onDone: () => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -162,37 +165,38 @@ function ReviewDialog({
   return (
     <Modal onClose={onClose}>
       <Card className="gap-3">
-        <Text className="text-bp-textPrimary font-bold">{t('admin.reviewRequest') ?? 'Review Request'}</Text>
-        <Text className="text-bp-textSecondary text-sm">
+        <Text className="font-bold" style={{ color: colors.textPrimary }}>{t('admin.reviewRequest') ?? 'Review Request'}</Text>
+        <Text className="text-sm" style={{ color: colors.textSecondary }}>
           {t('admin.requestedCoins', { player: playerLabel, amount: String(request.amount) }) ?? `${playerLabel} requested ${request.amount} birr`}
         </Text>
 
-        <Text className="text-bp-textInactive text-[11px] uppercase tracking-wide">{t('admin.paymentProof') ?? 'Payment Proof'}</Text>
+        <Text className="text-[11px] uppercase tracking-wide" style={{ color: colors.textInactive }}>{t('admin.paymentProof') ?? 'Payment Proof'}</Text>
         {request.screenshotUrl ? (
           <View className="items-center">
             <PaymentProof url={request.screenshotUrl} size={160} />
-            <Text className="text-bp-textSecondary text-xs mt-1">{t('admin.tapToEnlarge') ?? 'Tap the image to enlarge'}</Text>
+            <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{t('admin.tapToEnlarge') ?? 'Tap the image to enlarge'}</Text>
           </View>
         ) : (
-          <Text className="text-bp-textSecondary text-sm">{t('admin.noScreenshot') ?? 'No screenshot attached.'}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('admin.noScreenshot') ?? 'No screenshot attached.'}</Text>
         )}
 
-        <Text className="text-bp-textInactive text-[11px] uppercase tracking-wide">{t('admin.rejectionReason') ?? 'Rejection Reason'}</Text>
+        <Text className="text-[11px] uppercase tracking-wide" style={{ color: colors.textInactive }}>{t('admin.rejectionReason') ?? 'Rejection Reason'}</Text>
         {COMMON_REASONS.map((key) => {
           const selected = reason === (t(`admin.${key}`) ?? key);
           return (
             <Pressable
               key={key}
               onPress={() => setReason(t(`admin.${key}`) ?? key)}
-              className={`rounded-xl border px-3 py-2 ${selected ? 'border-bp-danger bg-bp-danger15' : 'border-bp-borderInactive'}`}
+              className="rounded-xl border px-3 py-2"
+              style={{ borderColor: selected ? colors.danger : colors.borderInactive, backgroundColor: selected ? colors.danger + '15' : 'transparent' }}
             >
-              <Text className={selected ? 'text-bp-dangerInk text-sm font-semibold' : 'text-bp-textPrimary text-sm'}>
+              <Text className={selected ? 'text-sm font-semibold' : 'text-sm'} style={{ color: selected ? colors.danger : colors.textPrimary }}>
                 {t(`admin.${key}`) ?? key}
               </Text>
             </Pressable>
           );
         })}
-        <Text className="text-bp-textSecondary text-xs">{t('admin.customReason') ?? 'Custom…'}</Text>
+        <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('admin.customReason') ?? 'Custom…'}</Text>
         <AppTextInput value={reason} onChangeText={setReason} placeholder={t('admin.reasonOnlyReject') ?? 'Only used when rejecting'} />
 
         <View className="flex-row gap-2">

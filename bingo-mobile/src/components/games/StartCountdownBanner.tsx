@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { GameStatus } from '@/types';
 
 interface StartCountdownProps {
@@ -15,6 +16,7 @@ interface StartCountdownProps {
  */
 export function StartCountdownBanner({ status, reason, seconds }: StartCountdownProps) {
   const t = useTranslate();
+  const { colors } = useTheme();
   if (status !== GameStatus.STARTING) return null;
 
   const label =
@@ -29,12 +31,12 @@ export function StartCountdownBanner({ status, reason, seconds }: StartCountdown
   const hint = t('game.countdownHint') ?? 'Nothing to do — the numbers continue on their own.';
 
   return (
-    <View className="items-center gap-1 rounded-2xl border border-bp-gold50 bg-bp-gold20 px-4 py-3">
+    <View className="items-center gap-1 rounded-2xl border px-4 py-3" style={{ borderColor: '#8B5E3C50', backgroundColor: '#8B5E3C20' }}>
       <View className="flex-row items-baseline gap-2">
-        <Text className="text-4xl font-bold text-bp-goldInk">{seconds}</Text>
-        <Text className="text-base font-bold text-bp-goldInk">{label}</Text>
+        <Text className="text-4xl font-bold" style={{ color: colors.gold }}>{seconds}</Text>
+        <Text className="text-base font-bold" style={{ color: colors.gold }}>{label}</Text>
       </View>
-      <Text className="text-center text-xs text-bp-goldInk/80">{hint}</Text>
+      <Text className="text-center text-xs" style={{ color: colors.gold, opacity: 0.8 }}>{hint}</Text>
     </View>
   );
 }

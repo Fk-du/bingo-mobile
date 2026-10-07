@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 import { notificationsApi } from '@/api';
 import { Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { getClientLocale } from '@/lib/clientTranslations';
 import { AppNotification } from '@/types';
 
@@ -22,6 +23,7 @@ function relativeTime(iso: string, t: (key: string, params?: Record<string, stri
 export default function NotificationsScreen() {
   const t = useTranslate();
   const qc = useQueryClient();
+  const { colors } = useTheme();
 
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['notifications'],
@@ -74,7 +76,7 @@ export default function NotificationsScreen() {
         right={
           hasUnread ? (
             <Pressable onPress={markAllRead} hitSlop={8}>
-              <Text className="text-bp-primary text-sm font-semibold">
+              <Text className="text-sm font-semibold" style={{ color: colors.primary }}>
                 {t('notifications.markAllRead') ?? 'Mark all as read'}
               </Text>
             </Pressable>
@@ -91,7 +93,7 @@ export default function NotificationsScreen() {
         contentContainerClassName="gap-3 pb-8"
         ListEmptyComponent={
           <Card>
-            <Text className="text-bp-textSecondary text-center">
+            <Text style={{ color: colors.textSecondary }} className="text-center">
               {t('mobile.noNotifications') ?? 'No notifications yet'}
             </Text>
           </Card>
@@ -100,11 +102,11 @@ export default function NotificationsScreen() {
           <Pressable onPress={() => onPressItem(item)}>
             <Card className={item.readAt ? 'opacity-60' : ''}>
               <View className="flex-row items-start gap-2">
-                {!item.readAt ? <View className="h-2 w-2 rounded-full bg-bp-primary mt-1.5" /> : null}
+                {!item.readAt ? <View className="h-2 w-2 rounded-full mt-1.5" style={{ backgroundColor: colors.primary }} /> : null}
                 <View className="flex-1 gap-0.5">
-                  <Text className="text-bp-textPrimary font-semibold">{item.title}</Text>
-                  <Text className="text-bp-textSecondary text-sm">{item.body}</Text>
-                  <Text className="text-bp-textInactive text-xs mt-1">
+                  <Text className="font-semibold" style={{ color: colors.textPrimary }}>{item.title}</Text>
+                  <Text className="text-sm" style={{ color: colors.textSecondary }}>{item.body}</Text>
+                  <Text className="text-xs mt-1" style={{ color: colors.textInactive }}>
                     {relativeTime(item.createdAt, t)}
                   </Text>
                 </View>

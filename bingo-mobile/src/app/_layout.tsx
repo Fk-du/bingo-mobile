@@ -21,6 +21,7 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
+  const { colors } = useTheme();
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
@@ -59,7 +60,7 @@ function AppRoutes() {
   }, [isAuthenticated, user?.role, segments, router]);
 
   return (
-    <View className="flex-1 bg-bp-background">
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack
         screenOptions={{
           headerShown: false,

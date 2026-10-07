@@ -103,8 +103,8 @@ export default function PlayerProfileScreen() {
       <ScrollView contentContainerClassName="gap-3 pb-8">
         <Card className="items-start gap-1">
           <View className="flex-row items-center gap-2">
-            <Text className="text-bp-textSecondary text-xs">{t('player.phoneLabel') ?? 'Phone'}</Text>
-            <Text className="text-bp-textPrimary text-xs">
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('player.phoneLabel') ?? 'Phone'}</Text>
+            <Text className="text-xs" style={{ color: colors.textPrimary }}>
               {user?.phoneNumber ? user.phoneNumber : (displayName || (t('player.playerLabel') ?? 'Player'))}
             </Text>
           </View>
@@ -112,58 +112,48 @@ export default function PlayerProfileScreen() {
 
         {/* The home screen redirects straight to the game, so the theme switch
             lives on the profile instead of a header the player rarely sees.
-            Both icons stay visible and the active one is outlined in the
-            primary colour, so the current mode reads at a glance. */}
-        <Card className="flex-row items-center justify-between">
-          <Text className="text-bp-textPrimary font-semibold">
-            {t('player.appearance') ?? 'Appearance'}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <ModeToggle
-              active={!isDark}
-              label={t('player.lightMode') ?? 'Light'}
-              onPress={() => !isDark && toggleTheme()}
-              borderColor={!isDark ? colors.primary : colors.borderInactive}
-            >
-              <IconSun size={18} color={!isDark ? colors.primary : colors.textInactive} />
-            </ModeToggle>
-            <ModeToggle
-              active={isDark}
-              label={t('player.darkMode') ?? 'Dark'}
-              onPress={() => isDark && toggleTheme()}
-              borderColor={isDark ? colors.primary : colors.borderInactive}
-            >
-              <IconMoon size={18} color={isDark ? colors.primary : colors.textInactive} />
-            </ModeToggle>
-          </View>
-        </Card>
+            Only the active mode is shown to keep the toggle compact and clear. */}
+        <Pressable onPress={toggleTheme} className="active:opacity-80">
+          <Card className="flex-row items-center justify-between">
+            <Text className="font-semibold" style={{ color: colors.textPrimary }}>
+              {t('player.appearance') ?? 'Appearance'}
+            </Text>
+            <View className="h-9 w-9 items-center justify-center rounded-full" style={{ borderColor: colors.borderInactive, borderWidth: 1, backgroundColor: colors.surface }}>
+              {isDark ? (
+                <IconMoon size={18} color={colors.primary} />
+              ) : (
+                <IconSun size={18} color={colors.primary} />
+              )}
+            </View>
+          </Card>
+        </Pressable>
 
         <Pressable onPress={() => setShowInvite((v) => !v)} className="active:opacity-80">
           <Card className="flex-row justify-between items-center">
-            <Text className="text-bp-textPrimary font-semibold">{t('player.inviteFriends') ?? 'Invite friends'}</Text>
-            <Text className="text-bp-primary">{showInvite ? '−' : '›'}</Text>
+            <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('player.inviteFriends') ?? 'Invite friends'}</Text>
+            <Text style={{ color: colors.primary }}>{showInvite ? '−' : '›'}</Text>
           </Card>
         </Pressable>
 
         {showInvite && (
           <Card className="gap-2">
-            <Text className="text-bp-goldInk font-semibold">{t('player.inviteFriends') ?? 'Invite friends'}</Text>
-            <Text className="text-bp-textSecondary text-xs">{t('player.shareYourLink') ?? 'Share your link'}</Text>
+            <Text className="font-semibold" style={{ color: colors.gold }}>{t('player.inviteFriends') ?? 'Invite friends'}</Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('player.shareYourLink') ?? 'Share your link'}</Text>
             {stats && (
               <View className="flex-row gap-2 mt-1">
-                <View className="flex-1 rounded-xl bg-bp-surfaceAlt px-3 py-2 items-center">
-                  <Text className="text-bp-textPrimary text-lg font-bold">{stats.totalRegistrations ?? 0}</Text>
-                  <Text className="text-bp-textSecondary text-[10px]">{t('player.friendsJoined') ?? 'Friends joined'}</Text>
+                <View className="flex-1 rounded-xl px-3 py-2 items-center" style={{ backgroundColor: colors.surfaceAlt }}>
+                  <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{stats.totalRegistrations ?? 0}</Text>
+                  <Text className="text-[10px]" style={{ color: colors.textSecondary }}>{t('player.friendsJoined') ?? 'Friends joined'}</Text>
                 </View>
-                <View className="flex-1 rounded-xl bg-bp-surfaceAlt px-3 py-2 items-center">
-                  <Text className="text-bp-textPrimary text-lg font-bold">{stats.activeCodes ?? 0}</Text>
-                  <Text className="text-bp-textSecondary text-[10px]">{t('player.activeLinks') ?? 'Active links'}</Text>
+                <View className="flex-1 rounded-xl px-3 py-2 items-center" style={{ backgroundColor: colors.surfaceAlt }}>
+                  <Text className="text-lg font-bold" style={{ color: colors.textPrimary }}>{stats.activeCodes ?? 0}</Text>
+                  <Text className="text-[10px]" style={{ color: colors.textSecondary }}>{t('player.activeLinks') ?? 'Active links'}</Text>
                 </View>
               </View>
             )}
             {link ? (
-              <View className="rounded-xl bg-bp-surfaceAlt border border-bp-borderInactive px-3 py-2">
-                <Text className="text-bp-textSecondary text-xs" numberOfLines={3}>
+              <View className="rounded-xl border px-3 py-2" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}>
+                <Text className="text-xs" style={{ color: colors.textSecondary }} numberOfLines={3}>
                   {link}
                 </Text>
               </View>
@@ -220,17 +210,10 @@ export default function PlayerProfileScreen() {
           />
         </Pressable>
 
-        <Pressable onPress={() => router.push('/(player)/my-games')} className="active:opacity-80">
-          <MenuRow
-            icon={<IconLobby size={18} color={colors.textSecondary} />}
-            label={t('player.myGames') ?? 'My games'}
-          />
-        </Pressable>
-
         <Pressable onPress={() => setShowLanguage((v) => !v)} className="active:opacity-80">
           <Card className="flex-row justify-between items-center">
-            <Text className="text-bp-textPrimary font-semibold">{t('player.language') ?? 'Language'}</Text>
-            <Text className="text-bp-primary">{showLanguage ? '−' : '›'}</Text>
+            <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('player.language') ?? 'Language'}</Text>
+            <Text style={{ color: colors.primary }}>{showLanguage ? '−' : '›'}</Text>
           </Card>
         </Pressable>
 
@@ -243,11 +226,10 @@ export default function PlayerProfileScreen() {
                   <Pressable
                     key={locale}
                     onPress={() => void switchLanguage(locale)}
-                    className={`flex-1 rounded-full border px-4 py-2 items-center ${
-                      active ? 'border-bp-primary bg-bp-primary20' : 'border-bp-borderInactive'
-                    }`}
+                    className="flex-1 rounded-full border px-4 py-2 items-center"
+                    style={{ borderColor: active ? colors.primary : colors.borderInactive, backgroundColor: active ? colors.primary + '20' : 'transparent' }}
                   >
-                    <Text className={active ? 'text-bp-textPrimary font-semibold' : 'text-bp-textSecondary'}>
+                    <Text className={active ? 'font-semibold' : ''} style={{ color: active ? colors.textPrimary : colors.textSecondary }}>
                       {locale === 'en'
                         ? (t('player.english') ?? 'English')
                         : locale === 'am'
@@ -262,7 +244,7 @@ export default function PlayerProfileScreen() {
         )}
 
         <Button variant="ghost" onPress={handleLogout} style={{ marginTop: 12 }}>
-          <Text className="text-bp-dangerInk">{t('player.logOut') ?? 'Log out'}</Text>
+          <Text style={{ color: colors.danger }}>{t('player.logOut') ?? 'Log out'}</Text>
         </Button>
       </ScrollView>
     </Screen>
@@ -281,19 +263,20 @@ function MenuRow({
   detail?: string;
   badge?: number;
 }) {
+  const { colors } = useTheme();
   return (
     <Card className="flex-row items-center justify-between gap-3">
-      <View className="h-8 w-8 items-center justify-center rounded-full bg-bp-surfaceAlt">
+      <View className="h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: colors.surfaceAlt }}>
         {icon}
       </View>
-      <Text className="flex-1 text-bp-textPrimary font-semibold">{label}</Text>
-      {detail ? <Text className="text-bp-textSecondary text-sm">{detail}</Text> : null}
+      <Text className="flex-1 font-semibold" style={{ color: colors.textPrimary }}>{label}</Text>
+      {detail ? <Text className="text-sm" style={{ color: colors.textSecondary }}>{detail}</Text> : null}
       {badge ? (
-        <View className="min-w-[20px] items-center justify-center rounded-full bg-bp-danger px-1.5 py-0.5">
+        <View className="min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5" style={{ backgroundColor: colors.danger }}>
           <Text className="text-[10px] font-bold text-white">{badge}</Text>
         </View>
       ) : null}
-      <Text className="text-bp-primary">›</Text>
+      <Text style={{ color: colors.primary }}>›</Text>
     </Card>
   );
 }
@@ -312,16 +295,15 @@ function ModeToggle({
   borderColor: string;
   children: React.ReactNode;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={label}
-      // The inactive half stays tappable: tapping it switches to that mode
-      // rather than doing nothing, which is what a segmented control implies.
-      className="h-9 w-9 items-center justify-center rounded-full border bg-bp-surface"
-      style={{ borderColor, opacity: active ? 1 : 0.7 }}
+      className="h-9 w-9 items-center justify-center rounded-full border"
+      style={{ borderColor, opacity: active ? 1 : 0.7, backgroundColor: colors.surface }}
     >
       {children}
     </Pressable>

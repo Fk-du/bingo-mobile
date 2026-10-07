@@ -21,6 +21,7 @@ import {
   Title,
 } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
 import { CoinRequestResponse, RequestStatus, WithdrawalResponse } from '@/types';
 import { PaymentProof } from '@/components/PaymentProof';
@@ -29,17 +30,18 @@ const QUICK_AMOUNTS = [100, 250, 500, 1000];
 
 type PickedProof = { uri: string; name: string; type: string };
 
-const STATUS_STYLE: Record<RequestStatus, string> = {
-  PENDING: 'bg-amber-400',
-  APPROVED: 'bg-bp-accent',
-  REJECTED: 'bg-bp-danger',
-  CANCELLED: 'bg-bp-textInactive',
+const STATUS_STYLE: Record<RequestStatus, { bg: string; text: string }> = {
+  PENDING: { bg: '#f59e0b', text: '#FFFFFF' },
+  APPROVED: { bg: '#6B5BFF', text: '#FFFFFF' },
+  REJECTED: { bg: '#FF5C6C', text: '#FFFFFF' },
+  CANCELLED: { bg: '#9ca3af', text: '#FFFFFF' },
 };
 
 export default function WalletScreen() {
   const t = useTranslate();
   const qc = useQueryClient();
   const router = useRouter();
+  const { colors } = useTheme();
   const user = useAuthStore((s) => s.user);
 
   const { data: walletData } = useQuery({ queryKey: ['wallet'], queryFn: () => walletApi.get() });
@@ -146,15 +148,15 @@ export default function WalletScreen() {
         </Card>
 
         <Card className="gap-3">
-          <Text className="text-bp-textPrimary font-semibold">{t('player.buyCoins') ?? 'Buy Birr'}</Text>
+          <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('player.buyCoins') ?? 'Buy Birr'}</Text>
 
           {user?.depositAccountInfo ? (
-            <View className="gap-1 rounded-xl bg-bp-surfaceAlt border border-bp-borderInactive p-3">
-              <Text className="text-xs font-semibold text-bp-secondaryInk">
+            <View className="gap-1 rounded-xl border p-3" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}>
+              <Text className="text-xs font-semibold" style={{ color: colors.secondary }}>
                 {t('player.sendDepositTo') ?? 'Send deposit to'}
               </Text>
-              <Text className="text-sm text-bp-textPrimary">{user.depositAccountInfo}</Text>
-              <Text className="text-xs text-bp-textSecondary">
+              <Text className="text-sm" style={{ color: colors.textPrimary }}>{user.depositAccountInfo}</Text>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>
                 {t('player.afterSending') ?? 'After sending, upload your payment screenshot below.'}
               </Text>
             </View>
@@ -183,14 +185,14 @@ export default function WalletScreen() {
 
           {proof ? (
             <View className="flex-row items-center gap-3">
-              <Image source={{ uri: proof.uri }} className="h-14 w-14 rounded-lg bg-bp-surfaceAlt" resizeMode="cover" />
+              <Image source={{ uri: proof.uri }} className="h-14 w-14 rounded-lg" resizeMode="cover" style={{ backgroundColor: colors.surfaceAlt }} />
               <View className="flex-1">
-                <Text className="text-xs text-bp-accentInk" numberOfLines={1}>
+                <Text className="text-xs" style={{ color: colors.accent }} numberOfLines={1}>
                   {t('player.attached', { filename: proof.name }) ?? proof.name}
                 </Text>
               </View>
               <Pressable onPress={() => setProof(null)} disabled={busy}>
-                <Text className="text-xs text-bp-dangerInk">{t('mobile.removeProof') ?? 'Remove'}</Text>
+                <Text className="text-xs" style={{ color: colors.danger }}>{t('mobile.removeProof') ?? 'Remove'}</Text>
               </Pressable>
             </View>
           ) : (
@@ -205,8 +207,8 @@ export default function WalletScreen() {
         </Card>
 
         <Card className="gap-2">
-          <Text className="text-bp-textPrimary font-semibold">{t('mobile.withdraw') ?? 'Withdraw'}</Text>
-          <Text className="text-bp-textSecondary text-sm">
+          <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('mobile.withdraw') ?? 'Withdraw'}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>
             {t('player.withdrawFromWallet') ?? 'Request cash out of your balance.'}
           </Text>
           <Button onPress={() => void requestWithdrawal()} variant="primary">
@@ -215,28 +217,29 @@ export default function WalletScreen() {
         </Card>
 
         <Card className="gap-2">
-          <Text className="mb-1 text-bp-textPrimary font-semibold">
+          <Text className="mb-1 font-semibold" style={{ color: colors.textPrimary }}>
             {t('mobile.yourRequests') ?? 'Your Requests'}
           </Text>
           {history.length === 0 ? (
-            <Text className="text-sm text-bp-textSecondary">{t('mobile.noRequests') ?? 'No requests yet'}</Text>
+            <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('mobile.noRequests') ?? 'No requests yet'}</Text>
           ) : (
             history.map((item) => (
               <View
                 key={`${item.kind}-${item.id}`}
-                className="flex-row items-center justify-between bg-bp-surfaceAlt border border-bp-borderInactive rounded-xl px-3 py-2.5"
+                className="flex-row items-center justify-between rounded-xl px-3 py-2.5"
+                style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}
               >
                 <View className="flex-1 pr-3">
-                  <Text className="text-sm text-bp-textPrimary">
+                  <Text className="text-sm" style={{ color: colors.textPrimary }}>
                     {item.kind === 'topup'
                       ? t('mobile.topUpRequest') ?? 'Top-up request'
                       : t('mobile.withdrawalRequest') ?? 'Withdrawal request'}
                   </Text>
-                  <Text className="text-xs text-bp-textSecondary">
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
                     {new Date(item.createdAt).toLocaleDateString()}
                   </Text>
                   {item.status === 'REJECTED' && item.rejectionReason ? (
-                    <Text className="text-xs text-bp-dangerInk" numberOfLines={1}>
+                    <Text className="text-xs" style={{ color: colors.danger }} numberOfLines={1}>
                       {t('player.rejectedReason', { reason: item.rejectionReason }) ?? `Rejected: ${item.rejectionReason}`}
                     </Text>
                   ) : null}
@@ -247,9 +250,9 @@ export default function WalletScreen() {
                   ) : null}
                 </View>
                 <View className="items-end gap-1">
-                  <Text className="text-sm font-bold text-bp-primary">+{item.amount.toLocaleString()}</Text>
-                  <View className={`rounded-full px-2 py-0.5 ${STATUS_STYLE[item.status]}`}>
-                    <Text className="text-[10px] font-semibold text-[#241a00]">
+                  <Text className="text-sm font-bold" style={{ color: colors.primary }}>+{item.amount.toLocaleString()}</Text>
+                  <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt }}>
+                    <Text className="text-[10px] font-semibold" style={{ color: colors.textSecondary }}>
                       {t(`status.${item.status}`) ?? item.status}
                     </Text>
                   </View>
@@ -259,7 +262,7 @@ export default function WalletScreen() {
           )}
         </Card>
 
-        <Text className="text-bp-textSecondary text-xs text-center">
+        <Text className="text-xs text-center" style={{ color: colors.textSecondary }}>
           {t('mobile.walletHint') ?? 'Top-ups are reviewed by your agent before being credited.'}
         </Text>
       </ScrollView>

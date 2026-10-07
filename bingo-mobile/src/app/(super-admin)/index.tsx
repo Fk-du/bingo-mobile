@@ -4,11 +4,13 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { agentsApi, cardsApi, reportsApi } from '@/api';
 import { Button, Card, EmptyState, Metric, Screen, SectionHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { AgentResponse, CardRequestResponse, AdminGameResponse, GameStatus } from '@/types';
 
 const BAR_HEIGHT = 128;
 
 export default function SuperAdminDashboardScreen() {
+  const { colors } = useTheme();
   const t = useTranslate();
   const router = useRouter();
 
@@ -36,10 +38,10 @@ export default function SuperAdminDashboardScreen() {
     (a.username ? `@${a.username}` : (t('super.agentNumber', { id: String(a.adminUserId) }) ?? `Agent #${a.adminUserId}`));
 
   const bars = [
-    { label: t('super.barAgents') ?? 'Agents', value: agents.length, color: 'bg-bp-primary60' },
-    { label: t('super.barGames') ?? 'Games', value: games.length, color: 'bg-bp-warning60' },
-    { label: t('super.barLive') ?? 'Live', value: inProgressGames.length, color: 'bg-bp-gold60' },
-    { label: t('super.barEnded') ?? 'Ended', value: endedGames.length, color: 'bg-bp-success60' },
+    { label: t('super.barAgents') ?? 'Agents', value: agents.length, color: colors.primary + '60' },
+    { label: t('super.barGames') ?? 'Games', value: games.length, color: colors.warning + '60' },
+    { label: t('super.barLive') ?? 'Live', value: inProgressGames.length, color: colors.gold + '60' },
+    { label: t('super.barEnded') ?? 'Ended', value: endedGames.length, color: colors.success + '60' },
   ];
   const maxBar = Math.max(1, ...bars.map((b) => b.value));
 
@@ -111,39 +113,39 @@ export default function SuperAdminDashboardScreen() {
         </View>
 
         <Card>
-          <Text className="text-bp-textPrimary text-sm font-semibold">{t('super.platformSummary') ?? 'Platform Summary'}</Text>
-          <Text className="text-bp-textSecondary text-xs mt-1">{t('super.aggregateMetrics') ?? 'Aggregate metrics'}</Text>
+          <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>{t('super.platformSummary') ?? 'Platform Summary'}</Text>
+          <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>{t('super.aggregateMetrics') ?? 'Aggregate metrics'}</Text>
           <View className="flex-row items-end justify-between mt-4" style={{ height: BAR_HEIGHT }}>
             {bars.map((b) => (
               <View key={b.label} className="flex-1 items-center mx-1">
-                <Text className="text-bp-textPrimary text-xs font-medium mb-1">{b.value}</Text>
+                <Text className="text-xs font-medium mb-1" style={{ color: colors.textPrimary }}>{b.value}</Text>
                 <View
-                  className={`w-full rounded-t-md ${b.color}`}
-                  style={{ height: Math.max(b.value > 0 ? 8 : 2, (b.value / maxBar) * (BAR_HEIGHT - 40)) }}
+                  className="w-full rounded-t-md"
+                  style={{ height: Math.max(b.value > 0 ? 8 : 2, (b.value / maxBar) * (BAR_HEIGHT - 40)), backgroundColor: b.color }}
                 />
-                <Text className="text-bp-textSecondary text-[10px] mt-1 text-center">{b.label}</Text>
+                <Text className="text-[10px] mt-1 text-center" style={{ color: colors.textSecondary }}>{b.label}</Text>
               </View>
             ))}
           </View>
         </Card>
 
         <Card>
-          <Text className="text-[11px] font-medium uppercase tracking-[0.18em] text-bp-textSecondary">
+          <Text className="text-[11px] font-medium uppercase tracking-[0.18em]" style={{ color: colors.textSecondary }}>
             {t('super.entryFeesCollected') ?? 'Entry Fees Collected'}
           </Text>
-          <Text className="text-bp-goldInk text-2xl font-bold mt-1.5">
+          <Text className="text-2xl font-bold mt-1.5" style={{ color: colors.gold }}>
             {gamesQuery.isLoading ? '...' : totalEntryFees.toLocaleString()}
           </Text>
-          <Text className="text-bp-textSecondary text-xs mt-1">
+          <Text className="text-xs mt-1" style={{ color: colors.textSecondary }}>
             {t('super.fromCompletedGames', { count: endedGames.length }) ?? `from ${endedGames.length} completed games`}
           </Text>
         </Card>
 
         <Card>
           <View className="flex-row items-center justify-between">
-            <Text className="text-bp-textPrimary text-sm font-semibold">{t('super.recentAgents') ?? 'Recent Agents'}</Text>
+            <Text className="text-sm font-semibold" style={{ color: colors.textPrimary }}>{t('super.recentAgents') ?? 'Recent Agents'}</Text>
             <Pressable onPress={() => router.push('/(super-admin)/agents')} hitSlop={8}>
-              <Text className="text-bp-primary text-sm">{t('super.viewAll') ?? 'View all'}</Text>
+              <Text className="text-sm" style={{ color: colors.primary }}>{t('super.viewAll') ?? 'View all'}</Text>
             </Pressable>
           </View>
           {agents.length === 0 ? (
@@ -158,23 +160,24 @@ export default function SuperAdminDashboardScreen() {
               {agents.slice(0, 5).map((a) => (
                 <View
                   key={a.adminUserId}
-                  className="flex-row items-center justify-between rounded-xl border border-bp-borderInactive bg-bp-bg px-3 py-2.5"
+                  className="flex-row items-center justify-between rounded-xl border px-3 py-2.5"
+                  style={{ backgroundColor: colors.bg, borderColor: colors.borderInactive }}
                 >
                   <View className="flex-1 pr-2">
-                    <Text className="text-bp-textPrimary text-sm font-medium">{agentName(a)}</Text>
-                    <Text className="text-bp-textSecondary text-xs">
+                    <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>{agentName(a)}</Text>
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
                       {t('super.balanceColon') ?? 'Balance'}: {a.balance.toLocaleString()}
                     </Text>
                   </View>
                   {a.approved ? (
-                    <View className="rounded-full bg-bp-success10 px-2 py-0.5">
-                      <Text className="text-[10px] font-bold uppercase tracking-wider text-bp-successInk">
+                    <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.success + '20' }}>
+                      <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.success }}>
                         {t('super.approvedBadge') ?? 'Approved'}
                       </Text>
                     </View>
                   ) : (
-                    <View className="rounded-full bg-bp-warning10 px-2 py-0.5">
-                      <Text className="text-[10px] font-bold uppercase tracking-wider text-bp-warningInk">
+                    <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.warning + '20' }}>
+                      <Text className="text-[10px] font-bold uppercase tracking-wider" style={{ color: colors.warning }}>
                         {t('super.pendingBadge') ?? 'Pending'}
                       </Text>
                     </View>

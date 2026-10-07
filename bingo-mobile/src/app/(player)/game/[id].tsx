@@ -17,6 +17,7 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { useCountdown, useCountdownTo, MAX_CLAIM_WINDOW_SECONDS, DEFAULT_CLAIM_WINDOW_SECONDS } from '@/hooks/useCountdown';
 import { useGameWebSocket } from '@/hooks/useGameWebSocket';
 import { patternProgress, patternCells } from '@/lib/pattern';
+import { useTheme } from '@/lib/theme';
 import { useGameStore } from '@/store/game.store';
 import { useAuthStore } from '@/store/auth.store';
 import {
@@ -39,6 +40,7 @@ export default function LiveGameScreen() {
   const t = useTranslate();
   const qc = useQueryClient();
   const router = useRouter();
+  const { colors } = useTheme();
 
   // Subscribe per-field. Selecting the whole store re-renders this entire
   // screen (every CardGrid) on any store write, including the ones the
@@ -640,22 +642,18 @@ export default function LiveGameScreen() {
     <Screen>
       <View className="gap-1 py-1">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-bp-textInactive">
+          <Text className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: colors.textInactive }}>
             {t('game.winningPattern') ?? 'Winning pattern'}
           </Text>
 
           <View className="flex-row items-center gap-2">
-            {/* The gear lives in the nav bar beside the profile icon now, so
-                this row is only about the game itself. */}
-            {/* Prize and price carry the same pill shape as the registered-card count on
-                the number board, so the row reads as one set of chips. */}
-            <View className="rounded-full border border-bp-gold30 bg-bp-gold10 px-2 py-0.5">
-              <Text className="text-[10px] font-black text-bp-goldInk">
+            <View className="rounded-full border px-2 py-0.5" style={{ borderColor: '#8B5E3C30', backgroundColor: '#8B5E3C10' }}>
+              <Text className="text-[10px] font-black" style={{ color: colors.gold }}>
                 {t('mobile.jackpotPrize') ?? 'Prize'}: {prize == null ? '—' : prize.toLocaleString()}
               </Text>
             </View>
-            <View className="rounded-full border border-bp-borderActive40 bg-bp-surfaceAlt px-2 py-0.5">
-              <Text className="text-[10px] font-black text-bp-textPrimary">
+            <View className="rounded-full border px-2 py-0.5" style={{ borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt }}>
+              <Text className="text-[10px] font-black" style={{ color: colors.textPrimary }}>
                 {t('game.priceLabel') ?? 'Price'}: {entryFee != null ? entryFee : '—'}
               </Text>
             </View>
@@ -663,29 +661,27 @@ export default function LiveGameScreen() {
           </View>
         </View>
 
-        {/* The Amharic names run to 37 characters, so the pattern gets its own
-            full-width row instead of a column squeezed beside the prize. It
-            stays on one line, and shrinks rather than truncating. */}
         <Pressable
           onPress={() => setPatternPreviewOpen(true)}
           disabled={!winningPattern}
           className="w-full flex-row items-center gap-1.5 active:opacity-80"
         >
           <Text
-            className="w-full text-sm font-black text-bp-goldInk"
+            className="w-full text-sm font-black"
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.75}
+            style={{ color: colors.gold }}
           >
             {patternLabel ?? '—'}
           </Text>
           {winningPattern ? (
-            <Text className="text-xs text-bp-textInactive">ⓘ</Text>
+            <Text className="text-xs" style={{ color: colors.textInactive }}>ⓘ</Text>
           ) : null}
         </Pressable>
       </View>
 
-      <View className="border-b border-bp-borderInactive bg-bp-bg pt-2 pb-1.5">
+      <View className="border-b pt-2 pb-1.5" style={{ borderColor: colors.borderInactive, backgroundColor: colors.bg }}>
         <NumberBoard
           calledNumbers={calledNumbers}
           lastCalledNumber={lastCalledNumber}
@@ -707,16 +703,14 @@ export default function LiveGameScreen() {
         {game.gameStatus === GameStatus.ENDED && (
           <>
             <Card
-              className={
-                state?.isWinner
-                  ? 'border-bp-success40 bg-bp-success10'
-                  : 'border-bp-borderInactive bg-bp-surface'
-              }
+              style={{
+                borderColor: state?.isWinner ? '#36E4B440' : colors.borderInactive,
+                backgroundColor: state?.isWinner ? '#36E4B510' : colors.surface,
+              }}
             >
               <Text
-                className={`text-center text-base font-bold ${
-                  state?.isWinner ? 'text-emerald-500' : 'text-bp-textSecondary'
-                }`}
+                className="text-center text-base font-bold"
+                style={{ color: state?.isWinner ? '#059669' : colors.textSecondary }}
               >
                 {state?.isWinner ? t('game.youWon') ?? '🎉 BINGO! You Won! 🎉' : (t('game.gameOver') ?? 'Game Over')}
               </Text>
@@ -737,12 +731,12 @@ export default function LiveGameScreen() {
             next one the player gets a way straight into its registration
             instead of having to navigate out and back in. */}
         {isEnded && nextGame && (
-          <Card className="border-bp-primary40 bg-bp-primary10 gap-3">
+          <Card className="gap-3" style={{ borderColor: '#6B5BFF30', backgroundColor: '#6B5BFF10' }}>
             <View className="items-center gap-1">
-              <Text className="text-center text-sm font-bold text-bp-text">
+              <Text className="text-center text-sm font-bold" style={{ color: colors.textPrimary }}>
                 {t('game.nextGameOpen') ?? 'A new game is open'}
               </Text>
-              <Text className="text-center text-xs text-bp-textSecondary">
+              <Text className="text-center text-xs" style={{ color: colors.textSecondary }}>
                 {t('mobile.jackpotPrize') ?? 'Prize'}: {nextGame.prizeAmount ?? nextGame.entryFee * 5} ·{' '}
                 {t('game.priceLabel') ?? 'Price'}: {nextGame.entryFee}
               </Text>
@@ -779,14 +773,14 @@ export default function LiveGameScreen() {
         )}
 
         {claimWindowActive && (
-          <Card className="border-bp-gold40 bg-bp-gold10">
-            <Text className="text-center text-xs font-bold uppercase tracking-[0.16em] text-bp-goldInk">
+          <Card className="gap-3" style={{ borderColor: '#8B5E3C40', backgroundColor: '#8B5E3C10' }}>
+            <Text className="text-center text-xs font-bold uppercase tracking-[0.16em]" style={{ color: colors.gold }}>
               {t('game.claimWindowTitle') ?? 'Bingo claim window'}
             </Text>
-            <Text className="text-center text-4xl font-black text-bp-goldInk">
+            <Text className="text-center text-4xl font-black" style={{ color: colors.gold }}>
               {claimWindowSeconds}
             </Text>
-            <Text className="text-center text-xs text-bp-goldInk">
+            <Text className="text-center text-xs" style={{ color: colors.gold }}>
               {t('game.claimWindowHint') ?? 'Others can still claim Bingo until this timer ends.'}
             </Text>
           </Card>
@@ -803,8 +797,8 @@ export default function LiveGameScreen() {
         />
 
         {report && (
-          <Card className={reportTone(report.kind)}>
-            <Text className={`text-center text-sm font-semibold ${reportTextTone(report.kind)}`}>{report.message}</Text>
+          <Card style={{ borderColor: report.kind === 'win' ? '#36E4B440' : report.kind === 'banned' || report.kind === 'error' ? '#FF5C6C40' : '#8B5E3C40', backgroundColor: report.kind === 'win' ? '#36E4B510' : report.kind === 'banned' || report.kind === 'error' ? '#FF5C6C10' : '#8B5E3C10' }}>
+            <Text className="text-center text-sm font-semibold" style={{ color: report.kind === 'win' ? '#059669' : report.kind === 'banned' || report.kind === 'error' ? '#dc2626' : '#d97706' }}>{report.message}</Text>
           </Card>
         )}
 
@@ -812,7 +806,7 @@ export default function LiveGameScreen() {
           <>
             
             {registerSuccess && (
-              <Card className="border-bp-success40 bg-bp-success10 px-3 py-2">
+              <Card className="px-3 py-2" style={{ borderColor: '#36E4B440', backgroundColor: '#36E4B510' }}>
                 <Text className="text-center text-emerald-500 text-sm font-semibold">✓ {t('game.registeredReady') ?? 'Registered!'}</Text>
               </Card>
             )}
@@ -820,7 +814,7 @@ export default function LiveGameScreen() {
         )}
 
         {selectionMode && (
-          <Card className="border-bp-primary40 bg-bp-primary10 gap-3">
+          <Card className="gap-3" style={{ borderColor: '#6B5BFF30', backgroundColor: '#6B5BFF10' }}>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
                 <Pressable
@@ -857,7 +851,7 @@ export default function LiveGameScreen() {
                       return allSelected ? '☑' : '☐';
                     })()}
                   </Text>
-                  <Text className="text-xs text-bp-textSecondary">
+                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
                     {(() => {
                       const all = new Set<number>();
                       for (const pc of game.playerCards ?? []) all.add(pc.cardId);
@@ -869,13 +863,13 @@ export default function LiveGameScreen() {
                     })()}
                   </Text>
                 </Pressable>
-                <Text className="text-sm font-bold text-bp-textPrimary">
+                <Text className="text-sm font-bold" style={{ color: colors.textPrimary }}>
                   {t('game.selectCards', { count: String(selectedCardIds.size) }) ??
                     `${selectedCardIds.size} selected`}
                 </Text>
               </View>
               <Pressable onPress={cancelSelection} hitSlop={6} disabled={bulkBusy}>
-                <Text className="text-xs font-bold text-bp-textSecondary">{t('common.cancel') ?? 'Cancel'}</Text>
+                <Text className="text-xs font-bold" style={{ color: colors.textSecondary }}>{t('common.cancel') ?? 'Cancel'}</Text>
               </Pressable>
             </View>
             {/* Show bulk actions when nothing is selected: "Register all previews"
@@ -978,12 +972,15 @@ export default function LiveGameScreen() {
                     <>
                       {isManual && total != null ? (
                         <View
-                          className={`self-center rounded-full border px-2 py-0.5 ${
-                            patternDone ? 'border-bp-gold40 bg-bp-gold10' : 'border-bp-borderInactive bg-bp-surfaceAlt'
-                          }`}
+                          className="self-center rounded-full border px-2 py-0.5"
+                          style={{
+                            borderColor: patternDone ? '#8B5E3C40' : colors.borderInactive,
+                            backgroundColor: patternDone ? '#8B5E3C10' : colors.surfaceAlt,
+                          }}
                         >
                           <Text
-                            className={`text-[9px] font-bold ${patternDone ? 'text-bp-goldInk' : 'text-bp-textSecondary'}`}
+                            className="text-[9px] font-bold"
+                            style={{ color: patternDone ? colors.gold : colors.textSecondary }}
                           >
                             {patternDone
                               ? `✓ ${done}/${total}`
@@ -1004,7 +1001,7 @@ export default function LiveGameScreen() {
             show, and that is the one case worth a message. */}
         {!hasCards && previewCards.length === 0 && !isRegistration && !isStatusUnknown ? (
           <Card>
-            <Text className="text-center text-sm text-bp-textSecondary">
+            <Text className="text-center text-sm" style={{ color: colors.textSecondary }}>
               {game.gameStatus === GameStatus.ENDED
                 ? t('game.noCardsThisGame') ?? 'No cards in this game'
                 : null}
@@ -1024,8 +1021,8 @@ export default function LiveGameScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('game.chooseCard') ?? 'Add a card'}
           hitSlop={8}
-          className="absolute bottom-5 right-4 h-16 w-16 items-center justify-center rounded-full bg-bp-primary active:opacity-80"
-          style={{ shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+          className="absolute bottom-5 right-4 h-16 w-16 items-center justify-center rounded-full active:opacity-80"
+          style={{ backgroundColor: colors.primary, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
         >
           <Text className="text-4xl font-light leading-10 text-white">+</Text>
         </Pressable>
@@ -1046,28 +1043,30 @@ export default function LiveGameScreen() {
           <Card className="gap-3">
             <View className="flex-row items-center justify-between">
               <Text
-                className="min-w-0 flex-1 text-base font-black text-bp-goldInk"
+                className="min-w-0 flex-1 text-base font-black"
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}
+                style={{ color: colors.gold }}
               >
                 {patternLabel}
               </Text>
               <Pressable
                 onPress={() => setPatternPreviewOpen(false)}
-                className="ml-2 h-8 w-8 items-center justify-center rounded-full bg-bp-surfaceAlt active:opacity-70"
+                className="ml-2 h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                style={{ backgroundColor: colors.surfaceAlt }}
               >
-                <Text className="text-base text-bp-textSecondary">✕</Text>
+                <Text className="text-base" style={{ color: colors.textSecondary }}>✕</Text>
               </Pressable>
             </View>
             <View className="items-center">
-              <MiniPattern cells={patternCellsSet} size={34} />
+              <MiniPattern cells={patternCellsSet} size={34} colors={{ bg: colors.bg, primary: colors.primary, gold: colors.gold, surface: colors.surface }} />
             </View>
             {patternHint ? (
-              <Text className="text-center text-sm leading-relaxed text-bp-textSecondary">{patternHint}</Text>
+              <Text className="text-center text-sm leading-relaxed" style={{ color: colors.textSecondary }}>{patternHint}</Text>
             ) : null}
             {patternCellsSet?.size ? (
-              <Text className="text-center text-[11px] text-bp-textInactive">
+              <Text className="text-center text-[11px]" style={{ color: colors.textInactive }}>
                 {patternCellsSet.size} {t('game.patternCells') ?? 'cells'}
               </Text>
             ) : null}
@@ -1079,19 +1078,26 @@ export default function LiveGameScreen() {
   );
 }
 
-function MiniPattern({ cells, size = 11 }: { cells: Set<string> | null; size?: number }) {
+function MiniPattern({ cells, size = 11, colors }: { cells: Set<string> | null; size?: number; colors: { bg: string; primary: string; gold: string; surface: string } }) {
   const gap = 3;
   const pad = 6;
+  const boardWidth = size * 5 + gap * 4 + pad * 2;
   return (
     <View
-      className="rounded-xl border border-bp-gold20 bg-bp-bg"
-      style={{ padding: pad, gap, width: size * 5 + gap * 4 + pad * 2 }}
+      className="rounded-xl border"
+      style={{ padding: pad, gap, width: boardWidth, borderColor: '#8B5E3C20', backgroundColor: colors.bg }}
     >
       {Array.from({ length: 5 }, (_, r) => (
         <View key={r} className="flex-row" style={{ gap }}>
           {Array.from({ length: 5 }, (_, c) => {
             const isFree = r === 2 && c === 2;
             const needed = cells?.has(`${r},${c}`);
+            const cellBg = isFree ? colors.gold : needed ? colors.primary : colors.surface;
+            const shadow = isFree
+              ? { boxShadow: '0 0 5px rgba(242,201,76,0.65)' }
+              : needed
+                ? { boxShadow: '0 0 5px rgba(107,91,255,0.8)' }
+                : {};
             return (
               <View
                 key={c}
@@ -1099,42 +1105,14 @@ function MiniPattern({ cells, size = 11 }: { cells: Set<string> | null; size?: n
                   width: size,
                   height: size,
                   borderRadius: 2.5,
-                  ...(isFree
-                    ? { boxShadow: '0 0 5px rgba(242,201,76,0.65)' }
-                    : needed
-                      ? { boxShadow: '0 0 5px rgba(107,91,255,0.8)' }
-                      : {}),
+                  backgroundColor: cellBg,
+                  ...shadow,
                 }}
-                className={isFree ? 'bg-bp-gold' : needed ? 'bg-bp-primary' : 'bg-bp-surface'}
               />
             );
           })}
         </View>
       ))}
     </View>
-  );
-}
-
-function reportTone(kind: string) {
-  switch (kind) {
-    case 'win':
-      return 'border-bp-success40 bg-bp-success10';
-    case 'banned':
-    case 'error':
-      return 'border-bp-danger40 bg-bp-danger10';
-    default:
-      return 'border-bp-gold40 bg-bp-gold10';
-  }
-}
-
-function reportTextTone(kind: string) {
-  switch (kind) {
-    case 'win':
-      return 'text-emerald-500';
-    case 'banned':
-    case 'error':
-      return 'text-red-500';
-    default:
-      return 'text-amber-500';
-  }
+   );
 }

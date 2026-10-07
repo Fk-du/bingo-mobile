@@ -5,12 +5,14 @@ import { cardsApi } from '@/api';
 import { AppTextInput, Button, Card, EmptyState, Metric, Screen, ScreenHeader, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { CardRequestResponse } from '@/types';
 
 const QUICK_CHIPS = [25, 50, 100];
 
 export default function AdminCardsScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const [quantity, setQuantity] = useState('50');
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -88,11 +90,11 @@ export default function AdminCardsScreen() {
         ListHeaderComponent={
           <>
             <Card className="gap-3 mb-2">
-              <Text className="text-bp-textSecondary text-[11px] uppercase tracking-wide">
+              <Text className="text-[11px] uppercase tracking-wide" style={{ color: colors.textSecondary }}>
                 {t('admin.needMore') ?? 'Need more'}
               </Text>
-              <Text className="text-bp-textPrimary font-bold">{t('admin.requestCards') ?? 'Request cards'}</Text>
-              <Text className="text-bp-textSecondary text-sm">
+              <Text className="font-bold" style={{ color: colors.textPrimary }}>{t('admin.requestCards') ?? 'Request cards'}</Text>
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 {t('admin.requestCardsDesc') ?? 'Cards are shared across all your games.'}
               </Text>
               <View className="flex-row flex-wrap gap-2">
@@ -113,16 +115,16 @@ export default function AdminCardsScreen() {
                 keyboardType="numeric"
                 placeholder={t('admin.quantity') ?? 'Quantity'}
               />
-              {error ? <Text className="text-bp-dangerInk text-sm">✕ {error}</Text> : null}
-              {success ? <Text className="text-bp-accentInk text-sm">✓ {success}</Text> : null}
+              {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
+              {success ? <Text className="text-sm" style={{ color: colors.accent }}>✓ {success}</Text> : null}
               <Button disabled={busy} onPress={() => void submit()}>
                 {busy ? (t('admin.requesting') ?? 'Requesting…') : (t('admin.requestCardsBtn') ?? 'Request cards')}
               </Button>
-              <Text className="text-bp-textInactive text-[10px] text-center">
+              <Text className="text-[10px] text-center" style={{ color: colors.textInactive }}>
                 {t('admin.requestCardsCost') ?? 'Each card costs a small fee from your agent balance.'}
               </Text>
             </Card>
-            <Text className="text-bp-textSecondary text-[11px] uppercase tracking-wide mt-2 mb-1">
+            <Text className="text-[11px] uppercase tracking-wide mt-2 mb-1" style={{ color: colors.textSecondary }}>
               {t('admin.history') ?? 'History'}
             </Text>
           </>
@@ -136,15 +138,15 @@ export default function AdminCardsScreen() {
         renderItem={({ item }) => (
           <Card className="gap-1">
             <View className="flex-row items-center justify-between">
-              <Text className="text-bp-textPrimary font-semibold">
+              <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                 {item.quantity} {t('admin.availableCards') ?? 'card'}
                 {item.quantity !== 1 ? 's' : ''}
               </Text>
               <StatusPill status={item.status} />
             </View>
-            <Text className="text-bp-textSecondary text-xs">{new Date(item.createdAt).toLocaleString()}</Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>{new Date(item.createdAt).toLocaleString()}</Text>
             {item.status === 'REJECTED' && item.rejectionReason ? (
-              <Text className="text-bp-dangerInk text-xs">
+              <Text className="text-xs" style={{ color: colors.danger }}>
                 {t('admin.wdReason', { reason: item.rejectionReason }) ?? `Reason: ${item.rejectionReason}`}
               </Text>
             ) : null}

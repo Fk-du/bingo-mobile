@@ -8,6 +8,7 @@ import { Button, EmptyState, Screen, ScreenHeader, StatusPill, Subtitle, Title }
 import { ThemeToggleButton } from '@/components/ui/ThemeToggleButton';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { PlayerGameResponse } from '@/types';
 
 /**
@@ -22,6 +23,7 @@ export default function PlayerHomeScreen() {
   const t = useTranslate();
   const router = useRouter();
   const qc = useQueryClient();
+  const { colors } = useTheme();
 
   // This screen stays mounted as the first tab, so the lookup is re-run on
   // every focus: the admin may have opened registration while the player was
@@ -65,24 +67,19 @@ export default function PlayerHomeScreen() {
         right={<ThemeToggleButton />}
       />
 
-      {/* The header row + number board stay visible even when no game is
-          running: the player is waiting on the same board the live game uses,
-          so the pill reads "Waiting", the pattern is the one the admin will
-          use, and the chips show the prize and price. When a game opens the
-          screen hands off to it unchanged. */}
       <View className="gap-1 py-1">
         <View className="flex-row items-center justify-between gap-3">
-          <Text className="text-[10px] font-bold uppercase tracking-[0.2em] text-bp-textInactive">
+          <Text className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: colors.textInactive }}>
             {t('game.winningPattern') ?? 'Winning pattern'}
           </Text>
           <View className="flex-row items-center gap-2">
-            <View className="rounded-full border border-bp-gold30 bg-bp-gold10 px-2 py-0.5">
-              <Text className="text-[10px] font-black text-bp-goldInk">
+            <View className="rounded-full border px-2 py-0.5" style={{ borderColor: '#8B5E3C30', backgroundColor: '#8B5E3C10' }}>
+              <Text className="text-[10px] font-black" style={{ color: colors.gold }}>
                 {t('mobile.jackpotPrize') ?? 'Prize'}: {liveGame?.prizeAmount == null ? '—' : liveGame.prizeAmount.toLocaleString()}
               </Text>
             </View>
-            <View className="rounded-full border border-bp-borderActive40 bg-bp-surfaceAlt px-2 py-0.5">
-              <Text className="text-[10px] font-black text-bp-textPrimary">
+            <View className="rounded-full border px-2 py-0.5" style={{ borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt }}>
+              <Text className="text-[10px] font-black" style={{ color: colors.textPrimary }}>
                 {t('game.priceLabel') ?? 'Price'}: {liveGame?.entryFee != null ? liveGame.entryFee : '—'}
               </Text>
             </View>
@@ -94,17 +91,18 @@ export default function PlayerHomeScreen() {
           className="w-full flex-row items-center gap-1.5 opacity-80"
         >
           <Text
-            className="w-full text-sm font-black text-bp-goldInk"
+            className="w-full text-sm font-black"
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.75}
+            style={{ color: colors.gold }}
           >
             {liveGame?.winningPattern ?? '—'}
           </Text>
         </Pressable>
       </View>
 
-      <View className="border-b border-bp-borderInactive bg-bp-bg pt-2 pb-1.5">
+      <View className="border-b pt-2 pb-1.5" style={{ borderColor: colors.borderInactive, backgroundColor: colors.bg }}>
         <NumberBoard
           calledNumbers={[]}
           registeredCount={0}
@@ -117,7 +115,7 @@ export default function PlayerHomeScreen() {
           <RefreshControl refreshing={gamesQuery.isFetching} onRefresh={refresh} tintColor="#6B5BFF" />
         }
       >
-        <View className="mb-4 rounded-2xl border border-bp-borderInactive bg-bp-surface p-4">
+        <View className="mb-4 rounded-2xl border p-4" style={{ borderColor: colors.borderInactive, backgroundColor: colors.surface }}>
           <Subtitle>{t('player.yourBalance') ?? 'Your Balance'}</Subtitle>
           <Title className="text-2xl">
             {walletQuery.data?.data.balance?.toLocaleString() ?? '—'}
@@ -140,10 +138,10 @@ export default function PlayerHomeScreen() {
         />
       </ScrollView>
 
-      <Text className="mt-4 text-center text-xs text-bp-textInactive" key={getClientLocale()}>
-        {t('player.myGames') ?? 'My Games'}{' '}
+      <Text className="mt-4 text-center text-xs" key={getClientLocale()} style={{ color: colors.textInactive }}>
         <Text
-          className="text-bp-primary font-semibold"
+          className="font-semibold"
+          style={{ color: colors.primary }}
           onPress={() => router.push('/(player)/my-games')}
         >
           {t('player.viewAll') ?? 'View all'}

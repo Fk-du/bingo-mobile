@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
+import { useTheme } from '@/lib/theme';
 import { CARD_SORTS, MarkColor, MARK_COLORS, useGameSettings } from '@/store/gameSettings.store';
 import { useGameStore } from '@/store/game.store';
 
@@ -22,10 +23,7 @@ type OptionKey = 'markColor' | 'cardSort';
  */
 export default function GameSettingsScreen() {
   const t = useTranslate();
-  // The gear sits on the game board, so that is where back goes. Asking the
-  // store rather than popping keeps it right even after the board has been
-  // left behind, and the fallback lands on the home screen, which resolves the
-  // live game itself.
+  const { colors } = useTheme();
   const activeGameId = useGameStore((s) => s.activeGameId);
   const markColor = useGameSettings((s) => s.markColor);
   const cardSort = useGameSettings((s) => s.cardSort);
@@ -36,8 +34,6 @@ export default function GameSettingsScreen() {
   const setAutoMark = useGameSettings((s) => s.setAutoMark);
   const setSoundEnabled = useGameSettings((s) => s.setSoundEnabled);
 
-  // Only one panel open at a time: opening a second would grow the screen
-  // again, which is the thing this layout exists to avoid.
   const [open, setOpen] = useState<OptionKey | null>(null);
   const toggle = (key: OptionKey) => setOpen((current) => (current === key ? null : key));
 
@@ -56,7 +52,7 @@ export default function GameSettingsScreen() {
         }
       />
       <ScrollView contentContainerClassName="gap-2 pb-8">
-        <Text className="px-1 pb-1 text-xs text-bp-textSecondary">
+        <Text className="px-1 pb-1 text-xs" style={{ color: colors.textSecondary }}>
           {t('gameSettings.subtitle') ?? 'These choices are saved on this device.'}
         </Text>
 
@@ -65,6 +61,7 @@ export default function GameSettingsScreen() {
           onToggle={() => toggle('markColor')}
           title={t('gameSettings.markColor') ?? 'Called number colour'}
           value={t(`gameSettings.colors.${markColor}`) ?? markColor}
+          colors={colors}
         >
           <View className="flex-row flex-wrap" style={{ gap: 10 }}>
             {MARK_OPTIONS.map((option) => {
@@ -82,13 +79,14 @@ export default function GameSettingsScreen() {
                     className="h-11 w-11 items-center justify-center rounded-xl border-2"
                     style={{
                       backgroundColor: MARK_COLORS[option].fill,
-                      borderColor: active ? '#6B5BFF' : 'transparent',
+                      borderColor: active ? colors.primary : 'transparent',
                     }}
                   >
                     {active ? <Text className="text-base leading-none text-white">✓</Text> : null}
                   </View>
                   <Text
-                    className={`text-[10px] ${active ? 'font-bold text-bp-primary' : 'text-bp-textSecondary'}`}
+                    className={`text-[10px] ${active ? 'font-bold' : ''}`}
+                    style={{ color: active ? colors.primary : colors.textSecondary }}
                   >
                     {t(`gameSettings.colors.${option}`) ?? option}
                   </Text>
@@ -103,19 +101,18 @@ export default function GameSettingsScreen() {
           onToggle={() => toggle('cardSort')}
           title={t('gameSettings.cardSort') ?? 'Card order'}
           value={t(`gameSettings.sorts.${cardSort}`) ?? cardSort}
+          colors={colors}
         >
           <View className="gap-1.5">
-            {CARD_SORTS.map((option) => {
-              const active = option === cardSort;
-              return (
-                <Choice
-                  key={option}
-                  active={active}
-                  label={t(`gameSettings.sorts.${option}`) ?? option}
-                  onPress={() => setCardSort(option)}
-                />
-              );
-            })}
+            {CARD_SORTS.map((option) => (
+              <Choice
+                key={option}
+                active={option === cardSort}
+                label={t(`gameSettings.sorts.${option}`) ?? option}
+                onPress={() => setCardSort(option)}
+                colors={colors}
+              />
+            ))}
           </View>
         </Dropdown>
 
@@ -123,12 +120,14 @@ export default function GameSettingsScreen() {
           label={t('gameSettings.autoMark') ?? 'Auto-mark numbers'}
           enabled={autoMark}
           onToggle={() => setAutoMark(!autoMark)}
+          colors={colors}
         />
 
         <SwitchRow
           label={t('gameSettings.sound') ?? 'Enable call sound'}
           enabled={soundEnabled}
           onToggle={() => setSoundEnabled(!soundEnabled)}
+          colors={colors}
         />
       </ScrollView>
     </Screen>
@@ -145,12 +144,14 @@ function Dropdown({
   title,
   value,
   children,
+  colors,
 }: {
   open: boolean;
   onToggle: () => void;
   title: string;
   value: string;
   children: React.ReactNode;
+  colors: { borderInactive: string; surface: string; textPrimary: string; textSecondary: string; primary: string };
 }) {
   return (
     <View className="gap-2">
@@ -159,12 +160,13 @@ function Dropdown({
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={title}
-        className="flex-row items-center justify-between rounded-2xl border border-bp-borderInactive bg-bp-surface px-4 py-3 active:opacity-80"
+        className="flex-row items-center justify-between rounded-2xl border px-4 py-3 active:opacity-80"
+        style={{ borderColor: colors.borderInactive, backgroundColor: colors.surface }}
       >
-        <Text className="font-semibold text-bp-textPrimary">{title}</Text>
+        <Text className="font-semibold" style={{ color: colors.textPrimary }}>{title}</Text>
         <View className="flex-row items-center gap-2">
-          <Text className="text-sm text-bp-textSecondary">{value}</Text>
-          <Text className="text-bp-primary">{open ? '−' : '›'}</Text>
+          <Text className="text-sm" style={{ color: colors.textSecondary }}>{value}</Text>
+          <Text style={{ color: colors.primary }}>{open ? '−' : '›'}</Text>
         </View>
       </Pressable>
       {open ? <View className="px-1 pb-1">{children}</View> : null}
@@ -180,10 +182,12 @@ function SwitchRow({
   label,
   enabled,
   onToggle,
+  colors,
 }: {
   label: string;
   enabled: boolean;
   onToggle: () => void;
+  colors: { borderInactive: string; surface: string; textPrimary: string; textSecondary: string; primary: string };
 }) {
   return (
     <Pressable
@@ -191,18 +195,17 @@ function SwitchRow({
       accessibilityRole="switch"
       accessibilityState={{ checked: enabled }}
       accessibilityLabel={label}
-      className="flex-row items-center justify-between rounded-2xl border border-bp-borderInactive bg-bp-surface px-4 py-3 active:opacity-80"
+      className="flex-row items-center justify-between rounded-2xl border px-4 py-3 active:opacity-80"
+      style={{ borderColor: colors.borderInactive, backgroundColor: colors.surface }}
     >
-      <Text className="font-semibold text-bp-textPrimary">{label}</Text>
+      <Text className="font-semibold" style={{ color: colors.textPrimary }}>{label}</Text>
       <View
-        className={`h-7 w-12 items-center justify-start rounded-full ${
-          enabled ? 'bg-bp-primary' : 'bg-bp-borderInactive'
-        }`}
+        className="h-7 w-12 items-center justify-start rounded-full"
+        style={{ backgroundColor: enabled ? colors.primary : colors.borderInactive }}
       >
         <View
-          className={`m-1 h-5 w-5 rounded-full bg-white ${
-            enabled ? 'ml-6' : 'ml-1'
-          }`}
+          className="m-1 h-5 w-5 rounded-full bg-white"
+          style={{ marginLeft: enabled ? 20 : 4 }}
         />
       </View>
     </Pressable>
@@ -214,10 +217,12 @@ function Choice({
   active,
   label,
   onPress,
+  colors,
 }: {
   active: boolean;
   label: string;
   onPress: () => void;
+  colors: { borderInactive: string; surface: string; textPrimary: string; textSecondary: string; primary: string };
 }) {
   return (
     <Pressable
@@ -226,14 +231,14 @@ function Choice({
       accessibilityState={{ selected: active }}
       className="flex-row items-center justify-between rounded-xl border px-3 py-2.5 active:opacity-80"
       style={{
-        borderColor: active ? '#6B5BFF' : 'transparent',
-        backgroundColor: active ? 'rgba(107,91,255,0.10)' : 'transparent',
+        borderColor: active ? colors.primary : 'transparent',
+        backgroundColor: active ? colors.primary + '15' : 'transparent',
       }}
     >
-      <Text className={`text-sm ${active ? 'font-semibold text-bp-textPrimary' : 'text-bp-textSecondary'}`}>
+      <Text className={`text-sm ${active ? 'font-semibold' : ''}`} style={{ color: active ? colors.textPrimary : colors.textSecondary }}>
         {label}
       </Text>
-      {active ? <Text className="text-sm text-bp-primary">✓</Text> : null}
+      {active ? <Text className="text-sm" style={{ color: colors.primary }}>✓</Text> : null}
     </Pressable>
   );
 }

@@ -5,10 +5,12 @@ import { playersApi } from '@/api';
 import { AppTextInput, Button, Card, FieldLabel, Modal, Screen, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale } from '@/lib/clientTranslations';
+import { useTheme } from '@/lib/theme';
 import { PlayerResponse } from '@/types';
 
 export default function AdminPlayersScreen() {
   const t = useTranslate();
+  const { colors } = useTheme();
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['admin/players'],
     queryFn: () => playersApi.list(),
@@ -47,7 +49,7 @@ export default function AdminPlayersScreen() {
         contentContainerClassName="gap-3 pb-8"
         ListEmptyComponent={
           <Card>
-            <Text className="text-bp-textSecondary text-center">
+            <Text className="text-center" style={{ color: colors.textSecondary }}>
               {t('admin.noPlayersFound') ?? 'No players found'}
             </Text>
           </Card>
@@ -55,10 +57,10 @@ export default function AdminPlayersScreen() {
         renderItem={({ item }) => (
           <Card className="flex-row justify-between items-center">
             <View className="flex-1">
-              <Text className="text-bp-textPrimary font-semibold">
+              <Text className="font-semibold" style={{ color: colors.textPrimary }}>
                 {item.username ?? `#${item.id}`}
               </Text>
-              <Text className="text-bp-textSecondary text-sm">
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>
                 {item.phoneNumber ?? ''} · {item.balance ?? 0}
               </Text>
             </View>
@@ -87,6 +89,7 @@ function FundModal({
   onDone: () => void;
   t: ReturnType<typeof useTranslate>;
 }) {
+  const { colors } = useTheme();
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -108,7 +111,7 @@ function FundModal({
   return (
     <Modal onClose={onClose}>
       <Card className="gap-3">
-        <Text className="text-bp-textPrimary font-semibold">
+        <Text className="font-semibold" style={{ color: colors.textPrimary }}>
           {t('admin.balanceCoins', { name: player.username ?? `#${player.id}`, balance: player.balance ?? 0 })}
         </Text>
         <FieldLabel>{t('admin.enterCoinAmount') ?? 'Enter birr amount'}</FieldLabel>
