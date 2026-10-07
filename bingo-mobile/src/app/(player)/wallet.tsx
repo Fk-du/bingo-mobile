@@ -1,48 +1,24 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
-import {
-  coinsApi,
-  getApiErrorMessage,
-  screenshotsApi,
-  walletApi,
-  withdrawalsApi,
-} from '@/api';
-import {
-  AppTextInput,
-  Button,
-  Card,
-  Screen,
-  ScreenBackButton,
-  ScreenHeader,
-  Subtitle,
-  Title,
-} from '@/components/ui';
+import { Text, View } from 'react-native';
+import { coinsApi, walletApi, withdrawalsApi } from '@/api';
+import { Button, Card, Screen, ScreenBackButton, ScreenHeader, Subtitle, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
-import { useAuthStore } from '@/store/auth.store';
 import { CoinRequestResponse, RequestStatus, WithdrawalResponse } from '@/types';
 import { PaymentProof } from '@/components/PaymentProof';
 
-const QUICK_AMOUNTS = [100, 250, 500, 1000];
-
-type PickedProof = { uri: string; name: string; type: string };
-
-const STATUS_STYLE: Record<RequestStatus, { bg: string; text: string }> = {
-  PENDING: { bg: '#f59e0b', text: '#FFFFFF' },
-  APPROVED: { bg: '#6B5BFF', text: '#FFFFFF' },
-  REJECTED: { bg: '#FF5C6C', text: '#FFFFFF' },
-  CANCELLED: { bg: '#9ca3af', text: '#FFFFFF' },
+const STATUS_STYLE: Record<RequestStatus, string> = {
+  PENDING: '#f59e0b',
+  APPROVED: '#6B5BFF',
+  REJECTED: '#FF5C6C',
+  CANCELLED: '#9ca3af',
 };
 
 export default function WalletScreen() {
   const t = useTranslate();
-  const qc = useQueryClient();
   const router = useRouter();
   const { colors } = useTheme();
-  const user = useAuthStore((s) => s.user);
 
   const { data: walletData } = useQuery({ queryKey: ['wallet'], queryFn: () => walletApi.get() });
   const { data: coinRequestsData } = useQuery({
@@ -54,61 +30,10 @@ export default function WalletScreen() {
     queryFn: () => withdrawalsApi.list(),
   });
 
-  const [buyAmount, setBuyAmount] = useState('');
-  const [proof, setProof] = useState<PickedProof | null>(null);
-  const [busy, setBusy] = useState(false);
-
   const balance = walletData?.data.balance ?? 0;
   const frozen = walletData?.data.frozenBalance ?? 0;
   const coinRequests = coinRequestsData?.data ?? [];
   const withdrawals = withdrawalsData?.data ?? [];
-
-  const pickProof = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert(t('mobile.proofUploadFailed') ?? 'Upload failed', t('mobile.photosDenied') ?? '');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.7,
-    });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    if (!asset) return;
-    setProof({
-      uri: asset.uri,
-      name: asset.fileName ?? 'payment-proof.jpg',
-      type: asset.mimeType ?? 'image/jpeg',
-    });
-  };
-
-  const requestTopUp = async () => {
-    const amount = Number(buyAmount);
-    if (!amount || amount <= 0) return;
-    if (!proof) {
-      Alert.alert(t('mobile.proofUploadFailed') ?? 'Upload failed', t('player.noScreenshotError') ?? '');
-      return;
-    }
-    setBusy(true);
-    try {
-      const uploaded = await screenshotsApi.upload(proof);
-      await coinsApi.createRequest({ amount, screenshotUrl: uploaded.data });
-      Alert.alert(t('mobile.topUpSent') ?? 'Payment request sent', t('mobile.afterSending') ?? '');
-      setBuyAmount('');
-      setProof(null);
-      void qc.invalidateQueries({ queryKey: ['wallet'] });
-      void qc.invalidateQueries({ queryKey: ['wallet', 'coin-requests'] });
-    } catch (e) {
-      Alert.alert(t('common.error') ?? 'Error', getApiErrorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const requestWithdrawal = async () => {
-    router.push('/(player)/withdraw');
-  };
 
   type HistoryItem = { kind: 'topup'; id: number; amount: number; status: RequestStatus; rejectionReason: string | null; screenshotUrl: string | null; createdAt: string } | { kind: 'withdraw'; id: number; amount: number; status: RequestStatus; rejectionReason: string | null; screenshotUrl: null; createdAt: string };
 
@@ -136,136 +61,77 @@ export default function WalletScreen() {
   return (
     <Screen>
       <ScreenHeader title={t('mobile.navWallet') ?? 'Wallet'} left={<ScreenBackButton />} />
-      <ScrollView contentContainerClassName="gap-4 pb-8">
-        <Card className="flex-row justify-between">
-          <View>
-            <Subtitle>{t('mobile.yourBalance') ?? 'Your Balance'}</Subtitle>
-            <Title className="text-3xl">{balance.toLocaleString()}</Title>
-            <Subtitle className="text-xs">
-              {t('mobile.frozen') ?? 'Frozen'}: {frozen.toLocaleString()}
-            </Subtitle>
-          </View>
-        </Card>
 
-        <Card className="gap-3">
-          <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('player.buyCoins') ?? 'Buy Birr'}</Text>
-
-          {user?.depositAccountInfo ? (
-            <View className="gap-1 rounded-xl border p-3" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}>
-              <Text className="text-xs font-semibold" style={{ color: colors.secondary }}>
-                {t('player.sendDepositTo') ?? 'Send deposit to'}
-              </Text>
-              <Text className="text-sm" style={{ color: colors.textPrimary }}>{user.depositAccountInfo}</Text>
-              <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                {t('player.afterSending') ?? 'After sending, upload your payment screenshot below.'}
-              </Text>
+      <View className="flex-1 justify-between">
+        <View className="gap-4 pb-4">
+          <Card className="flex-row justify-between">
+            <View>
+              <Subtitle>{t('mobile.yourBalance') ?? 'Your Balance'}</Subtitle>
+              <Title className="text-3xl">{balance.toLocaleString()}</Title>
+              <Subtitle className="text-xs">
+                {t('mobile.frozen') ?? 'Frozen'}: {frozen.toLocaleString()}
+              </Subtitle>
             </View>
-          ) : null}
+          </Card>
 
-          <View className="flex-row flex-wrap gap-2">
-            {QUICK_AMOUNTS.map((q) => (
-              <Button
-                key={q}
-                variant="outline"
-                disabled={busy}
-                onPress={() => setBuyAmount(String(q))}
-                style={{ paddingVertical: 8, paddingHorizontal: 14 }}
-              >
-                {q.toLocaleString()}
-              </Button>
-            ))}
-          </View>
-
-          <AppTextInput
-            value={buyAmount}
-            onChangeText={setBuyAmount}
-            placeholder={t('mobile.amount') ?? 'Amount (birr)'}
-            keyboardType="numeric"
-          />
-
-          {proof ? (
-            <View className="flex-row items-center gap-3">
-              <Image source={{ uri: proof.uri }} className="h-14 w-14 rounded-lg" resizeMode="cover" style={{ backgroundColor: colors.surfaceAlt }} />
-              <View className="flex-1">
-                <Text className="text-xs" style={{ color: colors.accent }} numberOfLines={1}>
-                  {t('player.attached', { filename: proof.name }) ?? proof.name}
-                </Text>
-              </View>
-              <Pressable onPress={() => setProof(null)} disabled={busy}>
-                <Text className="text-xs" style={{ color: colors.danger }}>{t('mobile.removeProof') ?? 'Remove'}</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Button variant="outline" onPress={pickProof} disabled={busy}>
-              {t('mobile.pickScreenshot') ?? 'Attach payment screenshot'}
-            </Button>
-          )}
-
-          <Button onPress={requestTopUp} disabled={busy}>
-            {t('mobile.requestPayment') ?? 'Request payment'}
-          </Button>
-        </Card>
-
-        <Card className="gap-2">
-          <Text className="font-semibold" style={{ color: colors.textPrimary }}>{t('mobile.withdraw') ?? 'Withdraw'}</Text>
-          <Text className="text-sm" style={{ color: colors.textSecondary }}>
-            {t('player.withdrawFromWallet') ?? 'Request cash out of your balance.'}
-          </Text>
-          <Button onPress={() => void requestWithdrawal()} variant="primary">
-            {t('mobile.requestWithdraw') ?? 'Withdraw'}
-          </Button>
-        </Card>
-
-        <Card className="gap-2">
-          <Text className="mb-1 font-semibold" style={{ color: colors.textPrimary }}>
-            {t('mobile.yourRequests') ?? 'Your Requests'}
-          </Text>
-          {history.length === 0 ? (
-            <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('mobile.noRequests') ?? 'No requests yet'}</Text>
-          ) : (
-            history.map((item) => (
-              <View
-                key={`${item.kind}-${item.id}`}
-                className="flex-row items-center justify-between rounded-xl px-3 py-2.5"
-                style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}
-              >
-                <View className="flex-1 pr-3">
-                  <Text className="text-sm" style={{ color: colors.textPrimary }}>
-                    {item.kind === 'topup'
-                      ? t('mobile.topUpRequest') ?? 'Top-up request'
+          <Card className="gap-2">
+            <Text className="mb-1 font-semibold" style={{ color: colors.textPrimary }}>
+              {t('mobile.yourRequests') ?? 'Your Requests'}
+            </Text>
+            {history.length === 0 ? (
+              <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('mobile.noRequests') ?? 'No requests yet'}</Text>
+            ) : (
+              history.map((item) => (
+                <View
+                  key={`${item.kind}-${item.id}`}
+                  className="flex-row items-center justify-between rounded-xl px-3 py-2.5"
+                  style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}
+                >
+                  <View className="flex-1 pr-3">
+                    <Text className="text-sm" style={{ color: colors.textPrimary }}>
+                      {item.kind === 'topup'
+                        ? t('mobile.topUpRequest') ?? 'Top-up request'
                       : t('mobile.withdrawalRequest') ?? 'Withdrawal request'}
-                  </Text>
-                  <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </Text>
-                  {item.status === 'REJECTED' && item.rejectionReason ? (
-                    <Text className="text-xs" style={{ color: colors.danger }} numberOfLines={1}>
-                      {t('player.rejectedReason', { reason: item.rejectionReason }) ?? `Rejected: ${item.rejectionReason}`}
                     </Text>
-                  ) : null}
-                  {item.kind === 'topup' && item.screenshotUrl ? (
-                    <View className="mt-1 w-10 h-10 rounded-lg overflow-hidden">
-                      <PaymentProof url={item.screenshotUrl} size={40} />
+                    <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </Text>
+                    {item.status === 'REJECTED' && item.rejectionReason ? (
+                      <Text className="text-xs" style={{ color: colors.danger }} numberOfLines={1}>
+                        {t('player.rejectedReason', { reason: item.rejectionReason }) ?? `Rejected: ${item.rejectionReason}`}
+                      </Text>
+                    ) : null}
+                    {item.kind === 'topup' && item.screenshotUrl ? (
+                      <View className="mt-1 w-10 h-10 rounded-lg overflow-hidden">
+                        <PaymentProof url={item.screenshotUrl} size={40} />
+                      </View>
+                    ) : null}
+                  </View>
+                  <View className="items-end gap-1">
+                    <Text className="text-sm font-bold" style={{ color: item.kind === 'topup' ? colors.primary : colors.danger }}>
+                      {item.kind === 'topup' ? `+${item.amount.toLocaleString()}` : `-${item.amount.toLocaleString()}`}
+                    </Text>
+                    <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt }}>
+                      <Text className="text-[10px] font-semibold" style={{ color: STATUS_STYLE[item.status] }}>
+                        {t(`status.${item.status}`) ?? item.status}
+                      </Text>
                     </View>
-                  ) : null}
-                </View>
-                <View className="items-end gap-1">
-                  <Text className="text-sm font-bold" style={{ color: colors.primary }}>+{item.amount.toLocaleString()}</Text>
-                  <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt }}>
-                    <Text className="text-[10px] font-semibold" style={{ color: colors.textSecondary }}>
-                      {t(`status.${item.status}`) ?? item.status}
-                    </Text>
                   </View>
                 </View>
-              </View>
-            ))
-          )}
-        </Card>
+              ))
+            )}
+          </Card>
+        </View>
 
-        <Text className="text-xs text-center" style={{ color: colors.textSecondary }}>
-          {t('mobile.walletHint') ?? 'Top-ups are reviewed by your agent before being credited.'}
-        </Text>
-      </ScrollView>
+        <View className="pb-6 pt-2 gap-2">
+          <Button onPress={() => router.push('/(player)/deposit')} variant="gold">
+            {t('mobile.buyCoins') ?? 'Deposit'}
+          </Button>
+          <Button onPress={() => router.push('/(player)/withdraw')} variant="primary">
+            {t('mobile.withdraw') ?? 'Withdraw'}
+          </Button>
+        </View>
+      </View>
     </Screen>
   );
 }

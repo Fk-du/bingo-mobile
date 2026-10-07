@@ -191,7 +191,11 @@ export default function PlayerProfileScreen() {
           <MenuRow
             icon={<IconWallet size={18} color={colors.textSecondary} />}
             label={t('mobile.navWallet') ?? 'Wallet'}
-            detail={walletQuery?.data.balance?.toLocaleString()}
+            detail={
+              walletQuery?.data
+                ? `${walletQuery.data.balance.toLocaleString()} · ${t('mobile.frozen') ?? 'Frozen'}: ${walletQuery.data.frozenBalance.toLocaleString()}`
+                : undefined
+            }
           />
         </Pressable>
 

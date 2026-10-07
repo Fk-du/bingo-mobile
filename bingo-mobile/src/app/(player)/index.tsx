@@ -121,15 +121,13 @@ export default function PlayerHomeScreen() {
             {walletQuery.data?.data.balance?.toLocaleString() ?? '—'}
           </Title>
           <Subtitle className="text-xs">{t('player.coinsAvailable') ?? 'birr available'}</Subtitle>
-          {false && (
-            <Button
-              variant="outline"
-              className="mt-3 self-start"
-              onPress={() => router.push('/(player)/wallet')}
-            >
-              {t('player.buyCoins') ?? 'Buy Birr'}
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="mt-3 self-start"
+            onPress={() => router.push('/(player)/deposit')}
+          >
+            {t('player.buyCoins') ?? 'Buy Birr'}
+          </Button>
         </View>
 
         <EmptyState
