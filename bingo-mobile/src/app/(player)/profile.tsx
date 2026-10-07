@@ -186,41 +186,43 @@ export default function PlayerProfileScreen() {
             so the player never has to open a screen just to find Deposit or
             Withdraw. */}
         <View className="gap-4">
-          <Card className="w-full items-center gap-4 p-6">
-            <View className="items-center gap-1">
-              <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-                {t('mobile.yourBalance') ?? 'Available Balance'}
-              </Text>
-              <Text className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
-                {walletQuery?.data?.balance?.toLocaleString() ?? '—'}
-              </Text>
+          <Card className="w-full items-center justify-center gap-4 p-5">
+            <View className="flex-row items-center justify-center gap-6">
+              <View className="items-center">
+                <Text className="text-[10px] font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
+                  {t('mobile.yourBalance') ?? 'Balance'}
+                </Text>
+                <Text className="text-xl font-bold" style={{ color: colors.textPrimary }}>
+                  {walletQuery?.data?.balance?.toLocaleString() ?? '—'}
+                </Text>
+              </View>
+              <View className="items-center">
+                <Text className="text-[10px] font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
+                  {t('mobile.frozen') ?? 'Frozen'}
+                </Text>
+                <Text className="text-xl font-bold" style={{ color: colors.textPrimary }}>
+                  {walletQuery?.data?.frozenBalance?.toLocaleString() ?? '—'}
+                </Text>
+              </View>
             </View>
-            <View className="items-center gap-1">
-              <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-                {t('mobile.frozen') ?? 'Frozen'}
-              </Text>
-              <Text className="text-lg font-semibold" style={{ color: colors.textPrimary }}>
-                {walletQuery?.data?.frozenBalance?.toLocaleString() ?? '—'}
-              </Text>
+
+            <View className="flex-row gap-3 w-full pt-2">
+              <Button
+                onPress={() => router.push('/(player)/wallet')}
+                variant="gold"
+                style={{ flex: 1 }}
+              >
+                {t('mobile.buyCoins') ?? 'Deposit'}
+              </Button>
+              <Button
+                onPress={() => router.push('/(player)/withdraw')}
+                variant="primary"
+                style={{ flex: 1 }}
+              >
+                {t('mobile.withdraw') ?? 'Withdraw'}
+              </Button>
             </View>
           </Card>
-
-          <View className="flex-row gap-3">
-            <Button
-              onPress={() => router.push('/(player)/wallet')}
-              variant="gold"
-              style={{ flex: 1 }}
-            >
-              {t('mobile.buyCoins') ?? 'Deposit'}
-            </Button>
-            <Button
-              onPress={() => router.push('/(player)/withdraw')}
-              variant="primary"
-              style={{ flex: 1 }}
-            >
-              {t('mobile.withdraw') ?? 'Withdraw'}
-            </Button>
-          </View>
         </View>
 
         <Pressable onPress={() => router.push('/(player)/notifications')} className="active:opacity-80">

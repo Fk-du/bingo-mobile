@@ -78,26 +78,27 @@ export default function WalletScreen() {
       <ScreenHeader title={t('mobile.navWallet') ?? 'Wallet'} left={<ScreenBackButton />} />
 
       <ScrollView contentContainerClassName="gap-6 pb-8">
-        <Card className="w-full items-center gap-6 p-8">
-          <View className="items-center gap-1">
-            <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-              {t('mobile.yourBalance') ?? 'Available Balance'}
-            </Text>
-            <Text className="text-4xl font-bold" style={{ color: colors.textPrimary }}>
-              {balance.toLocaleString()}
-            </Text>
+        <Card className="w-full items-center justify-center gap-4 p-5">
+          <View className="flex-row items-center justify-center gap-6">
+            <View className="items-center">
+              <Text className="text-[10px] font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
+                {t('mobile.yourBalance') ?? 'Balance'}
+              </Text>
+              <Text className="text-xl font-bold" style={{ color: colors.textPrimary }}>
+                {balance.toLocaleString()}
+              </Text>
+            </View>
+            <View className="items-center">
+              <Text className="text-[10px] font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
+                {t('mobile.frozen') ?? 'Frozen'}
+              </Text>
+              <Text className="text-xl font-bold" style={{ color: colors.textPrimary }}>
+                {frozen.toLocaleString()}
+              </Text>
+            </View>
           </View>
 
-          <View className="items-center gap-1">
-            <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-              {t('mobile.frozen') ?? 'Frozen'}
-            </Text>
-            <Text className="text-2xl font-bold" style={{ color: colors.textPrimary }}>
-              {frozen.toLocaleString()}
-            </Text>
-          </View>
-
-          <View className="flex-row gap-4 pt-2 w-full">
+          <View className="flex-row gap-3 w-full pt-2">
             <Button
               onPress={() => setShowDeposit((v) => !v)}
               variant="gold"
