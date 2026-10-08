@@ -203,6 +203,105 @@ class CardPreviewRegistrationTest {
             playerSees("already registered for an active game",
                     () -> service.previewCards(GAME_ID, PLAYER_ID, 5));
         }
+
+        @Test
+        @DisplayName("refuses a request over the 50-card limit instead of silently handing over a smaller set")
+        void previewRefusesMoreThanFifty() {
+            playerSees("at most 50 cards", () -> service.previewCards(GAME_ID, PLAYER_ID, 60));
+            playerSees("Ask for 50 or fewer", () -> service.previewCards(GAME_ID, PLAYER_ID, 60));
+
+            verify(cardPreviewRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("tops the holding up to the ask, never past the 50-card limit")
+        void previewTopUpRespectsCap() {
+            when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(45L);
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(0L);
+            when(cardRepository.findRandomAvailable(any(), eq(5)))
+                    .thenReturn(List.of(card(1), card(2), card(3), card(4), card(5)));
+
+            service.previewCards(GAME_ID, PLAYER_ID, 50);
+
+            verify(cardRepository).findRandomAvailable(any(), eq(5));
+            verify(cardPreviewRepository, times(5)).save(any(CardPreview.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("reusing the previous game's cards")
+    class ReusingPreviousCards {
+
+        private GameCard dealt(long cardId, long gameId) {
+            return GameCard.builder().id(cardId).gameId(gameId).playerId(PLAYER_ID).card(card(cardId)).build();
+        }
+
+        @Test
+        @DisplayName("takes only the most recent game's cards, not every game the player ever played")
+        void onlyThePreviousGameIsReused() {
+            // The player joined game 60 last and game 50 before that.
+            when(gameCardRepository.findGameIdsByPlayerExcluding(PLAYER_ID, GAME_ID))
+                    .thenReturn(List.of(60L, 50L));
+            when(gameCardRepository.findAllByGameIdAndPlayerId(60L, PLAYER_ID))
+                    .thenReturn(List.of(dealt(1, 60), dealt(2, 60)));
+            when(cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(GAME_ID, PLAYER_ID, 1L))
+                    .thenReturn(Optional.empty());
+            when(cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(GAME_ID, PLAYER_ID, 2L))
+                    .thenReturn(Optional.empty());
+            when(cardRepository.isCardOccupiedByOthers(eq(1L), eq(GAME_ID), eq(PLAYER_ID), any()))
+                    .thenReturn(false);
+            when(cardRepository.isCardOccupiedByOthers(eq(2L), eq(GAME_ID), eq(PLAYER_ID), any()))
+                    .thenReturn(false);
+
+            List<PreviewCardResponse> created = service.previewPreviousCards(GAME_ID, PLAYER_ID);
+
+            assertThat(created).extracting(PreviewCardResponse::cardId).containsExactlyInAnyOrder(1L, 2L);
+            verify(gameCardRepository, never()).findAllByGameIdAndPlayerId(50L, PLAYER_ID);
+        }
+
+        @Test
+        @DisplayName("tells the player there is nothing to reuse before their first game")
+        void nothingToReuseBeforeFirstGame() {
+            when(gameCardRepository.findGameIdsByPlayerExcluding(PLAYER_ID, GAME_ID))
+                    .thenReturn(List.of());
+
+            playerSees("haven't played any cards yet",
+                    () -> service.previewPreviousCards(GAME_ID, PLAYER_ID));
+
+            verify(cardPreviewRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("refuses the reuse when the player already holds the 50-card maximum")
+        void noRoomAtTheCap() {
+            when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(50L);
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(0L);
+
+            playerSees("maximum of 50 cards",
+                    () -> service.previewPreviousCards(GAME_ID, PLAYER_ID));
+
+            verify(cardPreviewRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("fills only the room left when the reuse would pass the limit")
+        void reuseFillsOnlyRemainingRoom() {
+            when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(49L);
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(0L);
+            when(gameCardRepository.findGameIdsByPlayerExcluding(PLAYER_ID, GAME_ID)).thenReturn(List.of(60L));
+            when(gameCardRepository.findAllByGameIdAndPlayerId(60L, PLAYER_ID))
+                    .thenReturn(List.of(dealt(1, 60), dealt(2, 60)));
+            when(cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(GAME_ID, PLAYER_ID, 1L))
+                    .thenReturn(Optional.empty());
+            when(cardRepository.isCardOccupiedByOthers(eq(1L), eq(GAME_ID), eq(PLAYER_ID), any()))
+                    .thenReturn(false);
+
+            List<PreviewCardResponse> created = service.previewPreviousCards(GAME_ID, PLAYER_ID);
+
+            assertThat(created).extracting(PreviewCardResponse::cardId).containsExactly(1L);
+            verify(cardPreviewRepository, never()).findByGameIdAndPlayerIdAndCardId(GAME_ID, PLAYER_ID, 2L);
+            verify(cardPreviewRepository, times(1)).save(any(CardPreview.class));
+        }
     }
 
     @Nested
@@ -298,6 +397,74 @@ class CardPreviewRegistrationTest {
 
             verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
             verify(gameCardRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("tells the player the 50-card limit once the game holds as many as allowed")
+        void registerRefusesPastFifty() {
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(50L);
+
+            playerSees("at most 50 cards", () -> service.registerPreviewedCard(GAME_ID, PLAYER_ID, 1L));
+            playerSees("Remove one of your cards first", () -> service.registerPreviewedCard(GAME_ID, PLAYER_ID, 1L));
+
+            verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
+            verify(gameCardRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("registering a batch directly")
+    class AutoRegistering {
+
+        @Test
+        @DisplayName("refuses a request over the 50-card limit before picking or charging for anything")
+        void autoRegisterRefusesOverFifty() {
+            playerSees("Ask for 50 or fewer", () -> service.assignCardsAuto(GAME_ID, PLAYER_ID, 60));
+
+            verify(cardRepository, never()).findRandomAvailable(any(), anyInt());
+            verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
+            verify(gameCardRepository, never()).save(any(GameCard.class));
+        }
+
+        @Test
+        @DisplayName("refuses when the player already holds the 50-card maximum")
+        void autoRegisterRefusesAtCap() {
+            when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(30L);
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(20L);
+
+            playerSees("Remove one of your cards first", () -> service.assignCardsAuto(GAME_ID, PLAYER_ID, 1));
+
+            verify(cardRepository, never()).findRandomAvailable(any(), anyInt());
+            verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
+            verify(gameCardRepository, never()).save(any(GameCard.class));
+        }
+
+        @Test
+        @DisplayName("tells the player how many cards there is actually room for")
+        void autoRegisterStatesRoomLeft() {
+            when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(45L);
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(0L);
+
+            playerSees("can only add 5 more", () -> service.assignCardsAuto(GAME_ID, PLAYER_ID, 10));
+
+            verify(cardRepository, never()).findRandomAvailable(any(), anyInt());
+            verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
+            verify(gameCardRepository, never()).save(any(GameCard.class));
+        }
+
+        @Test
+        @DisplayName("the single-card path also refuses a player at the cap")
+        void assignCardRefusesAtCap() {
+            when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(50L);
+            when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(0L);
+            when(gameCardRepository.findByPlayerIdAndActiveGamesExcluding(PLAYER_ID, GAME_ID))
+                    .thenReturn(List.of());
+
+            playerSees("Remove one of your cards first",
+                    () -> service.assignCard(GAME_ID, PLAYER_ID, 1L));
+
+            verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
+            verify(gameCardRepository, never()).save(any(GameCard.class));
         }
     }
 

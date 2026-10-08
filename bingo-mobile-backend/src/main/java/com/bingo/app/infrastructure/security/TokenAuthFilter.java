@@ -1,21 +1,21 @@
 package com.bingo.app.infrastructure.security;
 
+import com.bingo.app.common.exception.ErrorResponses;
 import com.bingo.app.infrastructure.persistence.TenantHelper;
 import com.bingo.app.master.entity.User;
 import com.bingo.app.master.service.UserService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * Single authentication filter for every deployment. Accepts either:
@@ -124,31 +124,17 @@ public class TokenAuthFilter extends OncePerRequestFilter {
 
     private void writeForbidden(HttpServletResponse response, User user)
             throws IOException {
-        String message = "Account is suspended";
-        String userMessage = "Your account has been suspended. Contact the platform owner for details.";
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json");
-        response.getWriter().write(new ObjectMapper().writeValueAsString(
-                Map.of(
-                        "message", message,
-                        "userMessage", userMessage,
-                        "code", "account_suspended",
-                        "status", HttpServletResponse.SC_FORBIDDEN
-                )));
+        ErrorResponses.write(response, HttpStatus.FORBIDDEN,
+                "Account is suspended",
+                "Your account has been suspended. Contact the platform owner for details.",
+                "account_suspended");
     }
 
     private void writePendingApproval(HttpServletResponse response, User user)
             throws IOException {
-        String message = "Account pending approval";
-        String userMessage = "Your admin account is awaiting approval from the super admin. You cannot use admin features until your account is approved.";
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json");
-        response.getWriter().write(new ObjectMapper().writeValueAsString(
-                Map.of(
-                        "message", message,
-                        "userMessage", userMessage,
-                        "code", "admin_pending",
-                        "status", HttpServletResponse.SC_FORBIDDEN
-                )));
+        ErrorResponses.write(response, HttpStatus.FORBIDDEN,
+                "Account pending approval",
+                "Your admin account is awaiting approval from the super admin. You cannot use admin features until your account is approved.",
+                "admin_pending");
     }
 }

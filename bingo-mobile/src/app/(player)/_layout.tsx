@@ -1,10 +1,15 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs } from 'expo-router';
-import { ViewStyle } from 'react-native';
+import { Text, View, ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationsApi } from '@/api';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
+import { useGameSettings } from '@/store/gameSettings.store';
+import { useGameStore } from '@/store/game.store';
+import { GameStatus } from '@/types';
+import { numberLetter } from '@/components/games/NumberBoard';
 import { IconProfile, IconSettings } from '@/components/ui/icons';
 
 /** Matches bp-brand-primary. Kept raw so the pill and the icon agree exactly. */
@@ -66,6 +71,14 @@ const BAR_ITEM_GAP = 6;
 /** The gutter between the last item and the edge of the screen. */
 const BAR_ITEM_GUTTER = 12;
 
+/** Statuses in which a mark on the player's card still means their live position. */
+const LIVE_GAME_STATUSES: GameStatus[] = [
+  GameStatus.STARTING,
+  GameStatus.IN_PROGRESS,
+  GameStatus.PAUSED,
+  GameStatus.CLAIM_PENDING,
+];
+
 /**
  * `profile` and `settings` occupy the bar, and `profile` is declared first,
  * which would make it the landing route. The app must still open straight into
@@ -86,6 +99,27 @@ export default function PlayerLayout() {
     refetchInterval: 30_000,
   });
   const unread = unreadData?.data.count ?? 0;
+
+  // The newest number auto-marked on the player's own cards. They asked for it
+  // in the bar: stepped away from the game, they can see at a glance where
+  // their board got to. Manual marking has no place here -- the marks are the
+  // player's own taps and the board already shows them.
+  const autoMarkOn = useGameSettings((s) => s.autoMark);
+  const calledNumbers = useGameStore((s) => s.calledNumbers);
+  const playerCards = useGameStore((s) => s.playerCards);
+  const gameStatus = useGameStore((s) => s.gameStatus);
+  const lastMarked = useMemo(() => {
+    if (!autoMarkOn || gameStatus == null || !LIVE_GAME_STATUSES.includes(gameStatus)) return null;
+    const marks = new Set<number>();
+    for (const card of playerCards ?? []) {
+      for (const n of card.markedNumbers ?? []) marks.add(n);
+    }
+    // Called order is the order the marks landed in, which the mark sets
+    // themselves do not keep: walk the calls and keep the newest marked one.
+    let last: number | null = null;
+    for (const entry of calledNumbers) if (marks.has(entry.number)) last = entry.number;
+    return last;
+  }, [autoMarkOn, gameStatus, playerCards, calledNumbers]);
 
   // The bar is sized around the top inset (status bar / notch) rather than a
   // home indicator, with a floor under it so it never sits flush against the
@@ -150,8 +184,49 @@ export default function PlayerLayout() {
           // cover a field the player is typing into.
         }}
       >
-        {/* Declared before the profile icon so the gear sits inboard of it: the
-            first item declared is the left one of the group. */}
+        {/* The auto-marked position: a small gold chip carrying just the
+            number, parked at the leading edge of the bar as a status, not a
+            destination, so its button ignores presses. It is declared before
+            the icons: the first item declared is the left one. Without it, the
+            route hides as it always did. */}
+        <Tabs.Screen
+          name="game/[id]"
+          options={
+            lastMarked == null
+              ? { href: null }
+              : {
+                  tabBarItemStyle: {
+                    ...BAR_ITEM_STYLE,
+                    marginLeft: BAR_ITEM_GUTTER,
+                    // The bar row stretches its items, so the chip has to
+                    // centre itself or it sits at the top of the bar.
+                    justifyContent: 'center',
+                  },
+                  tabBarButton: () => (
+                    <View
+                      accessibilityRole="text"
+                      accessibilityLabel={`${label('game.lastMarked', 'Last marked')}: ${numberLetter(lastMarked)} ${lastMarked}`}
+                      style={{
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: '#fbbf2480',
+                        backgroundColor: '#fbbf24',
+                        paddingHorizontal: 4,
+                        paddingVertical: 0,
+                      }}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '900', lineHeight: 16, color: '#000000' }}>
+                        {numberLetter(lastMarked)}
+                        {lastMarked}
+                      </Text>
+                    </View>
+                  ),
+                }
+          }
+        />
+        {/* Declared after the chip but before the profile icon so the gear sits
+            inboard of it. The auto margin is what groups the icons at the
+            trailing edge, no matter what rides ahead of them. */}
         <Tabs.Screen
           name="settings"
           options={{
@@ -179,12 +254,10 @@ export default function PlayerLayout() {
         {/* The game board is the main content, not a tab destination. It keeps
             the bar so the player can leave the game, but it declares no tab. */}
         <Tabs.Screen name="index" options={{ href: null }} />
-        <Tabs.Screen name="game/[id]" options={{ href: null }} />
         <Tabs.Screen name="history" options={{ href: null }} />
         <Tabs.Screen name="wallet" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
         <Tabs.Screen name="my-games" options={{ href: null }} />
-        <Tabs.Screen name="withdraw" options={{ href: null }} />
       </Tabs>
     </SafeAreaView>
   );

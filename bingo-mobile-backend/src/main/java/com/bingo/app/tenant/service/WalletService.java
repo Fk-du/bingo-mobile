@@ -113,6 +113,16 @@ public class WalletService {
                     "Your balance is " + player.getBalance().toPlainString() + " coins. You requested " + amount.toPlainString() + ".");
         }
 
+        // A withdrawal must leave at least the minimum in the wallet: the floor only
+        // applies to cashing out, so players can still spend their balance down to
+        // zero in games.
+        BigDecimal remaining = player.getBalance().subtract(amount);
+        if (remaining.compareTo(minWithdrawal) < 0) {
+            throw new WalletException("Withdrawal would drop wallet below minimum",
+                    "It's not possible to withdraw if your wallet would drop below " + fmt(minWithdrawal)
+                            + " coins. You can withdraw up to " + fmt(player.getBalance().subtract(minWithdrawal)) + " coins.");
+        }
+
         playerService.freezeBalance(playerId, amount);
 
         Withdrawal withdrawal = Withdrawal.builder()

@@ -1,5 +1,9 @@
 package com.bingo.app.master.service;
 
+import com.bingo.app.master.exception.InviteRegistrationException;
+import com.bingo.app.common.exception.BadRequestException;
+import com.bingo.app.common.exception.ForbiddenException;
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.infrastructure.persistence.TenantManagementService;
 import com.bingo.app.master.dto.mapper.MasterMapper;
 import com.bingo.app.master.dto.request.CreateAdminRequest;
@@ -49,10 +53,10 @@ public class InviteService {
     @Transactional
     public String generateInviteLinkForUser(Long creatorId, String botUsername) {
         User creator = userRepository.findById(creatorId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         if (creator.getRole() == Role.ADMIN && !creator.isAdminApproved()) {
-            throw new RuntimeException(
+            throw new ForbiddenException(
                     "Your admin account is awaiting super admin approval. You cannot generate invite links until your account is approved.");
         }
 
@@ -97,14 +101,14 @@ public class InviteService {
 
         // Validate invite code
         InviteCode inviteCode = inviteCodeRepository.findByCodeAndActiveTrue(code)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired invite code"));
+                .orElseThrow(() -> InviteRegistrationException.invalidCode());
 
         // Check if user already exists
         User existingUser = userRepository.findByTelegramId(telegramId).orElse(null);
 
         // Get creator info
         User creator = userRepository.findById(inviteCode.getCreatorId())
-                .orElseThrow(() -> new RuntimeException("Invalid invite code creator"));
+                .orElseThrow(() -> InviteRegistrationException.inviterNotFound());
 
         if (existingUser != null) {
             // Allow upgrading PLAYER to ADMIN if the invite code is for ADMIN
@@ -121,7 +125,7 @@ public class InviteService {
                 log.info("PLAYER upgraded to ADMIN: id={}, telegramId={}", existingUser.getId(), telegramId);
                 return existingUser;
             }
-            throw new RuntimeException("User already registered");
+            throw InviteRegistrationException.alreadyRegistered();
         }
 
         // Get Telegram user info (will be updated from Telegram later)
@@ -148,7 +152,7 @@ public class InviteService {
             Long adminUserId = creator.getRole() == Role.ADMIN ? creator.getId() : creator.getAdminUserId();
 
             if (adminUserId == null) {
-                throw new RuntimeException("Cannot create player: no admin assigned");
+                throw new BadRequestException("Cannot create player: no admin assigned");
             }
 
             tenantManagementService.createTenant(adminUserId);
@@ -191,7 +195,7 @@ public class InviteService {
      */
     public InviteCodeResponse validateInviteCode(String code) {
         return masterMapper.toDto(inviteCodeRepository.findByCodeAndActiveTrue(code)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired invite code")));
+                .orElseThrow(() -> InviteRegistrationException.invalidCode()));
     }
 
     /**

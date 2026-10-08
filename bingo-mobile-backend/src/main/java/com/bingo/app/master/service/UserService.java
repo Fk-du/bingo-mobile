@@ -1,5 +1,8 @@
 package com.bingo.app.master.service;
 
+import com.bingo.app.common.exception.BadRequestException;
+import com.bingo.app.common.exception.ForbiddenException;
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.infrastructure.persistence.TenantContext;
 import com.bingo.app.infrastructure.persistence.TenantManagementService;
 import com.bingo.app.master.dto.mapper.MasterMapper;
@@ -148,7 +151,7 @@ public class UserService {
     public User savePhoneNumber(Long telegramId, String phoneNumber) {
         User user = userRepository.findByTelegramId(telegramId).orElse(null);
         if (user == null) {
-            throw new RuntimeException("User not found for telegramId=" + telegramId);
+            throw new NotFoundException("User not found for telegramId=" + telegramId);
         }
         String normalized = normalizePhone(phoneNumber);
         if (normalized != null) {
@@ -162,7 +165,7 @@ public class UserService {
     @Transactional
     public User setPassword(Long userId, String bcryptHash) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found for id=" + userId));
+                .orElseThrow(() -> new NotFoundException("User not found for id=" + userId));
         user.setPasswordHash(bcryptHash);
         return userRepository.save(user);
     }
@@ -287,9 +290,9 @@ public class UserService {
     @Transactional
     public AdminListItem approveAdmin(Long adminUserId) {
         User admin = userRepository.findById(adminUserId)
-                .orElseThrow(() -> new RuntimeException("Admin not found: " + adminUserId));
+                .orElseThrow(() -> new NotFoundException("Admin not found: " + adminUserId));
         if (admin.getRole() != Role.ADMIN) {
-            throw new RuntimeException("User is not an admin: " + adminUserId);
+            throw new ForbiddenException("User is not an admin: " + adminUserId);
         }
         admin.setAdminApproved(true);
         admin.setActive(true);
@@ -308,9 +311,9 @@ public class UserService {
     @Transactional
     public AdminListItem rejectAdmin(Long adminUserId) {
         User admin = userRepository.findById(adminUserId)
-                .orElseThrow(() -> new RuntimeException("Admin not found: " + adminUserId));
+                .orElseThrow(() -> new NotFoundException("Admin not found: " + adminUserId));
         if (admin.getRole() != Role.ADMIN) {
-            throw new RuntimeException("User is not an admin: " + adminUserId);
+            throw new ForbiddenException("User is not an admin: " + adminUserId);
         }
         admin.setAdminApproved(false);
         admin.setActive(false);
@@ -516,9 +519,9 @@ public class UserService {
 
     private User requireAdmin(Long adminUserId) {
         User admin = userRepository.findById(adminUserId)
-                .orElseThrow(() -> new RuntimeException("Admin not found: " + adminUserId));
+                .orElseThrow(() -> new NotFoundException("Admin not found: " + adminUserId));
         if (admin.getRole() != Role.ADMIN) {
-            throw new RuntimeException("User is not an admin: " + adminUserId);
+            throw new ForbiddenException("User is not an admin: " + adminUserId);
         }
         return admin;
     }
@@ -564,7 +567,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserProfileResponse findById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         return masterMapper.toUserProfile(user);
     }
 
@@ -577,7 +580,7 @@ public class UserService {
     public void deductBalance(Long userId, BigDecimal amount) {
         int updated = userRepository.deductBalance(userId, amount);
         if (updated == 0) {
-            throw new RuntimeException("Insufficient balance");
+            throw new BadRequestException("Insufficient balance");
         }
     }
 

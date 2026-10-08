@@ -19,7 +19,14 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-type ErrorBody = { message?: string; userMessage?: string; code?: string };
+type ErrorBody = {
+  success?: boolean;
+  message?: string;
+  userMessage?: string;
+  code?: string;
+  status?: number;
+  timestamp?: string;
+};
 
 apiClient.interceptors.response.use(
   (response) => response,

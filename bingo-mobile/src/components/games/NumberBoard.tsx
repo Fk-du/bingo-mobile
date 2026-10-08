@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { TextStyle } from 'react-native';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
@@ -26,8 +26,10 @@ const CHIP_TONES = [
 const LAST_BORDER = 'rgba(139, 94, 60, 0.9)';
 const LAST_BACKGROUND = '#8B5E3C';
 
-// How many recent calls the minimized one-liner keeps in view.
-const RECENT_LIMIT = 5;
+/** The B/I/N/G/O column letter a number falls in, for compact call labels. */
+export function numberLetter(n: number): string {
+  return RANGES.find((r) => n >= r.min && n <= r.max)?.letter ?? '';
+}
 
 export function NumberBoard({
   calledNumbers,
@@ -41,14 +43,20 @@ export function NumberBoard({
   const t = useTranslate();
   const { colors } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  const recentRef = useRef<ScrollView>(null);
+  // Whether the trail is resting at the newest chip, so arrivals keep it in
+  // view without yanking the player back while they read older numbers.
+  const stickToEnd = useRef(true);
   const called = new Set(calledNumbers);
 
-  const lastRange = RANGES.find((r) => lastCalledNumber != null && lastCalledNumber >= r.min && lastCalledNumber <= r.max);
-  const lastLetter = lastRange ? lastRange.letter : '';
-  const recent = calledNumbers.slice(-RECENT_LIMIT);
+  const lastLetter = lastCalledNumber != null ? numberLetter(lastCalledNumber) : '';
   const toggleLabel = collapsed
     ? (t('game.expandNumbers') ?? 'Expand called numbers')
     : (t('game.minimizeNumbers') ?? 'Minimize called numbers');
+
+  useEffect(() => {
+    if (collapsed && stickToEnd.current) recentRef.current?.scrollToEnd({ animated: false });
+  }, [collapsed, calledNumbers.length]);
 
   return (
     <View className="w-full rounded-2xl border px-2.5 pb-2 pt-2" style={{ borderColor: colors.borderActive + '40', backgroundColor: colors.surface }}>
@@ -69,10 +77,21 @@ export function NumberBoard({
               </Text>
             </View>
           )}
-          {collapsed && recent.length > 0 && (
-            <View className="min-w-0 flex-1 flex-row items-center" style={{ gap: 3 }}>
-              <RecentCalls numbers={recent} />
-            </View>
+          {collapsed && calledNumbers.length > 0 && (
+            <ScrollView
+              ref={recentRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flex: 1, minWidth: 0 }}
+              contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+              scrollEventThrottle={32}
+              onScroll={(e) => {
+                const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                stickToEnd.current = contentOffset.x >= contentSize.width - layoutMeasurement.width - 8;
+              }}
+            >
+              <RecentCalls numbers={calledNumbers} />
+            </ScrollView>
           )}
         </View>
         <View className="flex-row items-center" style={{ gap: 6 }}>
@@ -158,10 +177,10 @@ export function NumberBoard({
 }
 
 /**
- * The minimized board's inline trail of recent calls, newest on the right.
- * These are chips rather than the big circles the expanded grid uses: when the
- * board is collapsed the only job is "what came out recently", and a row of
- * small chips fits beside the counts without stealing a whole row of height.
+ * The minimized board's inline trail of calls, newest on the right. The whole
+ * history is shown rather than a slice: the row scrolls sideways, so a player
+ * can read back through every number that has come out, and the latest chip
+ * stays highlighted as the marker for what just came.
  */
 function RecentCalls({ numbers }: { numbers: number[] }): React.JSX.Element {
   return (

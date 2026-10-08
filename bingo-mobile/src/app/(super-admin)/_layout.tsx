@@ -34,7 +34,7 @@ export default function SuperAdminLayout() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
+          headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.textInactive,
           headerTitleStyle: { color: colors.textPrimary },
         }}

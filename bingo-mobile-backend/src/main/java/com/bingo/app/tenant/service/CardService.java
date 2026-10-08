@@ -1,5 +1,6 @@
 package com.bingo.app.tenant.service;
 
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.tenant.dto.mapper.TenantMapper;
 import com.bingo.app.tenant.dto.response.CardResponse;
 import com.bingo.app.tenant.dto.response.GameCardResponse;
@@ -49,6 +50,8 @@ public class CardService {
     private static final int CARD_SIZE = 5;
     private static final int FREE_SPACE_ROW = 2;
     private static final int FREE_SPACE_COL = 2;
+    /** The most cards one player may hold (previews + registered) in a single game. */
+    private static final int MAX_CARDS_PER_GAME = 50;
 
     /**
      * Names of the game statuses that count as "live" for card availability.
@@ -82,7 +85,7 @@ public class CardService {
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
     public CardResponse getCard(Long cardId) {
         return tenantMapper.toDto(cardRepository.findById(cardId)
-                .orElseThrow(() -> new RuntimeException("Card not found")));
+                .orElseThrow(() -> new NotFoundException("Card not found")));
     }
 
     /**
@@ -196,7 +199,7 @@ public class CardService {
     public GameCardResponse assignCard(Long gameId, Long playerId, Long cardId) {
         // Validate game exists and is in registration phase
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.REGISTRATION_OPEN) {
             throw new PlayerActionException("Game is not accepting registrations",
@@ -212,6 +215,17 @@ public class CardService {
             throw new PlayerActionException(
                     "Player already has a card for an active game",
                     "You are already registered for an active game. Finish it before joining another.");
+        }
+
+        // Enforce the same 50-card ceiling as the other registration paths. Unlike
+        // registerPreviewedCard this creates a net-new card, so previews held in
+        // this game count against the limit too.
+        long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
+        long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
+        if (held + registered >= MAX_CARDS_PER_GAME) {
+            throw new PlayerActionException("Too many cards",
+                    "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
+                            + " Remove one of your cards first to add another.");
         }
 
         Card card = resolveCard(cardId);
@@ -254,8 +268,34 @@ public class CardService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public List<GameCardResponse> assignCardsAuto(Long gameId, Long playerId, int count) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
-        List<Card> free = cardRepository.findRandomAvailable(LIVE_STATUS_NAMES, Math.max(1, count));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
+
+        if (count > MAX_CARDS_PER_GAME) {
+            // The player asked for a number the game never allows, so they are told
+            // the rule instead of quietly being handed a smaller set.
+            throw new PlayerActionException("Too many cards requested",
+                    "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
+                            + " Ask for " + MAX_CARDS_PER_GAME + " or fewer.");
+        }
+        int requested = Math.max(1, count);
+        long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
+        long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
+        long alreadyOwned = held + registered;
+        long roomLeft = MAX_CARDS_PER_GAME - alreadyOwned;
+        if (requested > roomLeft) {
+            // This path charges for every card up front, so the ceiling is checked
+            // before anything is picked or paid for, with the real room stated.
+            if (roomLeft <= 0) {
+                throw new PlayerActionException("Too many cards",
+                        "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
+                                + " Remove one of your cards first to add another.");
+            }
+            throw new PlayerActionException("Too many cards",
+                    "You already hold " + alreadyOwned + " cards in this game, so you can only add "
+                            + roomLeft + " more.");
+        }
+
+        List<Card> free = cardRepository.findRandomAvailable(LIVE_STATUS_NAMES, requested);
         if (free.isEmpty()) {
             throw new PlayerActionException("No free cards",
                     "No free cards available. Please tell your agent to request more cards from the platform.");
@@ -290,7 +330,15 @@ public class CardService {
         Game game = requireRegistrationOpen(gameId);
         requireNoOtherActiveGame(gameId, playerId);
 
-        int wanted = Math.max(1, Math.min(count, 50));
+        if (count > MAX_CARDS_PER_GAME) {
+            // The player asked for a number the game never allows, so they are told
+            // the rule instead of quietly being handed a smaller set.
+            throw new PlayerActionException("Too many cards requested",
+                    "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
+                            + " Ask for " + MAX_CARDS_PER_GAME + " or fewer.");
+        }
+
+        int wanted = Math.max(1, count);
         long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
         long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
         long totalOwnedInGame = held + registered;
@@ -299,10 +347,6 @@ public class CardService {
             return heldPreviews(gameId, playerId);
         }
         int missing = (int) (wanted - totalOwnedInGame);
-        if (missing > 50) missing = 50;
-        if (missing <= 0) {
-            return heldPreviews(gameId, playerId);
-        }
 
         List<Card> free = cardRepository.findRandomAvailable(LIVE_STATUS_NAMES, missing);
         if (free.size() < missing) {
@@ -345,12 +389,12 @@ public class CardService {
         // instead, or a player could preview their way past it.
         requireNoOtherActiveGame(gameId, playerId);
 
-        // Enforce max cards per player in game (50)
-        long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
+        // Enforce max cards per player in game.
         long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
-        if (registered >= 50) {
+        if (registered >= MAX_CARDS_PER_GAME) {
             throw new PlayerActionException("Too many cards",
-                    "You can hold at most 50 cards in a game.");
+                    "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
+                            + " Remove one of your cards first to add another.");
         }
 
         CardPreview preview = cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(gameId, playerId, cardId)
@@ -423,7 +467,7 @@ public class CardService {
                         "You do not hold this card in this game."));
 
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         BigDecimal refund = game.getEntryFee();
 
         walletService.refundPlayer(playerId, refund, gameId);
@@ -445,7 +489,7 @@ public class CardService {
 
     private Game requireRegistrationOpen(Long gameId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (game.getStatus() != GameStatus.REGISTRATION_OPEN) {
             throw new PlayerActionException("Game is not accepting registrations",
                     "This game is no longer accepting registrations.");
@@ -519,7 +563,7 @@ public class CardService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public void markCardAsWinner(Long gameId, Long cardId) {
         GameCard gameCard = gameCardRepository.findByGameIdAndCardId(gameId, cardId)
-                .orElseThrow(() -> new RuntimeException("Game card not found"));
+                .orElseThrow(() -> new NotFoundException("Game card not found"));
 
         gameCard.setWinner(true);
         gameCardRepository.save(gameCard);
@@ -569,9 +613,10 @@ public class CardService {
     }
 
     /**
-     * Take the most recent cards the player used in any previous game (ended,
-     * completed, or even the last one they touched) and create fresh previews
-     * for the target game in REGISTRATION_OPEN. The original card numbers are
+     * Take the cards the player used in their previous game -- the one they
+     * joined most recently before the target -- and create fresh previews for
+     * the target game in REGISTRATION_OPEN. Only that single game is considered,
+     * never every game the player ever joined. The original card numbers are
      * reused, but they are treated as new previews in the new game (no marks,
      * not registered). If any of those cards are unavailable (held elsewhere),
      * we just skip them rather than failing the whole operation.
@@ -581,7 +626,24 @@ public class CardService {
         Game target = requireRegistrationOpen(targetGameId);
         requireNoOtherActiveGame(targetGameId, playerId);
 
-        List<GameCard> lastCards = gameCardRepository.findLastCardsByPlayerId(playerId);
+        long held = cardPreviewRepository.countByGameIdAndPlayerId(targetGameId, playerId);
+        long registered = gameCardRepository.countByGameIdAndPlayerId(targetGameId, playerId);
+        long totalOwnedInGame = held + registered;
+        if (totalOwnedInGame >= MAX_CARDS_PER_GAME) {
+            throw new PlayerActionException("Too many cards",
+                    "You already hold the maximum of " + MAX_CARDS_PER_GAME + " cards in this game,"
+                            + " so your previous cards cannot be added.");
+        }
+        long roomLeft = MAX_CARDS_PER_GAME - totalOwnedInGame;
+
+        List<Long> previousGameIds = gameCardRepository.findGameIdsByPlayerExcluding(playerId, targetGameId);
+        if (previousGameIds.isEmpty()) {
+            throw new PlayerActionException("No previous cards",
+                    "You haven't played any cards yet to reuse.");
+        }
+        Long previousGameId = previousGameIds.get(0);
+
+        List<GameCard> lastCards = gameCardRepository.findAllByGameIdAndPlayerId(previousGameId, playerId);
         if (lastCards.isEmpty()) {
             throw new PlayerActionException("No previous cards",
                     "You haven't played any cards yet to reuse.");
@@ -589,6 +651,10 @@ public class CardService {
 
         List<PreviewCardResponse> created = new ArrayList<>();
         for (GameCard gc : lastCards) {
+            // The reuse may fill the game only up to the player's 50-card limit.
+            if (created.size() >= roomLeft) {
+                break;
+            }
             Long cardId = gc.getCard().getId();
             // Already previewed for this game? skip
             if (cardPreviewRepository.findByGameIdAndPlayerIdAndCardId(targetGameId, playerId, cardId).isPresent()) {
@@ -613,7 +679,7 @@ public class CardService {
         if (created.isEmpty()) {
             return heldPreviews(targetGameId, playerId);
         }
-        log.info("Game {}: player {} previewing {} previous card(s)", targetGameId, playerId, created.size());
+        log.info("Game {}: player {} reusing {} card(s) from previous game {}", targetGameId, playerId, created.size(), previousGameId);
         return created;
     }
 }

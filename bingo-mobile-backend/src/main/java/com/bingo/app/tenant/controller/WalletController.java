@@ -1,5 +1,6 @@
 package com.bingo.app.tenant.controller;
 
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.infrastructure.security.UserPrincipal;
 import com.bingo.app.common.dto.ApiResponse;
 import com.bingo.app.master.enums.Role;
@@ -28,7 +29,7 @@ public class WalletController {
             return ApiResponse.ok(new WalletResponse(player.getBalance(), player.getFrozenBalance()));
         }
         var fresh = userRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
         return ApiResponse.ok(tenantMapper.toWalletDto(fresh));
     }
 }

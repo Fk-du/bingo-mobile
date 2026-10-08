@@ -42,6 +42,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/games/{id}/register").hasRole("PLAYER")
                         .anyRequest().authenticated()
                 )
+                // Unauthenticated (401) / unauthorized (403) requests must still
+                // carry the standard error envelope; the defaults reply with an
+                // empty body the mobile client cannot interpret.
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new SecurityErrorHandlers.JsonAuthenticationEntryPoint())
+                        .accessDeniedHandler(new SecurityErrorHandlers.JsonAccessDeniedHandler()))
                 .addFilterBefore(tokenAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 

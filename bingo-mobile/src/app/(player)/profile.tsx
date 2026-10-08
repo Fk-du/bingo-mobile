@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
-import { authApi, coinsApi, getApiErrorMessage, inviteApi, notificationsApi, screenshotsApi, walletApi, withdrawalsApi } from '@/api';
+import { authApi, coinsApi, configApi, getApiErrorMessage, inviteApi, notificationsApi, screenshotsApi, walletApi, withdrawalsApi } from '@/api';
 import { AppTextInput, Button, Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import {
@@ -16,19 +16,12 @@ import {
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
-import { CoinRequestResponse, RequestStatus, WithdrawalResponse } from '@/types';
-import { PaymentProof } from '@/components/PaymentProof';
 
 const LOCALES = ['en', 'am', 'ti'] as const;
 
 const QUICK_AMOUNTS = [100, 250, 500, 1000];
-
-const STATUS_COLOR: Record<RequestStatus, string> = {
-  PENDING: '#f59e0b',
-  APPROVED: '#6B5BFF',
-  REJECTED: '#FF5C6C',
-  CANCELLED: '#9ca3af',
-};
+const WITHDRAW_QUICK_AMOUNTS = [100, 200, 500, 1000];
+const DEFAULT_MIN_WITHDRAWAL = 100;
 
 type PickedProof = { uri: string; name: string; type: string };
 
@@ -42,11 +35,14 @@ export default function PlayerProfileScreen() {
   const [copied, setCopied] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
-  const [showTransactions, setShowTransactions] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [buyAmount, setBuyAmount] = useState('');
   const [proof, setProof] = useState<PickedProof | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [wdAmount, setWdAmount] = useState('');
+  const [wdDetails, setWdDetails] = useState('');
+  const [wdBusy, setWdBusy] = useState(false);
 
   const { data: inviteLink } = useQuery({
     queryKey: ['invite/link'],
@@ -57,6 +53,7 @@ export default function PlayerProfileScreen() {
   // unread count. Both used to live on tab icons, and losing them here would
   // mean opening a screen just to check a number.
   const { data: walletQuery } = useQuery({ queryKey: ['wallet'], queryFn: () => walletApi.get() });
+  const balance = walletQuery?.data?.balance ?? 0;
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: () => notificationsApi.unreadCount(),
@@ -66,18 +63,12 @@ export default function PlayerProfileScreen() {
     queryKey: ['invite/stats'],
     queryFn: () => inviteApi.getMyStats(),
   });
+  const { data: configData } = useQuery({ queryKey: ['player/config'], queryFn: () => configApi.get() });
 
-  const { data: coinRequestsData } = useQuery({
-    queryKey: ['wallet', 'coin-requests'],
-    queryFn: () => coinsApi.getRequests(),
-  });
-  const { data: withdrawalsData } = useQuery({
-    queryKey: ['wallet', 'withdrawals'],
-    queryFn: () => withdrawalsApi.list(),
-  });
-
-  const coinRequests = coinRequestsData?.data ?? [];
-  const withdrawals = withdrawalsData?.data ?? [];
+  const minWithdrawal = Number(configData?.data?.minWithdrawal) || DEFAULT_MIN_WITHDRAWAL;
+  // A withdrawal must leave at least the minimum behind; spending in games is
+  // not restricted, so the wallet can still be played down to zero.
+  const maxWithdrawable = Math.max(0, balance - minWithdrawal);
 
   const link = inviteLink?.data;
   const stats = inviteStats?.data;
@@ -146,6 +137,47 @@ export default function PlayerProfileScreen() {
       Alert.alert(t('common.error') ?? 'Error', getApiErrorMessage(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const requestWithdraw = async () => {
+    const value = Number(wdAmount);
+    if (!value || !wdDetails.trim()) return;
+    if (value < minWithdrawal) {
+      Alert.alert(
+        t('common.error') ?? 'Error',
+        t('player.withdrawMin', { amount: String(minWithdrawal) }) ?? `Minimum withdrawal is ${minWithdrawal} birr`
+      );
+      return;
+    }
+    if (value > maxWithdrawable) {
+      Alert.alert(
+        t('common.error') ?? 'Error',
+        t('player.withdrawKeepMin', { amount: String(minWithdrawal), max: String(maxWithdrawable) }) ??
+          `It's not possible to withdraw if your wallet would drop below ${minWithdrawal} birr. You can withdraw up to ${maxWithdrawable} birr.`
+      );
+      return;
+    }
+    setWdBusy(true);
+    try {
+      const res = await withdrawalsApi.create({ amount: value, payoutDetails: wdDetails.trim() });
+      Alert.alert(
+        t('player.payoutSuccessTitle') ?? 'Thank you!',
+        t('player.payoutSuccessMessage', {
+          amount: String(res.data.amount),
+          details: res.data.payoutDetails ?? wdDetails.trim(),
+        }) ??
+          `Your withdrawal of ${res.data.amount} birr has been submitted for review. Keep an eye on your notifications.`
+      );
+      setWdAmount('');
+      setWdDetails('');
+      setShowWithdraw(false);
+      void qc.invalidateQueries({ queryKey: ['wallet'] });
+      void qc.invalidateQueries({ queryKey: ['wallet', 'withdrawals'] });
+    } catch (e) {
+      Alert.alert(t('common.error') ?? 'Error', getApiErrorMessage(e));
+    } finally {
+      setWdBusy(false);
     }
   };
 
@@ -284,14 +316,20 @@ export default function PlayerProfileScreen() {
 
             <View className="flex-row gap-3 w-full pt-2">
               <Button
-                onPress={() => setShowDeposit((v) => !v)}
+                onPress={() => {
+                  setShowWithdraw(false);
+                  setShowDeposit((v) => !v);
+                }}
                 variant="gold"
                 style={{ flex: 1 }}
               >
                 {t('mobile.buyCoins') ?? 'Deposit'}
               </Button>
               <Button
-                onPress={() => router.push('/(player)/withdraw')}
+                onPress={() => {
+                  setShowDeposit(false);
+                  setShowWithdraw((v) => !v);
+                }}
                 variant="primary"
                 style={{ flex: 1 }}
               >
@@ -364,6 +402,54 @@ export default function PlayerProfileScreen() {
           </Card>
         )}
 
+        {showWithdraw && (
+          <Card className="gap-3">
+            <Text className="font-semibold" style={{ color: colors.textPrimary }}>
+              {t('mobile.withdraw') ?? 'Withdraw'}
+            </Text>
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              {t('player.minWithdrawalInfo', { amount: String(minWithdrawal) }) ??
+                `Minimum withdrawal: ${minWithdrawal} birr`}
+            </Text>
+
+            <View className="flex-row flex-wrap gap-2">
+              {WITHDRAW_QUICK_AMOUNTS.map((q) => (
+                <Button
+                  key={q}
+                  variant="outline"
+                  disabled={wdBusy || q > maxWithdrawable}
+                  onPress={() => setWdAmount(String(q))}
+                  style={{ paddingVertical: 8, paddingHorizontal: 14 }}
+                >
+                  {q.toLocaleString()}
+                </Button>
+              ))}
+            </View>
+
+            <AppTextInput
+              value={wdAmount}
+              onChangeText={setWdAmount}
+              placeholder={t('mobile.amount') ?? 'Amount (birr)'}
+              keyboardType="numeric"
+            />
+            <AppTextInput
+              value={wdDetails}
+              onChangeText={setWdDetails}
+              placeholder={t('mobile.payoutDetails') ?? 'Bank account or Telebirr number'}
+            />
+
+            <Text className="text-xs" style={{ color: colors.textSecondary }}>
+              {t('player.withdrawHint') ?? 'e.g. CBE 1000987654321 or Telebirr +251912345678'}
+            </Text>
+
+            <Button onPress={requestWithdraw} disabled={wdBusy || !wdAmount || !wdDetails.trim()}>
+              {wdBusy
+                ? (t('player.submitting') ?? 'Submitting…')
+                : (t('player.requestWithdrawal') ?? 'Request withdrawal')}
+            </Button>
+          </Card>
+        )}
+
         <Pressable onPress={() => router.push('/(player)/notifications')} className="active:opacity-80">
           <MenuRow
             icon={<IconBell size={18} color={colors.textSecondary} />}
@@ -378,24 +464,6 @@ export default function PlayerProfileScreen() {
             label={t('player.gameHistory') ?? 'Game history'}
           />
         </Pressable>
-
-        <Pressable onPress={() => setShowTransactions((v) => !v)} className="active:opacity-80">
-          <Card className="flex-row justify-between items-center">
-            <Text className="font-semibold" style={{ color: colors.textPrimary }}>
-              {t('player.transactionHistory') ?? t('player.recentTransactions') ?? 'Transaction History'}
-            </Text>
-            <Text style={{ color: colors.primary }}>{showTransactions ? '−' : '›'}</Text>
-          </Card>
-        </Pressable>
-
-        {showTransactions && (
-          <TransactionHistory
-            coinRequests={coinRequests}
-            withdrawals={withdrawals}
-            colors={colors}
-            t={t}
-          />
-        )}
 
         <Pressable onPress={() => setShowLanguage((v) => !v)} className="active:opacity-80">
           <Card className="flex-row justify-between items-center">
@@ -494,99 +562,5 @@ function ModeToggle({
     >
       {children}
     </Pressable>
-  );
-}
-
-type TxItem = {
-  id: number;
-  kind: 'topup' | 'withdraw';
-  amount: number;
-  status: RequestStatus;
-  rejectionReason: string | null;
-  screenshotUrl: string | null;
-  createdAt: string;
-};
-
-function TransactionHistory({
-  coinRequests,
-  withdrawals,
-  colors,
-  t,
-}: {
-  coinRequests: CoinRequestResponse[];
-  withdrawals: WithdrawalResponse[];
-  colors: ReturnType<typeof useTheme>['colors'];
-  t: ReturnType<typeof useTranslate>;
-}) {
-  const transactions: TxItem[] = [
-    ...coinRequests.map((r) => ({
-      id: r.id,
-      kind: 'topup' as const,
-      amount: r.amount,
-      status: r.status,
-      rejectionReason: r.rejectionReason,
-      screenshotUrl: r.screenshotUrl,
-      createdAt: r.createdAt,
-    })),
-    ...withdrawals.map((w) => ({
-      id: w.id,
-      kind: 'withdraw' as const,
-      amount: w.amount,
-      status: w.status,
-      rejectionReason: w.rejectionReason,
-      screenshotUrl: null,
-      createdAt: w.createdAt,
-    })),
-  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-  return (
-    <Card className="gap-3">
-      <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-        {t('player.recentTransactions') ?? 'Recent Transactions'}
-      </Text>
-      {transactions.length === 0 ? (
-        <Text className="text-sm" style={{ color: colors.textSecondary }}>
-          {t('player.noTransactions') ?? 'No transactions yet.'}
-        </Text>
-      ) : (
-        transactions.map((tx) => (
-          <View
-            key={`${tx.kind}-${tx.id}`}
-            className="flex-row items-center justify-between rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}
-        >
-          <View className="flex-1 pr-3">
-            <Text className="text-sm" style={{ color: colors.textPrimary }}>
-              {tx.kind === 'topup'
-                ? (t('mobile.topUpRequest') ?? 'Top-up request')
-                : (t('mobile.withdrawalRequest') ?? 'Withdrawal request')}
-            </Text>
-            <Text className="text-xs" style={{ color: colors.textSecondary }}>
-              {new Date(tx.createdAt).toLocaleDateString()}
-            </Text>
-            {tx.status === 'REJECTED' && tx.rejectionReason ? (
-              <Text className="text-xs" style={{ color: colors.danger }} numberOfLines={1}>
-                {t('player.rejectedReason', { reason: tx.rejectionReason }) ?? `Rejected: ${tx.rejectionReason}`}
-              </Text>
-            ) : null}
-            {tx.kind === 'topup' && tx.screenshotUrl ? (
-              <View className="mt-1 w-10 h-10 rounded-lg overflow-hidden">
-                <PaymentProof url={tx.screenshotUrl} size={40} />
-              </View>
-            ) : null}
-          </View>
-          <View className="items-end gap-1">
-            <Text className="text-sm font-bold" style={{ color: tx.kind === 'topup' ? colors.primary : colors.danger }}>
-              {tx.kind === 'topup' ? `+${tx.amount.toLocaleString()}` : `-${tx.amount.toLocaleString()}`}
-            </Text>
-            <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt }}>
-              <Text className="text-[10px] font-semibold" style={{ color: STATUS_COLOR[tx.status] }}>
-                {t(`status.${tx.status}`) ?? tx.status}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )))}
-    </Card>
   );
 }

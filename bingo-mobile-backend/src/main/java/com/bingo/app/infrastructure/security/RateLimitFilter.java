@@ -1,5 +1,6 @@
 package com.bingo.app.infrastructure.security;
 
+import com.bingo.app.common.exception.ErrorResponses;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -84,9 +85,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         timestamps.add(now);
 
         if (timestamps.size() > max) {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"message\":\"Too many requests. Please slow down and try again shortly.\"}");
+            ErrorResponses.write(response, HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many requests",
+                    "Too many requests. Please slow down and try again shortly.",
+                    "rate_limited");
             return;
         }
 

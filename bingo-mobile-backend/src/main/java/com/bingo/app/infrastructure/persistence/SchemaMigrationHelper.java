@@ -99,6 +99,7 @@ public final class SchemaMigrationHelper {
                     rake_percent DECIMAL(19,2),
                     winning_pattern VARCHAR(50),
                     auto_mark BOOLEAN NOT NULL DEFAULT TRUE,
+                    auto_approve BOOLEAN NOT NULL DEFAULT TRUE,
                     registration_window_seconds INTEGER,
                     cooldown_seconds INTEGER,
                     next_game_at TIMESTAMP,
@@ -110,6 +111,11 @@ public final class SchemaMigrationHelper {
         // Auto claim review (auto approve/reject) opt-in and grace window. The
         // grace window is the players' 10s chance to claim after a real Bingo,
         // so any row still on the old 2s default is lifted to it as well.
+        // auto_approve predates the helper's CREATE TABLE but was never added for
+        // tenants created before it existed — without it every read/write of
+        // automation_config fails ("column auto_approve does not exist") and the
+        // manual/automatic toggle on the game-management screen 500s.
+        addColumnIfNotExists(conn, "automation_config", "auto_approve", "BOOLEAN NOT NULL DEFAULT TRUE");
         addColumnIfNotExists(conn, "automation_config", "auto_review", "BOOLEAN NOT NULL DEFAULT FALSE");
         addColumnIfNotExists(conn, "automation_config", "review_grace_seconds",
                 "INTEGER NOT NULL DEFAULT " + AutomationConfig.DEFAULT_REVIEW_GRACE_SECONDS);

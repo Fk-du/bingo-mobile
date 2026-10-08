@@ -1,5 +1,7 @@
 package com.bingo.app.tenant.controller;
 
+import com.bingo.app.common.exception.ForbiddenException;
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.common.util.AdminIds;
 import com.bingo.app.infrastructure.security.UserPrincipal;
 import com.bingo.app.tenant.dto.CreateGameRequest;
@@ -96,9 +98,9 @@ public class GameController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         var game = gameService.getGameById(id)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (!game.adminUserId().equals(principal.getUser().getId())) {
-            throw new RuntimeException("Game does not belong to this admin");
+            throw new ForbiddenException("Game does not belong to this admin");
         }
         Integer number = gameEngineService.callNumber(id);
         if (number == null) {
@@ -114,9 +116,9 @@ public class GameController {
             @PathVariable Long id,
             @PathVariable Integer number) {
         var game = gameService.getGameById(id)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (!game.adminUserId().equals(principal.getUser().getId())) {
-            throw new RuntimeException("Game does not belong to this admin");
+            throw new ForbiddenException("Game does not belong to this admin");
         }
         gameEngineService.callSpecificNumber(id, number);
         return ApiResponse.ok("Called number: " + number);
@@ -148,9 +150,9 @@ public class GameController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         var game = gameService.getGameById(id)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (!game.adminUserId().equals(principal.getUser().getId())) {
-            throw new RuntimeException("Game does not belong to this admin");
+            throw new ForbiddenException("Game does not belong to this admin");
         }
         gameEngineService.pauseGame(id);
         return ApiResponse.ok("Game paused");
@@ -162,9 +164,9 @@ public class GameController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         var game = gameService.getGameById(id)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (!game.adminUserId().equals(principal.getUser().getId())) {
-            throw new RuntimeException("Game does not belong to this admin");
+            throw new ForbiddenException("Game does not belong to this admin");
         }
         gameEngineService.resumeGame(id);
         return ApiResponse.ok("Game resumed");
@@ -338,7 +340,7 @@ public class GameController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ApiResponse<AdminGameResponse> audit(@PathVariable Long id) {
         var game = gameService.getGameById(id)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         return ApiResponse.ok(game);
     }
 

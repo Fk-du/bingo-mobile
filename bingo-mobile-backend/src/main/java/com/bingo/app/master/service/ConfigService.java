@@ -33,7 +33,7 @@ public class ConfigService {
     @Value("${app.game.default-entry-fee:10}")
     private int defaultEntryFee;
 
-    @Value("${app.game.min-withdrawal:10}")
+    @Value("${app.game.min-withdrawal:100}")
     private int defaultMinWithdrawal;
 
     @Value("${bingo.fees.owner-fee-percent:30}")

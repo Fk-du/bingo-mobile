@@ -1,5 +1,9 @@
 package com.bingo.app.tenant.service;
 
+import com.bingo.app.common.exception.ConflictException;
+import com.bingo.app.common.exception.ForbiddenException;
+import com.bingo.app.common.exception.BadRequestException;
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.infrastructure.persistence.TenantContext;
 import com.bingo.app.master.entity.TenantRegistry;
 import com.bingo.app.master.entity.User;
@@ -131,7 +135,7 @@ public class GameEngineService {
      */
     public void resumeWithCountdown(Long gameId, String reason) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         resumeWithCountdown(gameId, game, reason);
     }
 
@@ -162,10 +166,10 @@ public class GameEngineService {
 
     private void startCallingInternal(Long gameId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.IN_PROGRESS) {
-            throw new RuntimeException("Game is not in progress");
+            throw new BadRequestException("Game is not in progress");
         }
 
         stopCalling(gameId);
@@ -420,7 +424,7 @@ public class GameEngineService {
      */
     public Integer callNextNumber(Long gameId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.IN_PROGRESS) {
             // STARTING is only ever observed here as a stale read of a status change
@@ -447,7 +451,7 @@ public class GameEngineService {
         // Get next number from sealed sequence
         CalledNumber nextNumber = calledNumberRepository
                 .findByGameIdAndSequenceIndex(gameId, currentIndex)
-                .orElseThrow(() -> new RuntimeException("Number sequence not found"));
+                .orElseThrow(() -> new NotFoundException("Number sequence not found"));
 
         // Update game progress
         game.setCurrentCallIndex(currentIndex + 1);
@@ -472,10 +476,10 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public Integer callSpecificNumber(Long gameId, Integer number) {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.IN_PROGRESS) {
-            throw new RuntimeException("Game is not in progress");
+            throw new BadRequestException("Game is not in progress");
         }
 
         // Find if this number has been called yet
@@ -483,13 +487,13 @@ public class GameEngineService {
                 .findByGameIdAndNumberAndCalledAtIsNotNull(gameId, number);
 
         if (existing.isPresent()) {
-            throw new RuntimeException("Number already called");
+            throw new ConflictException("Number already called");
         }
 
         // Find the number in sequence and mark it as called
         CalledNumber calledNumber = calledNumberRepository
                 .findByGameIdAndNumber(gameId, number)
-                .orElseThrow(() -> new RuntimeException("Number not in sequence"));
+                .orElseThrow(() -> new BadRequestException("Number not in sequence"));
 
         calledNumber.setCalledAt(LocalDateTime.now());
         calledNumberRepository.save(calledNumber);
@@ -522,7 +526,7 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public BingoClaimResult claimBingo(Long gameId, Long playerId, Long cardId, java.util.List<Integer> markedNumbers, Boolean autoMark) throws JsonProcessingException {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.IN_PROGRESS && game.getStatus() != GameStatus.CLAIM_PENDING) {
             throw new GameProgressException("Game is not accepting claims",
@@ -643,7 +647,7 @@ public class GameEngineService {
         return gameCardRepository.findAllByGameIdAndPlayerId(gameId, playerId).stream()
                 .filter(gc -> !gc.isBanned())
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Player not registered for this game"));
+                .orElseThrow(() -> new BadRequestException("Player not registered for this game"));
     }
 
     /**
@@ -706,9 +710,9 @@ public class GameEngineService {
                     "There are no claims waiting for review.");
         }
         BingoClaim claim = bingoClaimRepository.findById(claimId)
-                .orElseThrow(() -> new RuntimeException("Claim not found"));
+                .orElseThrow(() -> new NotFoundException("Claim not found"));
         if (!claim.getGameId().equals(gameId)) {
-            throw new RuntimeException("Claim does not belong to this game");
+            throw new ForbiddenException("Claim does not belong to this game");
         }
         boolean stillPending = pending.stream().anyMatch(c -> c.getId().equals(claimId));
         if (!stillPending) {
@@ -855,7 +859,7 @@ public class GameEngineService {
     /** Load the game under its row lock and confirm this admin owns it. */
     private Game lockOwnedGame(Long gameId, Long adminId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (!game.getAdminUserId().equals(adminId)) {
             throw new GameProgressException("Game does not belong to this admin",
                     "This game does not belong to you.");
@@ -928,17 +932,17 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public void rejectClaim(Long gameId, Long claimId, Long adminId, String reason) {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.CLAIM_PENDING) {
             throw new RequestAlreadyProcessedException("Game is not in CLAIM_PENDING state");
         }
 
         BingoClaim claim = bingoClaimRepository.findById(claimId)
-                .orElseThrow(() -> new RuntimeException("Claim not found"));
+                .orElseThrow(() -> new NotFoundException("Claim not found"));
 
         if (!claim.getGameId().equals(gameId)) {
-            throw new RuntimeException("Claim does not belong to this game");
+            throw new ForbiddenException("Claim does not belong to this game");
         }
 
         // Atomically claim — concurrent approvals/rejections lose here
@@ -996,7 +1000,7 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public void automatedClaimReview(Long gameId, Long adminId) {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
         if (game.getStatus() != GameStatus.CLAIM_PENDING) {
             return;
         }
@@ -1137,7 +1141,7 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager")
     public void endGameWithoutWinner(Long gameId, String reason) {
         Game game = gameRepository.findByIdForUpdate(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         // Idempotency: a repeat "End" (stale UI tap, or the game already ended on
         // its own when all 75 numbers were called) must NOT refund players twice.
@@ -1281,7 +1285,7 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
     public GameState getGameState(Long gameId, Long playerId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         List<Integer> calledNumbers = calledNumberRepository
                 .findCalledNumbersByGameId(gameId);
@@ -1389,7 +1393,7 @@ public class GameEngineService {
     @Transactional(transactionManager = "tenantTransactionManager", readOnly = true)
     public AdminGameState getAdminGameState(Long gameId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         List<Integer> calledNumbers = calledNumberRepository
                 .findCalledNumbersByGameId(gameId);
@@ -1561,10 +1565,10 @@ public class GameEngineService {
      */
     public void pauseGame(Long gameId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.IN_PROGRESS) {
-            throw new RuntimeException("Game is not in progress");
+            throw new BadRequestException("Game is not in progress");
         }
 
         stopCalling(gameId);
@@ -1631,10 +1635,10 @@ public class GameEngineService {
      */
     public void resumeGame(Long gameId) {
         Game game = gameRepository.findById(gameId)
-                .orElseThrow(() -> new RuntimeException("Game not found"));
+                .orElseThrow(() -> new NotFoundException("Game not found"));
 
         if (game.getStatus() != GameStatus.PAUSED) {
-            throw new RuntimeException("Game is not paused");
+            throw new BadRequestException("Game is not paused");
         }
 
         resumeWithCountdown(gameId, REASON_RESUME);

@@ -1,0 +1,23 @@
+26-10-08T17:23:27.642+03:00  INFO 56784 --- [bingo] [MessageBroker-3] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:23:37.767+03:00  INFO 56784 --- [bingo] [MessageBroker-4] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:23:47.798+03:00  INFO 56784 --- [bingo] [MessageBroker-4] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:23:57.821+03:00  INFO 56784 --- [bingo] [MessageBroker-3] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:24:07.838+03:00  INFO 56784 --- [bingo] [MessageBroker-1] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:24:17.865+03:00  INFO 56784 --- [bingo] [MessageBroker-1] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:24:27.889+03:00  INFO 56784 --- [bingo] [MessageBroker-2] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:24:37.911+03:00  INFO 56784 --- [bingo] [MessageBroker-4] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:24:41.984+03:00  INFO 56784 --- [bingo] [nio-8080-exec-6] c.b.a.m.s.PhonePasswordAuthService       : Phone login success: user id=5, role=PLAYER
+2026-10-08T17:24:45.707+03:00  WARN 56784 --- [bingo] [nio-8080-exec-2] c.b.a.i.security.TelegramAuthService     : Invalid Telegram signature
+2026-10-08T17:24:47.934+03:00  INFO 56784 --- [bingo] [MessageBroker-4] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:24:57.952+03:00  INFO 56784 --- [bingo] [MessageBroker-4] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:25:08.012+03:00  INFO 56784 --- [bingo] [MessageBroker-3] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:25:18.035+03:00  INFO 56784 --- [bingo] [MessageBroker-3] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:25:28.058+03:00  INFO 56784 --- [bingo] [MessageBroker-3] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:25:38.081+03:00  INFO 56784 --- [bingo] [MessageBroker-3] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:25:40.955+03:00  INFO 56784 --- [bingo] [nio-8080-exec-8] c.b.a.m.s.PhonePasswordAuthService       : Phone login success: user id=4, role=ADMIN
+2026-10-08T17:25:48.148+03:00  INFO 56784 --- [bingo] [MessageBroker-1] c.b.a.t.service.GameAutomationService    : Automation: game 143 for admin 4 holds registration open (0 players); waiting for admin to start it
+2026-10-08T17:26:09.903+03:00  INFO 56784 --- [bingo] [nio-8080-exec-6] c.b.a.m.s.PhonePasswordAuthService       : Phone login success: user id=5, role=PLAYER
+2026-10-08T17:26:12.599+03:00  WARN 56784 --- [bingo] [nio-8080-exec-2] c.b.a.i.security.TelegramAuthService     : Invalid Telegram signature
+
+
+

@@ -1,6 +1,8 @@
 package com.bingo.app.tenant.controller;
 
 import com.bingo.app.common.dto.ApiResponse;
+import com.bingo.app.common.exception.ForbiddenException;
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.infrastructure.security.UserPrincipal;
 import com.bingo.app.infrastructure.storage.LocalScreenshotStorage;
 import com.bingo.app.master.enums.Role;
@@ -57,12 +59,12 @@ public class ScreenshotController {
         String folderSegment = decoded.contains("/") ? decoded.substring(0, decoded.indexOf('/')) : "";
         boolean superAdmin = principal.getUser().getRole() == Role.SUPER_ADMIN;
         if (!superAdmin && !folderSegment.equals(allowedFolder) && !"unsorted".equals(folderSegment)) {
-            return ResponseEntity.status(403).build();
+            throw new ForbiddenException("You do not have access to this screenshot");
         }
 
         var stored = screenshotStorage.load(decoded);
         if (stored == null) {
-            return ResponseEntity.notFound().build();
+            throw new NotFoundException("Screenshot not found");
         }
         UrlResource resource = new UrlResource(stored.path().toUri());
         return ResponseEntity.ok()

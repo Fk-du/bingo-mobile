@@ -11,15 +11,12 @@ import { RequestStatus, WithdrawalResponse } from '@/types';
 type Tab = RequestStatus;
 
 const REJECT_PRESETS = [
-  'wdPresetNoScreenshot',
-  'wdPresetUnclear',
-  'wdPresetWrongScreenshot',
-  'wdPresetNotRelated',
   'wdPresetInvalidDetails',
+  'wdPresetNameMismatch',
   'wdPresetDuplicate',
   'wdPresetInsufficient',
-  'wdPresetFraud',
   'wdPresetUnavailable',
+  'wdPresetFraud',
 ] as const;
 
 function capCount(n: number): string {

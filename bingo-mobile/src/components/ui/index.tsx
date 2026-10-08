@@ -98,28 +98,28 @@ export function Card({
   );
 }
 
-export function Screen({ children, className = '', ...rest }: ViewProps & { className?: string }) {
+export function Screen({ children, className = '', style, ...rest }: ViewProps & { className?: string }) {
   const { colors } = useTheme();
   return (
-    <View className={`flex-1 px-4 pt-4 ${className}`} style={{ backgroundColor: colors.background }} {...rest}>
+    <View className={`flex-1 px-4 pt-4 ${className}`} style={[{ backgroundColor: colors.background }, style]} {...rest}>
       {children}
     </View>
   );
 }
 
-export function Title({ children, className = '', ...rest }: TextProps & { className?: string }) {
+export function Title({ children, className = '', style, ...rest }: TextProps & { className?: string }) {
   const { colors } = useTheme();
   return (
-    <Text className={`text-2xl font-bold ${className}`} style={{ color: colors.textPrimary }} {...rest}>
+    <Text className={`text-2xl font-bold ${className}`} style={[{ color: colors.textPrimary }, style]} {...rest}>
       {children}
     </Text>
   );
 }
 
-export function Subtitle({ children, className = '', ...rest }: TextProps & { className?: string }) {
+export function Subtitle({ children, className = '', style, ...rest }: TextProps & { className?: string }) {
   const { colors } = useTheme();
   return (
-    <Text className={`text-base ${className}`} style={{ color: colors.textSecondary }} {...rest}>
+    <Text className={`text-base ${className}`} style={[{ color: colors.textSecondary }, style]} {...rest}>
       {children}
     </Text>
   );

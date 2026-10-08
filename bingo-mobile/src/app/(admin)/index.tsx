@@ -19,9 +19,7 @@ export default function AdminDashboardScreen() {
   const metricsQuery = useQuery({ queryKey: ['admin/metrics'], queryFn: () => reportsApi.dashboard() });
 
   const games: AdminGameResponse[] = gamesQuery.data?.data ?? [];
-  const metrics = metricsQuery.data?.data as
-    | Record<string, unknown>
-    | undefined;
+  const metrics = metricsQuery.data?.data;
 
   const pendingCount = games.reduce(
     (sum, g) => sum + (Number((g as { pendingClaims?: number }).pendingClaims) || 0),
@@ -68,7 +66,7 @@ export default function AdminDashboardScreen() {
           value={String(pendingCount)}
           accent
         />
-        <QuickStat label={t('admin.playersMetric') ?? 'Players'} value={String(metrics?.players ?? '—')} />
+        <QuickStat label={t('admin.playersMetric') ?? 'Players'} value={String(metrics?.totalPlayers ?? '—')} />
       </View>
 
       <FlatList

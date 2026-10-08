@@ -1,5 +1,7 @@
 package com.bingo.app.tenant.service;
 
+import com.bingo.app.tenant.exception.WalletException;
+import com.bingo.app.common.exception.NotFoundException;
 import com.bingo.app.tenant.dto.mapper.TenantMapper;
 import com.bingo.app.tenant.dto.response.PlayerResponse;
 import com.bingo.app.tenant.entity.Player;
@@ -110,7 +112,7 @@ public class PlayerService {
     public void deductBalance(Long userId, BigDecimal amount) {
         int updated = playerRepository.deductBalance(userId, amount);
         if (updated == 0) {
-            throw new RuntimeException("Insufficient balance");
+            throw new WalletException("Insufficient balance", "You do not have enough balance for this action.");
         }
     }
 
@@ -118,7 +120,7 @@ public class PlayerService {
     public void addBalance(Long userId, BigDecimal amount) {
         int updated = playerRepository.addBalance(userId, amount);
         if (updated == 0) {
-            throw new RuntimeException("Player not found for user: " + userId);
+            throw new NotFoundException("Player not found for user: " + userId);
         }
     }
 
@@ -126,7 +128,7 @@ public class PlayerService {
     public void freezeBalance(Long userId, BigDecimal amount) {
         int updated = playerRepository.freezeBalance(userId, amount);
         if (updated == 0) {
-            throw new RuntimeException("Insufficient balance");
+            throw new WalletException("Insufficient balance", "You do not have enough balance for this action.");
         }
     }
 
@@ -134,7 +136,7 @@ public class PlayerService {
     public void unfreezeBalance(Long userId, BigDecimal amount) {
         int updated = playerRepository.unfreezeBalance(userId, amount);
         if (updated == 0) {
-            throw new RuntimeException("Insufficient frozen balance");
+            throw new WalletException("Insufficient frozen balance", "You do not have enough frozen balance for this action.");
         }
     }
 
@@ -142,13 +144,13 @@ public class PlayerService {
     public void returnFrozenBalance(Long userId, BigDecimal amount) {
         int updated = playerRepository.returnFrozenBalance(userId, amount);
         if (updated == 0) {
-            throw new RuntimeException("Insufficient frozen balance");
+            throw new WalletException("Insufficient frozen balance", "You do not have enough frozen balance for this action.");
         }
     }
 
     private Player findPlayerEntityByUserId(Long userId) {
         return playerRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Player not found for user: " + userId));
+                .orElseThrow(() -> new NotFoundException("Player not found for user: " + userId));
     }
 
     private Player findPlayerEntityOrNullByUserId(Long userId) {

@@ -1,6 +1,7 @@
 package com.bingo.app.master.controller;
 
 import com.bingo.app.infrastructure.security.TelegramAuthService;
+import com.bingo.app.infrastructure.security.TelegramAuthException;
 import com.bingo.app.master.dto.request.LoginRequest;
 import com.bingo.app.master.dto.request.PasswordStatusRequest;
 import com.bingo.app.master.dto.request.PhoneLoginRequest;
@@ -36,7 +37,9 @@ public class AuthController {
     public ApiResponse<UserProfileResponse> login(@Valid @RequestBody LoginRequest request) {
         User user = telegramAuthService.authenticate(request.initData(), request.startParam());
         if (user == null) {
-            return ApiResponse.error("Authentication failed");
+            throw new TelegramAuthException("Authentication failed",
+                    "Telegram authentication failed. Open the app from Telegram and try again.",
+                    "authentication_failed");
         }
         return ApiResponse.ok("Authenticated", userProfileService.buildProfile(user));
     }

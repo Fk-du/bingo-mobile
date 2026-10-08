@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { StatusBar as NativeStatusBar, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Role } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
@@ -90,6 +90,30 @@ export default function RootLayout() {
 }
 
 function AppThemeStatusBar() {
-  const { isDark } = useTheme();
-  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+  const { isDark, colors } = useTheme();
+
+  // The clock/battery strip is drawn by the OS or browser, not the app, so the
+  // style prop alone is not enough: a phone in system dark over the light theme
+  // left white icons on the near-white page. theme-color is what Android Chrome
+  // paints the status bar (and toolbar) with — pinned to the app background the
+  // bar and its icons always contrast, in both themes.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'theme-color');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', colors.background);
+  }, [colors.background]);
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      {/* Android native: the window's status bar keeps its static theme color
+          otherwise, which clashes with the dark icons of the light theme. */}
+      <NativeStatusBar backgroundColor={colors.background} />
+    </>
+  );
 }
