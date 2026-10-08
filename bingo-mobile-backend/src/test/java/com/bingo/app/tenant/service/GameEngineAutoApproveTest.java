@@ -446,8 +446,8 @@ class GameEngineAutoApproveTest {
     /**
      * A cell whose absence must break the pattern, found by probing the semantic
      * family itself: the engine must reject the demo call-set minus that cell. Hard
-     * drops are not safe anymore — dropping a bar end from THREE_RECTANGLES can still
-     * leave three rectangles — so the probe is what guarantees REJECTED, exactly the
+     * drops are not safe anymore — dropping a bar end from a rectangle family can still
+     * leave a winning layout — so the probe is what guarantees REJECTED, exactly the
      * near-miss a player must be banned for. HALF_HOUSE keeps (2,4): its other seven
      * layouts all reach rows 3-4 or the far columns, so no short call-set touches them.
      */

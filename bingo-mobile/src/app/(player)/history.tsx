@@ -1,20 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
-import { coinsApi, gamesApi, withdrawalsApi } from '@/api';
+import { gamesApi } from '@/api';
 import { Button, Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
 import { getClientLocale } from '@/lib/clientTranslations';
-import { GameStatus, PlayerCardHistory, CoinRequestResponse, WithdrawalResponse, RequestStatus } from '@/types';
-import { PaymentProof } from '@/components/PaymentProof';
-
-const STATUS_COLOR: Record<RequestStatus, string> = {
-  PENDING: '#f59e0b',
-  APPROVED: '#6B5BFF',
-  REJECTED: '#FF5C6C',
-  CANCELLED: '#9ca3af',
-};
+import { GameStatus, PlayerCardHistory } from '@/types';
 
 export default function PlayerHistoryScreen() {
   const t = useTranslate();
@@ -24,15 +16,6 @@ export default function PlayerHistoryScreen() {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['player/history/cards'],
     queryFn: () => gamesApi.getPlayerCardHistory(),
-  });
-
-  const { data: coinRequestsData } = useQuery({
-    queryKey: ['wallet', 'coin-requests'],
-    queryFn: () => coinsApi.getRequests(),
-  });
-  const { data: withdrawalsData } = useQuery({
-    queryKey: ['wallet', 'withdrawals'],
-    queryFn: () => withdrawalsApi.list(),
   });
 
   const history: PlayerCardHistory[] = (data?.data ?? []).filter(
@@ -61,21 +44,13 @@ export default function PlayerHistoryScreen() {
         refreshControl={
           <RefreshControl refreshing={isFetching} onRefresh={() => refetch()} tintColor="#6B5BFF" />
         }
-         contentContainerClassName="gap-3 pb-8"
+        contentContainerClassName="gap-3 pb-8"
         ListEmptyComponent={
           <Card>
             <Text style={{ color: colors.textSecondary }} className="text-center">
               {tab === 'wins' ? (t('player.noWinsTitle') ?? 'No wins yet') : (t('player.noCompletedGames') ?? 'No completed games yet')}
             </Text>
           </Card>
-        }
-        ListFooterComponent={
-          <TransactionHistory
-            coinRequests={coinRequestsData?.data ?? []}
-            withdrawals={withdrawalsData?.data ?? []}
-            colors={colors}
-            t={t}
-          />
         }
         renderItem={({ item }) => (
           <HistoryCard entry={item} t={t} />
@@ -167,97 +142,6 @@ function HistoryCard({
           </Text>
         </View>
       )}
-    </Card>
-  );
-}
-
-type TxItem = {
-  id: number;
-  kind: 'topup' | 'withdraw';
-  amount: number;
-  status: RequestStatus;
-  rejectionReason: string | null;
-  screenshotUrl: string | null;
-  createdAt: string;
-};
-
-function TransactionHistory({
-  coinRequests,
-  withdrawals,
-  colors,
-  t,
-}: {
-  coinRequests: CoinRequestResponse[];
-  withdrawals: WithdrawalResponse[];
-  colors: ReturnType<typeof useTheme>['colors'];
-  t: ReturnType<typeof useTranslate>;
-}) {
-  const transactions: TxItem[] = [
-    ...coinRequests.map((r) => ({
-      id: r.id,
-      kind: 'topup' as const,
-      amount: r.amount,
-      status: r.status,
-      rejectionReason: r.rejectionReason,
-      screenshotUrl: r.screenshotUrl,
-      createdAt: r.createdAt,
-    })),
-    ...withdrawals.map((w) => ({
-      id: w.id,
-      kind: 'withdraw' as const,
-      amount: w.amount,
-      status: w.status,
-      rejectionReason: w.rejectionReason,
-      screenshotUrl: null,
-      createdAt: w.createdAt,
-    })),
-  ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-  if (transactions.length === 0) return null;
-
-  return (
-    <Card className="gap-3 mt-4">
-      <Text className="text-xs font-medium uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-        {t('player.recentTransactions') ?? 'Recent Transactions'}
-      </Text>
-      {transactions.map((tx) => (
-        <View
-          key={`${tx.kind}-${tx.id}`}
-          className="flex-row items-center justify-between rounded-xl px-3 py-2.5"
-          style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive, borderWidth: 1 }}
-        >
-          <View className="flex-1 pr-3">
-            <Text className="text-sm" style={{ color: colors.textPrimary }}>
-              {tx.kind === 'topup'
-                ? (t('mobile.topUpRequest') ?? 'Top-up request')
-                : (t('mobile.withdrawalRequest') ?? 'Withdrawal request')}
-            </Text>
-            <Text className="text-xs" style={{ color: colors.textSecondary }}>
-              {new Date(tx.createdAt).toLocaleDateString()}
-            </Text>
-            {tx.status === 'REJECTED' && tx.rejectionReason ? (
-              <Text className="text-xs" style={{ color: colors.danger }} numberOfLines={1}>
-                {t('player.rejectedReason', { reason: tx.rejectionReason }) ?? `Rejected: ${tx.rejectionReason}`}
-              </Text>
-            ) : null}
-            {tx.kind === 'topup' && tx.screenshotUrl ? (
-              <View className="mt-1 w-10 h-10 rounded-lg overflow-hidden">
-                <PaymentProof url={tx.screenshotUrl} size={40} />
-              </View>
-            ) : null}
-          </View>
-          <View className="items-end gap-1">
-            <Text className="text-sm font-bold" style={{ color: tx.kind === 'topup' ? colors.primary : colors.danger }}>
-              {tx.kind === 'topup' ? `+${tx.amount.toLocaleString()}` : `-${tx.amount.toLocaleString()}`}
-            </Text>
-            <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: colors.surfaceAlt }}>
-              <Text className="text-[10px] font-semibold" style={{ color: STATUS_COLOR[tx.status] }}>
-                {t(`status.${tx.status}`) ?? tx.status}
-              </Text>
-            </View>
-          </View>
-        </View>
-      ))}
     </Card>
   );
 }

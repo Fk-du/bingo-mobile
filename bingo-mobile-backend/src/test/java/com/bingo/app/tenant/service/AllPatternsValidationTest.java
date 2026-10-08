@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * can ever be asked to decide automatically. For each recognised code a genuinely
  * complete card is a win and a one-cell-short card is a loss — that is the proof
  * a player's bingo will not be wrongly approved or wrongly rejected, for every
- * one of the 29 canonical picker patterns.
+ * one of the 27 canonical picker patterns.
  */
 class AllPatternsValidationTest {
 
@@ -62,7 +62,7 @@ class AllPatternsValidationTest {
         picker.add("FULL_HOUSE");
         assertAll(
                 () -> assertTrue(GameEngineService.isRecognizedPattern("FULL_HOUSE")),
-                () -> assertEquals(29, picker.size(), "canonical GamePatterns list size"),
+                () -> assertEquals(27, picker.size(), "canonical GamePatterns list size"),
                 () -> assertTrue(picker.stream().allMatch(GameEngineService::isRecognizedPattern),
                         "no picker code may fall through to the manual admin review")
         );
@@ -137,7 +137,7 @@ class AllPatternsValidationTest {
      *
      * <p>Picker patterns are validated as semantic families (any arrangement of lines,
      * blocks, etc.), so not every grid cell is deadly — dropping a bar end from
-     * THREE_RECTANGLES can still leave three rectangles. Each code is therefore
+     * a rectangle family can still leave a winning layout. Each code is therefore
      * probed for a single cell the family really cannot do without, which is exactly
      * the near-miss a player must be rejected for.
      *

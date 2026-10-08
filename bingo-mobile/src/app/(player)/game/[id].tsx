@@ -24,8 +24,8 @@ import {
   CardSort,
   MARK_COLORS,
   countMarkedRows,
+  countSmallCrosses,
   countSmallSquares,
-  countRectangles,
   countTs,
   useGameSettings,
 } from '@/store/gameSettings.store';
@@ -527,10 +527,11 @@ export default function LiveGameScreen() {
 
   const hasCards = (game.playerCards?.length ?? 0) > 0;
   const isLive = game.gameStatus === GameStatus.IN_PROGRESS;
+  const isClaimPending = game.gameStatus === GameStatus.CLAIM_PENDING;
   const isRegistration = game.gameStatus === GameStatus.REGISTRATION_OPEN;
   const isEnded = game.gameStatus === GameStatus.ENDED;
-  // The game status is only known once the state has loaded; treat unknown as waiting/no game state.
   const isStatusUnknown = game.gameStatus == null;
+  const canSeeNextGame = isLive || isClaimPending || isEnded;
 
   /**
    * Once a game is over the player has nothing left to do on this screen, but
@@ -538,15 +539,19 @@ export default function LiveGameScreen() {
    * they do not have to navigate back out and back in to find out. The poll
    * only runs while the game is over: the endpoint excludes ENDED games, so
    * during a live game it could never surface anything new.
+   *
+   * When the game is live and a next game has opened registration, the player
+   * is shown a banner to jump to it — they can watch the live game and register
+   * for the next one without navigating out.
    */
   const nextGamesQuery = useQuery({
     queryKey: ['player/games'],
     queryFn: () => gamesApi.getActive(),
-    enabled: isEnded,
-    refetchInterval: isEnded ? 10_000 : false,
+    enabled: canSeeNextGame,
+    refetchInterval: canSeeNextGame ? 10_000 : false,
   });
   const nextGame: PlayerGameResponse | undefined = (nextGamesQuery.data?.data ?? []).find(
-    (g) => g.id !== gameId
+    (g) => g.id !== gameId && g.status === GameStatus.REGISTRATION_OPEN
   );
   // Held but unpaid cards. The server drops these once registration closes, so a
   // card that was never registered can never linger into a live game.
@@ -563,10 +568,9 @@ export default function LiveGameScreen() {
     const cards = [...(game.playerCards ?? [])];
     if (cardSort === 'cardOrder') return cards;
     const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
-    const markedCount = (c: PlayerCardView) => marksFor(c).size;
     const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
     const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
-    const rectangles = (c: PlayerCardView) => countRectangles(c.numbers, marksFor(c));
+    const smallCrosses = (c: PlayerCardView) => countSmallCrosses(c.numbers, marksFor(c));
     const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
     const calledSetAll = new Set(calledNumbers);
     const calledCount = (c: PlayerCardView) => {
@@ -581,7 +585,7 @@ export default function LiveGameScreen() {
       mostCalled: (a, b) => calledCount(b) - calledCount(a),
       mostRows: (a, b) => rows(b) - rows(a),
       mostSquares: (a, b) => squares(b) - squares(a),
-      mostRectangles: (a, b) => rectangles(b) - rectangles(a),
+      mostSmallCrosses: (a, b) => smallCrosses(b) - smallCrosses(a),
       mostTs: (a, b) => ts(b) - ts(a),
     };
     return cards.sort((a, b) => by[cardSort](a, b) || a.cardId - b.cardId);
@@ -594,7 +598,7 @@ export default function LiveGameScreen() {
     const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
     const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
     const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
-    const rectangles = (c: PlayerCardView) => countRectangles(c.numbers, marksFor(c));
+    const smallCrosses = (c: PlayerCardView) => countSmallCrosses(c.numbers, marksFor(c));
     const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
     const calledSetAll = new Set(calledNumbers);
     const calledCount = (c: PlayerCardView) => {
@@ -611,7 +615,7 @@ export default function LiveGameScreen() {
       if (cardSort === 'mostCalled') v = calledCount(c);
       if (cardSort === 'mostRows') v = rows(c);
       if (cardSort === 'mostSquares') v = squares(c);
-      if (cardSort === 'mostRectangles') v = rectangles(c);
+      if (cardSort === 'mostSmallCrosses') v = smallCrosses(c);
       if (cardSort === 'mostTs') v = ts(c);
       if (v > 0) topVals.add(v);
     }
@@ -620,18 +624,13 @@ export default function LiveGameScreen() {
     const hintMap = new Map<number, string>();
     for (const c of game.playerCards) {
       let v = 0;
-      if (cardSort === 'mostCalled') v = calledCount(c);
-      if (cardSort === 'mostRows') v = rows(c);
-      if (cardSort === 'mostSquares') v = squares(c);
-      if (cardSort === 'mostRectangles') v = rectangles(c);
-      if (cardSort === 'mostTs') v = ts(c);
+      let prefix = 'L';
+      if (cardSort === 'mostCalled') { v = calledCount(c); prefix = 'C'; }
+      if (cardSort === 'mostSquares') { v = squares(c); prefix = 'S'; }
+      if (cardSort === 'mostSmallCrosses') { v = smallCrosses(c); prefix = 'X'; }
+      if (cardSort === 'mostTs') { v = ts(c); prefix = 'T'; }
+      if (cardSort === 'mostRows') { v = rows(c); prefix = 'L'; }
       if (v === max && v > 0) {
-        let prefix = 'L';
-        if (cardSort === 'mostCalled') prefix = 'C';
-        if (cardSort === 'mostSquares') prefix = 'S';
-        if (cardSort === 'mostRectangles') prefix = 'R';
-        if (cardSort === 'mostTs') prefix = 'T';
-        if (cardSort === 'mostRows') prefix = 'L';
         hintMap.set(c.cardId, `${prefix}-${v}`);
       }
     }
@@ -725,6 +724,42 @@ export default function LiveGameScreen() {
               calledNumbers={calledNumbers}
             />
           </>
+        )}
+
+        {/* When the current game is live and the admin has opened registration
+            for the next one, the player is offered a way in without leaving the
+            board: they can keep watching the live calls and jump to register
+            for the next game in a single tap. */}
+        {(isLive || isClaimPending) && nextGame && (
+          <Card className="gap-3" style={{ borderColor: '#6B5BFF30', backgroundColor: '#6B5BFF10' }}>
+            <View className="items-center gap-1">
+              <Text className="text-center text-sm font-bold" style={{ color: colors.textPrimary }}>
+                {t('game.nextGameOpen') ?? 'A new game is open'}
+              </Text>
+              <Text className="text-center text-xs" style={{ color: colors.textSecondary }}>
+                {t('mobile.jackpotPrize') ?? 'Prize'}: {nextGame.prizeAmount ?? nextGame.entryFee * 5} ·{' '}
+                {t('game.priceLabel') ?? 'Price'}: {nextGame.entryFee}
+              </Text>
+            </View>
+            <Button
+              onPress={async () => {
+                try {
+                  setBusy(true);
+                  await gamesApi.previewPreviousCards(nextGame.id);
+                  router.push({ pathname: '/(player)/game/[id]', params: { id: String(nextGame.id) } });
+                } catch (e) {
+                  setReport({ kind: 'error', message: getApiErrorMessage(e) });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy}
+              style={{ flex: 1 }}
+              variant="primary"
+            >
+              {t('game.joinNextGame') ?? 'Register for the new game'}
+            </Button>
+          </Card>
         )}
 
         {/* The finished game stays on screen, but the moment the admin opens the
@@ -998,13 +1033,16 @@ export default function LiveGameScreen() {
         {/* A card the player already paid for is shown at every status, so a
             card survives STARTING and stays on the board once the game is
             live. Only a game that never reached registration has nothing to
-            show, and that is the one case worth a message. */}
+            show, and that is the one case worth a message. A mid-game joiner
+            with no cards sees a hint to register for the next game. */}
         {!hasCards && previewCards.length === 0 && !isRegistration && !isStatusUnknown ? (
           <Card>
             <Text className="text-center text-sm" style={{ color: colors.textSecondary }}>
               {game.gameStatus === GameStatus.ENDED
-                ? t('game.noCardsThisGame') ?? 'No cards in this game'
-                : null}
+                ? (t('game.noCardsThisGame') ?? 'No cards in this game')
+                : (isLive || isClaimPending
+                    ? (t('game.noCardsWatchLive') ?? 'You have no cards in this game. Watch the live calls and register for the next game.')
+                    : null)}
             </Text>
           </Card>
         ) : null}

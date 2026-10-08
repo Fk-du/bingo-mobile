@@ -35,7 +35,7 @@ class WinningPatternGeometryTest {
             "TWO_VERT_TWO_HORIZ", "TWO_VERT_TWO_HORIZ_ONE_DIAG", "TWO_VERT_THREE_HORIZ",
             "TWO_HORIZ_TWO_VERT_TWO_DIAG",
             "FOUR_SQUARES", "TWO_LINES_TWO_SQUARES", "TWO_LINES_TWO_SEP_SQUARES",
-            "TWO_LINES_TWO_RECTANGLES", "THREE_SQUARES_FOUR_DOTS", "THREE_RECTANGLES",
+            "THREE_SQUARES_FOUR_DOTS",
             "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES", "THREE_SMALL_T",
             "LARGE_CROSS_TWO_SQUARES", "THREE_SMALL_CROSSES",
             "HALF_HOUSE"
@@ -163,8 +163,6 @@ class WinningPatternGeometryTest {
                 new Expectation("TWO_HORIZ_TWO_VERT_TWO_DIAG", 6),
                 new Expectation("TWO_LINES_TWO_SQUARES", 2),
                 new Expectation("TWO_LINES_TWO_SEP_SQUARES", 2),
-                new Expectation("TWO_LINES_TWO_RECTANGLES", 2),
-                new Expectation("THREE_RECTANGLES", 0),
                 new Expectation("LARGE_T_TWO_LINES", 4),
                 new Expectation("LARGE_T_THREE_LINES", 7),
                 new Expectation("FOUR_LINES_TOUCH_FREE", 4)
@@ -236,14 +234,14 @@ class WinningPatternGeometryTest {
     }
 
     /**
-     * THREE_SMALL_T and THREE_RECTANGLES name shapes rather than lines, so they are guarded by
-     * component count instead: each of the three shapes must be its own connected group. They used
-     * to be a single diagonal smear and a diamond ring respectively.
+     * THREE_SMALL_T names a shape rather than lines, so it is guarded by
+     * component count instead: each of the three shapes must be its own connected group.
+     * It used to be a single diagonal smear.
      */
     @Test
     @DisplayName("the three-shape patterns really contain three separate shapes")
     void threeShapePatternsHaveThreeComponents() {
-        for (String code : List.of("THREE_SMALL_T", "THREE_RECTANGLES")) {
+        for (String code : List.of("THREE_SMALL_T")) {
             List<int[]> cells = WinningPatternGeometry.cells(code);
             assertEquals(3, componentCount(cells), code + " must be three disconnected shapes");
         }

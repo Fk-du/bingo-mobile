@@ -57,7 +57,6 @@ public final class BingoPatternRules {
 
         List<Integer> blocks = completeBlocks(m);
         int squares = blocks.size();
-        int rectangles = rectangleComponents(m);
         int dots = dotCount(m, blocks);
 
         return switch (code) {
@@ -87,8 +86,6 @@ public final class BingoPatternRules {
             case "TWO_LINES_TWO_SQUARES" -> total >= 2 && squares >= 2;
             case "TWO_LINES_TWO_SEP_SQUARES" -> total >= 2 && packs(blocks, 2);
             case "THREE_SQUARES_FOUR_DOTS" -> squares >= 3 && dots >= 4;
-            case "THREE_RECTANGLES" -> rectangles >= 3;
-            case "TWO_LINES_TWO_RECTANGLES" -> total >= 2 && bars(m) >= 2;
 
             // --- T shapes and crosses ------------------------------------------------
             case "LARGE_T_TWO_LINES" -> largeT(m, lines, 2);
@@ -187,49 +184,6 @@ public final class BingoPatternRules {
         return Integer.bitCount(completeLines) - 2 >= extraLines;
     }
 
-    /**
-     * Number of straight filled bars of at least two cells (maximal horizontal and
-     * vertical runs). TWO_LINES_TWO_RECTANGLES counts these instead of components:
-     * its demo draws its rectangles as two-cell bars that sit right next to one of the
-     * lines, so component counting would weld them onto the line and hide them.
-     */
-    private static int bars(boolean[][] m) {
-        int runs = 0;
-        for (int r = 0; r < 5; r++) {
-            int len = 0;
-            for (int c = 0; c < 5; c++) {
-                if (m[r][c]) {
-                    len++;
-                } else {
-                    if (len >= 2) {
-                        runs++;
-                    }
-                    len = 0;
-                }
-            }
-            if (len >= 2) {
-                runs++;
-            }
-        }
-        for (int c = 0; c < 5; c++) {
-            int len = 0;
-            for (int r = 0; r < 5; r++) {
-                if (m[r][c]) {
-                    len++;
-                } else {
-                    if (len >= 2) {
-                        runs++;
-                    }
-                    len = 0;
-                }
-            }
-            if (len >= 2) {
-                runs++;
-            }
-        }
-        return runs;
-    }
-
     /** Every complete 2x2 block of marked cells, as a cell bitmask. */
     private static List<Integer> completeBlocks(boolean[][] m) {
         List<Integer> blocks = new ArrayList<>();
@@ -258,49 +212,6 @@ public final class BingoPatternRules {
             dots++; // the centre is always a dot
         }
         return dots;
-    }
-
-    /**
-     * Number of connected filled regions that exactly fill their bounding box and hold at
-     * least three cells. Bars and 2x2 squares qualify, L-shapes, pluses and diagonal
-     * smears do not. Used by THREE_RECTANGLES, where each rectangle is its own separate
-     * region and a three-cell floor keeps a fragmented bar from still qualifying.
-     */
-    private static int rectangleComponents(boolean[][] m) {
-        boolean[][] seen = new boolean[5][5];
-        int rectangles = 0;
-        for (int r = 0; r < 5; r++) {
-            for (int c = 0; c < 5; c++) {
-                if (!m[r][c] || seen[r][c]) {
-                    continue;
-                }
-                List<int[]> component = new ArrayList<>();
-                int minR = r, maxR = r, minC = c, maxC = c;
-                int head = 0;
-                component.add(new int[]{r, c});
-                seen[r][c] = true;
-                while (head < component.size()) {
-                    int[] cell = component.get(head++);
-                    for (int[] next : new int[][]{{cell[0] + 1, cell[1]}, {cell[0] - 1, cell[1]},
-                            {cell[0], cell[1] + 1}, {cell[0], cell[1] - 1}}) {
-                        int nr = next[0], nc = next[1];
-                        if (nr < 0 || nr > 4 || nc < 0 || nc > 4 || !m[nr][nc] || seen[nr][nc]) {
-                            continue;
-                        }
-                        seen[nr][nc] = true;
-                        component.add(next);
-                        minR = Math.min(minR, nr);
-                        maxR = Math.max(maxR, nr);
-                        minC = Math.min(minC, nc);
-                        maxC = Math.max(maxC, nc);
-                    }
-                }
-                if (component.size() >= 3 && component.size() == (maxR - minR + 1) * (maxC - minC + 1)) {
-                    rectangles++;
-                }
-            }
-        }
-        return rectangles;
     }
 
     /** Every complete five-cell plus sign (centres in rows/cols 1..3); overlaps are allowed. */

@@ -38,13 +38,11 @@ const PATTERN_GRIDS: Record<string, string> = {
   TWO_VERT_THREE_HORIZ: '*****' + '**...' + '**...' + '*****' + '*****',
   TWO_HORIZ_TWO_VERT_TWO_DIAG: '*****' + '**.**' + '*.*.*' + '**.**' + '*****',
 
-  // Squares, rectangles and dots
+  // Squares and dots
   FOUR_SQUARES: '**.**' + '**.**' + '.....' + '**.**' + '**.**',
   TWO_LINES_TWO_SQUARES: '*****' + '**...' + '.....' + '**...' + '*****',
   TWO_LINES_TWO_SEP_SQUARES: '**.**' + '**.**' + '*...*' + '*...*' + '*...*',
-  TWO_LINES_TWO_RECTANGLES: '*****' + '.....' + '*...*' + '*...*' + '*****',
   THREE_SQUARES_FOUR_DOTS: '**.**' + '**.**' + '..*.*' + '**.*.' + '**..*',
-  THREE_RECTANGLES: '****.' + '.....' + '****.' + '.....' + '****.',
 
   // T shapes and crosses
   LARGE_T_TWO_LINES: '*****' + '*****' + '..*..' + '..*..' + '*****',

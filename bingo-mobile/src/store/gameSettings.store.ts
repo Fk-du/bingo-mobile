@@ -10,7 +10,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
  * is furthest along", never "which is least marked". Reversed variants were
  * removed, so 'fewestMarked' and 'fewestRows' are deliberately not valid.
  */
-export const CARD_SORTS = ['cardOrder', 'mostCalled', 'mostRows', 'mostSquares', 'mostRectangles', 'mostTs'] as const;
+export const CARD_SORTS = ['cardOrder', 'mostCalled', 'mostRows', 'mostSquares', 'mostSmallCrosses', 'mostTs'] as const;
 export type CardSort = (typeof CARD_SORTS)[number];
 
 /** The colour a called/marked number is filled with. */
@@ -206,12 +206,12 @@ export function countSmallSquares(numbers: number[][], marked: Set<number>): num
 }
 
 /**
- * Count complete rectangles (1×3 or 3×1) on a card. A rectangle requires
- * 3 consecutive marked cells in a row or column. These are distinct from
- * the "line" count - a full row/column is a line, but any 3 consecutive
- * cells within it count as rectangles too.
+ * Count small crosses (plus signs) on a card. A small cross is 5 cells:
+ * the centre plus its four orthogonal neighbours. Each cross is counted once
+ * per centre cell that is fully marked. The free centre cell (2,2) is always
+ * considered marked.
  */
-export function countRectangles(numbers: number[][], marked: Set<number>): number {
+export function countSmallCrosses(numbers: number[][], marked: Set<number>): number {
   if (!numbers || numbers.length < 5) return 0;
 
   const isMarked = (r: number, c: number): boolean => {
@@ -219,38 +219,30 @@ export function countRectangles(numbers: number[][], marked: Set<number>): numbe
     return (numbers[r]?.[c] !== undefined && marked.has(numbers[r][c]));
   };
 
-  let rectangles = 0;
-
-  // Horizontal rectangles: 3 consecutive cells in a row
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 3; c++) {
-      if (isMarked(r, c) && isMarked(r, c + 1) && isMarked(r, c + 2)) {
-        rectangles++;
+  let crosses = 0;
+  for (let r = 1; r < 4; r++) {
+    for (let c = 1; c < 4; c++) {
+      if (isMarked(r - 1, c) && isMarked(r + 1, c) && isMarked(r, c - 1) && isMarked(r, c + 1) && isMarked(r, c)) {
+        crosses++;
       }
     }
   }
-
-  // Vertical rectangles: 3 consecutive cells in a column
-  for (let c = 0; c < 5; c++) {
-    for (let r = 0; r < 3; r++) {
-      if (isMarked(r, c) && isMarked(r + 1, c) && isMarked(r + 2, c)) {
-        rectangles++;
-      }
-    }
-  }
-
-  return rectangles;
+  return crosses;
 }
 
 /**
- * Count T-shaped patterns on a card. A T consists of 5 cells:
- * - 3 cells in a vertical or horizontal line (the stem)
- * - 2 cells perpendicular from the middle cell (the cross)
+ * Count T-shaped patterns on a card. A small T is 4 cells:
+ * - 3 cells in a vertical or horizontal line (the bar)
+ * - 1 cell perpendicular from the middle of the bar (the stem)
  *
- * Examples of T-shapes:
- *   *.*.   or   ***   or   .*.   or   *.*
- *   ***        .*.        ***        .*.
- *   ...        .*.        ...        .*.
+ * Each stem direction is counted independently, so a bar with stems on both
+ * sides counts as two Ts. Matches the backend's {@code BingoPatternRules.smallTShapes}.
+ *
+ * Examples of small Ts (center is the bar's middle, S is the stem):
+ *   *.*.   ***   .*.   *.*
+ *   ***    .*.   ***   .*.
+ *   ...    *S.   ...   S.*
+ * The free centre cell (2,2) is always considered marked.
  */
 export function countTs(numbers: number[][], marked: Set<number>): number {
   if (!numbers || numbers.length < 5) return 0;
@@ -262,38 +254,22 @@ export function countTs(numbers: number[][], marked: Set<number>): number {
 
   let tCount = 0;
 
-  // Vertical T-shapes: stem is vertical, arms are horizontal
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 5; c++) {
-      // Middle row at r+1, check if vertical line exists and both sides are marked
-      if (
-        isMarked(r, c) &&
-        isMarked(r + 1, c) &&
-        isMarked(r + 2, c) &&
-        c > 0 &&
-        c < 4 &&
-        isMarked(r + 1, c - 1) &&
-        isMarked(r + 1, c + 1)
-      ) {
-        tCount++;
+  // Horizontal T-shapes: 3 cells in a row + 1 stem above or below the middle
+  for (let r = 0; r < 5; r++) {
+    for (let c = 1; c < 4; c++) {
+      if (isMarked(r, c - 1) && isMarked(r, c) && isMarked(r, c + 1)) {
+        if (r > 0 && isMarked(r - 1, c)) tCount++;
+        if (r < 4 && isMarked(r + 1, c)) tCount++;
       }
     }
   }
 
-  // Horizontal T-shapes: stem is horizontal, arms are vertical
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 3; c++) {
-      // Middle column at c+1, check if horizontal line exists and both top/bottom are marked
-      if (
-        isMarked(r, c) &&
-        isMarked(r, c + 1) &&
-        isMarked(r, c + 2) &&
-        r > 0 &&
-        r < 4 &&
-        isMarked(r - 1, c + 1) &&
-        isMarked(r + 1, c + 1)
-      ) {
-        tCount++;
+  // Vertical T-shapes: 3 cells in a column + 1 stem left or right of the middle
+  for (let r = 1; r < 4; r++) {
+    for (let c = 0; c < 5; c++) {
+      if (isMarked(r - 1, c) && isMarked(r, c) && isMarked(r + 1, c)) {
+        if (c > 0 && isMarked(r, c - 1)) tCount++;
+        if (c < 4 && isMarked(r, c + 1)) tCount++;
       }
     }
   }

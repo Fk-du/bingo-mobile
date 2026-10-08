@@ -124,58 +124,6 @@ class ExhaustiveFamilyCompletionTest {
         SMALL_TS.add(m);
     }
 
-    /** Every filled axis-aligned rectangle of at least three cells that fits the board. */
-    private static final List<Integer> RECTS = new ArrayList<>();
-
-    static {
-        for (int h = 1; h <= 5; h++) {
-            for (int w = 1; w <= 5; w++) {
-                if (h * w < 3) {
-                    continue;
-                }
-                for (int r = 0; r + h <= 5; r++) {
-                    for (int c = 0; c + w <= 5; c++) {
-                        int m = 0;
-                        for (int dr = 0; dr < h; dr++) {
-                            for (int dc = 0; dc < w; dc++) {
-                                m |= 1 << ((r + dr) * 5 + (c + dc));
-                            }
-                        }
-                        RECTS.add(m);
-                    }
-                }
-            }
-        }
-    }
-
-    /** Every maximal 2..5-cell run in a row or column (a bar). */
-    private static final List<Integer> BARS = new ArrayList<>();
-
-    static {
-        for (int r = 0; r < 5; r++) {
-            for (int len = 2; len <= 5; len++) {
-                for (int c = 0; c + len <= 5; c++) {
-                    int m = 0;
-                    for (int dc = 0; dc < len; dc++) {
-                        m |= 1 << (r * 5 + c + dc);
-                    }
-                    BARS.add(m);
-                }
-            }
-        }
-        for (int c = 0; c < 5; c++) {
-            for (int len = 2; len <= 5; len++) {
-                for (int r = 0; r + len <= 5; r++) {
-                    int m = 0;
-                    for (int dr = 0; dr < len; dr++) {
-                        m |= 1 << ((r + dr) * 5 + c);
-                    }
-                    BARS.add(m);
-                }
-            }
-        }
-    }
-
     private int[][] card() {
         int n = 1;
         int[][] card = new int[5][5];
@@ -321,83 +269,6 @@ class ExhaustiveFamilyCompletionTest {
         return dots;
     }
 
-    private static int barCount(int mask) {
-        boolean[] m = marks(mask);
-        int bars = 0;
-        for (int r = 0; r < 5; r++) {
-            int len = 0;
-            for (int c = 0; c < 5; c++) {
-                if (m[r * 5 + c]) {
-                    len++;
-                } else {
-                    if (len >= 2) {
-                        bars++;
-                    }
-                    len = 0;
-                }
-            }
-            if (len >= 2) {
-                bars++;
-            }
-        }
-        for (int c = 0; c < 5; c++) {
-            int len = 0;
-            for (int r = 0; r < 5; r++) {
-                if (m[r * 5 + c]) {
-                    len++;
-                } else {
-                    if (len >= 2) {
-                        bars++;
-                    }
-                    len = 0;
-                }
-            }
-            if (len >= 2) {
-                bars++;
-            }
-        }
-        return bars;
-    }
-
-    private static int rectangleCount(int mask) {
-        boolean[] m = marks(mask);
-        boolean[][] seen = new boolean[5][5];
-        int rectangles = 0;
-        for (int r = 0; r < 5; r++) {
-            for (int c = 0; c < 5; c++) {
-                if (!marked(m, r, c) || seen[r][c]) {
-                    continue;
-                }
-                List<int[]> component = new ArrayList<>();
-                component.add(new int[]{r, c});
-                seen[r][c] = true;
-                int minR = r, maxR = r, minC = c, maxC = c;
-                int head = 0;
-                while (head < component.size()) {
-                    int[] cell = component.get(head++);
-                    for (int[] next : new int[][]{{cell[0] + 1, cell[1]}, {cell[0] - 1, cell[1]},
-                            {cell[0], cell[1] + 1}, {cell[0], cell[1] - 1}}) {
-                        int nr = next[0], nc = next[1];
-                        if (nr < 0 || nr > 4 || nc < 0 || nc > 4 || !marked(m, nr, nc) || seen[nr][nc]) {
-                            continue;
-                        }
-                        seen[nr][nc] = true;
-                        component.add(next);
-                        minR = Math.min(minR, nr);
-                        maxR = Math.max(maxR, nr);
-                        minC = Math.min(minC, nc);
-                        maxC = Math.max(maxC, nc);
-                    }
-                }
-                if (component.size() >= 3
-                        && component.size() == (maxR - minR + 1) * (maxC - minC + 1)) {
-                    rectangles++;
-                }
-            }
-        }
-        return rectangles;
-    }
-
     private static int crossCount(int mask) {
         boolean[] m = marks(mask);
         int crosses = 0;
@@ -463,22 +334,14 @@ class ExhaustiveFamilyCompletionTest {
         LineCounts l = countLines(mask);
         int squares = 0;
         int dots = 0;
-        int bars = 0;
-        int rectangles = 0;
         int crosses = 0;
         List<Integer> blocks = null;
         if (squaresFamily(code)) {
             blocks = completeBlocks(mask);
             squares = blocks.size();
         }
-        if ("THREE_SQUARES_FOUR_DOTS".equals(code)) {
+         if ("THREE_SQUARES_FOUR_DOTS".equals(code)) {
             dots = dotCount(mask);
-        }
-        if ("TWO_LINES_TWO_RECTANGLES".equals(code)) {
-            bars = barCount(mask);
-        }
-        if ("THREE_RECTANGLES".equals(code)) {
-            rectangles = rectangleCount(mask);
         }
         if ("THREE_SMALL_CROSSES".equals(code)) {
             crosses = crossCount(mask);
@@ -503,8 +366,6 @@ class ExhaustiveFamilyCompletionTest {
             case "TWO_LINES_TWO_SQUARES" -> l.total() >= 2 && squares >= 2;
             case "TWO_LINES_TWO_SEP_SQUARES" -> l.total() >= 2 && canPack(blocks, 2, mask);
             case "THREE_SQUARES_FOUR_DOTS" -> squares >= 3 && dots >= 4;
-            case "THREE_RECTANGLES" -> rectangles >= 3;
-            case "TWO_LINES_TWO_RECTANGLES" -> l.total() >= 2 && bars >= 2;
             case "LARGE_T_TWO_LINES" -> largeT(mask, 2);
             case "LARGE_T_THREE_LINES" -> largeT(mask, 3);
             case "THREE_SMALL_T" -> canPack(SMALL_TS, 3, mask);
@@ -569,34 +430,6 @@ class ExhaustiveFamilyCompletionTest {
             m |= LINE[id];
         }
         return m;
-    }
-
-    private static boolean edgeAdjacent(int a, int b) {
-        int x = a;
-        while (x != 0) {
-            int bit = Integer.lowestOneBit(x);
-            int i = Integer.numberOfTrailingZeros(bit);
-            int r = i / 5;
-            int c = i % 5;
-            int n = 0;
-            if (r > 0) {
-                n |= bit >>> 5;
-            }
-            if (r < 4) {
-                n |= bit << 5;
-            }
-            if (c > 0) {
-                n |= bit >>> 1;
-            }
-            if (c < 4) {
-                n |= bit << 1;
-            }
-            if ((n & b) != 0) {
-                return true;
-            }
-            x ^= bit;
-        }
-        return false;
     }
 
     private static void disjointCombos(List<Integer> shapes, int need, int index, int used,
@@ -684,8 +517,6 @@ class ExhaustiveFamilyCompletionTest {
                 }
             }
             case "THREE_SQUARES_FOUR_DOTS" -> addThreeSquaresFourDots(ways);
-            case "THREE_RECTANGLES" -> addThreeRectangles(ways);
-            case "TWO_LINES_TWO_RECTANGLES" -> addTwoLinesTwoRectangles(ways);
             case "LARGE_T_TWO_LINES" -> addLargeT(ways, 2);
             case "LARGE_T_THREE_LINES" -> addLargeT(ways, 3);
             case "THREE_SMALL_T" -> {
@@ -806,46 +637,6 @@ class ExhaustiveFamilyCompletionTest {
         }
     }
 
-    private static void addThreeRectangles(Set<Integer> ways) {
-        int n = RECTS.size();
-        for (int i = 0; i < n; i++) {
-            int a = RECTS.get(i);
-            for (int j = i + 1; j < n; j++) {
-                int b = RECTS.get(j);
-                if (edgeAdjacent(a, b)) {
-                    continue;
-                }
-                for (int k = j + 1; k < n; k++) {
-                    int c = RECTS.get(k);
-                    if (edgeAdjacent(a, c) || edgeAdjacent(b, c)) {
-                        continue;
-                    }
-                    add(ways, a | b | c);
-                }
-            }
-        }
-    }
-
-    private static void addTwoLinesTwoRectangles(Set<Integer> ways) {
-        boolean[][] barsDisjoint = disjointPairs(BARS, BARS.size(), false);
-        for (int[] lp : combos(12, 2)) {
-            int base = unionLines(lp[0], lp[1]);
-            add(ways, base);
-            for (int bar : BARS) {
-                add(ways, base | bar);
-            }
-            if (lp[0] == 10 && lp[1] == 11) {
-                for (int i = 0; i < BARS.size(); i++) {
-                    for (int j = i + 1; j < BARS.size(); j++) {
-                        if (barsDisjoint[i][j]) {
-                            add(ways, base | BARS.get(i) | BARS.get(j));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private static boolean[][] disjointPairs(List<Integer> shapes, int size, boolean unused) {
         boolean[][] out = new boolean[size][size];
         for (int i = 0; i < size; i++) {
@@ -906,7 +697,7 @@ class ExhaustiveFamilyCompletionTest {
                 "TWO_VERT_TWO_HORIZ", "TWO_VERT_TWO_HORIZ_ONE_DIAG", "TWO_VERT_THREE_HORIZ",
                 "TWO_HORIZ_TWO_VERT_TWO_DIAG",
                 "FOUR_SQUARES", "TWO_LINES_TWO_SQUARES", "TWO_LINES_TWO_SEP_SQUARES",
-                "TWO_LINES_TWO_RECTANGLES", "THREE_SQUARES_FOUR_DOTS", "THREE_RECTANGLES",
+                "THREE_SQUARES_FOUR_DOTS",
                 "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES", "THREE_SMALL_T",
                 "LARGE_CROSS_TWO_SQUARES", "THREE_SMALL_CROSSES",
                 "HALF_HOUSE", "FULL_HOUSE"

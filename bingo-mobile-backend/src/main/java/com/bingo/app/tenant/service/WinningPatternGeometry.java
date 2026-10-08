@@ -56,9 +56,7 @@ public final class WinningPatternGeometry {
         GRIDS.put("FOUR_SQUARES", "**.**" + "**.**" + "....." + "**.**" + "**.**");
         GRIDS.put("TWO_LINES_TWO_SQUARES", "*****" + "**..." + "....." + "**..." + "*****");
         GRIDS.put("TWO_LINES_TWO_SEP_SQUARES", "**.**" + "**.**" + "*...*" + "*...*" + "*...*");
-        GRIDS.put("TWO_LINES_TWO_RECTANGLES", "*****" + "....." + "*...*" + "*...*" + "*****");
         GRIDS.put("THREE_SQUARES_FOUR_DOTS", "**.**" + "**.**" + "..*.*" + "**.*." + "**..*");
-        GRIDS.put("THREE_RECTANGLES", "****." + "....." + "****." + "....." + "****.");
 
         // --- T shapes and crosses ----------------------------------------------------
         GRIDS.put("LARGE_T_TWO_LINES", "*****" + "*****" + "..*.." + "..*.." + "*****");

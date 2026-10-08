@@ -81,13 +81,7 @@ class BingoPatternRulesTest {
                 () -> assertFamilyWins("TWO_LINES_TWO_SEP_SQUARES", union(rows(0, 4), block(1, 0), block(3, 2))),
                 // Three squares and four free dots, dots away from any block.
                 () -> assertFamilyWins("THREE_SQUARES_FOUR_DOTS",
-                        union(block(0, 0), block(0, 3), block(2, 2), dots("0,2", "2,0", "4,2", "4,4"))),
-                // Three vertical bars instead of the demo's horizontal ones.
-                () -> assertFamilyWins("THREE_RECTANGLES",
-                        union(colRange(0, 0, 2), colRange(2, 0, 2), colRange(4, 0, 2))),
-                // Two rows as the lines, plus an isolated mid-row bar as an extra rectangle.
-                () -> assertFamilyWins("TWO_LINES_TWO_RECTANGLES",
-                        union(rows(0, 4), Set.of("2,1", "2,2", "2,3")))
+                        union(block(0, 0), block(0, 3), block(2, 2), dots("0,2", "2,0", "4,2", "4,4")))
         );
     }
 
@@ -141,14 +135,6 @@ class BingoPatternRulesTest {
             for (int r = 0; r < 5; r++) {
                 cells.add(r + "," + c);
             }
-        }
-        return cells;
-    }
-
-    private static Set<String> colRange(int col, int r0, int r1) {
-        Set<String> cells = new HashSet<>();
-        for (int r = r0; r <= r1; r++) {
-            cells.add(r + "," + col);
         }
         return cells;
     }
