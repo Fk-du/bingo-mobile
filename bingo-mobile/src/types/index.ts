@@ -43,6 +43,16 @@ export interface PasswordStatusResponse {
   hasPassword: boolean;
 }
 
+export interface PasswordResetRequest {
+  phone: string;
+}
+
+export interface ConfirmPasswordResetRequest {
+  phone: string;
+  code: string;
+  newPassword: string;
+}
+
 /** HTTP 421 body when the account has no password yet. */
 export interface NoPasswordErrorBody {
   code: 'no_password';

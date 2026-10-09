@@ -1,6 +1,7 @@
 package com.bingo.app.common.exception;
 
 import com.bingo.app.master.exception.InviteRegistrationException;
+import com.bingo.app.master.exception.PasswordResetException;
 import com.bingo.app.tenant.exception.GameProgressException;
 import com.bingo.app.tenant.exception.WalletException;
 import com.bingo.app.infrastructure.security.PhoneAuthException;
@@ -75,6 +76,16 @@ class ApiExceptionHandlerTest {
         @GetMapping("/t/no-password")
         void noPassword() {
             throw PhoneAuthException.noPassword();
+        }
+
+        @GetMapping("/t/reset-invalid")
+        void resetInvalid() {
+            throw PasswordResetException.invalidCode();
+        }
+
+        @GetMapping("/t/reset-max-attempts")
+        void resetMaxAttempts() {
+            throw PasswordResetException.tooManyAttempts();
         }
 
         @GetMapping("/t/boom")
@@ -184,6 +195,19 @@ class ApiExceptionHandlerTest {
         mockMvc.perform(get("/t/no-password"))
                 .andExpect(status().is(421))
                 .andExpect(jsonPath("$.code").value("no_password"));
+    }
+
+    @Test
+    void passwordResetExceptionReturns400WithResetCode() throws Exception {
+        mockMvc.perform(get("/t/reset-invalid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("invalid_otp"))
+                .andExpect(jsonPath("$.userMessage")
+                        .value("That reset code is not correct. Check the code and try again."));
+
+        mockMvc.perform(get("/t/reset-max-attempts"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("otp_max_attempts"));
     }
 
     @Test

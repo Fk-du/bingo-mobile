@@ -98,7 +98,24 @@
     "noPasswordTitle": "No password yet",
     "noPasswordHint": "This account has no password. Open the BingoPlus bot in Telegram, tap your invite link, and use “Create Password” to set one — then log in here.",
     "openBot": "Open Telegram bot",
-    "loginEyebrow": "Welcome back"
+    "loginEyebrow": "Welcome back",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordHint": "Enter your phone number. If an account exists, a one-time reset code is sent to your Telegram.",
+    "sendResetCode": "Send reset code",
+    "resetPasswordTitle": "Enter the reset code",
+    "resetPasswordHint": "Enter the 6-digit code from your Telegram and choose a new password.",
+    "resetCode": "Reset code",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "resetPassword": "Reset password",
+    "resendCode": "Resend code",
+    "resending": "Resending…",
+    "resetCodeSentHint": "A new code was sent to your Telegram.",
+    "invalidPhone": "Enter your phone number",
+    "invalidCode": "Enter the 6-digit code",
+    "weakPassword": "Password must be at least 4 characters",
+    "passwordMismatch": "Passwords do not match"
   },
   "roles": {
     "ADMIN": "Admin",
@@ -137,7 +154,11 @@
     "invite_already_registered": "Your account is already registered. Use /start to open your menu.",
     "account_suspended": "Your account has been suspended. Contact the platform owner for details.",
     "admin_pending": "Your admin account is awaiting approval from the super admin. You cannot use admin features until your account is approved.",
-    "request_already_processed": "This request has already been processed."
+    "request_already_processed": "This request has already been processed.",
+    "invalid_otp": "That reset code is not correct. Check the code and try again.",
+    "otp_expired": "That reset code has expired. Request a new code and try again.",
+    "otp_max_attempts": "Too many wrong attempts. The reset code has been invalidated — request a new one.",
+    "weak_password": "The new password must be at least 4 characters long."
   },
   "mobile": {
     "navLobby": "Game",

@@ -10,6 +10,7 @@ import com.bingo.app.tenant.repository.CalledNumberRepository;
 import com.bingo.app.tenant.repository.GameCardRepository;
 import com.bingo.app.tenant.repository.GameRepository;
 import com.bingo.app.tenant.repository.TransactionRepository;
+import com.bingo.app.master.service.NotificationService;
 import com.bingo.app.tenant.dto.CreateGameRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,8 @@ class SingleGamePerAdminTest {
             mock(com.bingo.app.tenant.dto.mapper.TenantMapper.class),
             mock(PrizeRules.class),
             mock(AutomationConfigRepository.class),
-            mock(CardPreviewRepository.class)
+            mock(CardPreviewRepository.class),
+            mock(NotificationService.class)
     );
 
     private CreateGameRequest request() {

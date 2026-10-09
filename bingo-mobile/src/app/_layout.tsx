@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Role } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
 import { setClientLocale } from '@/lib/clientTranslations';
+import { installPushTapHandler, setupPushNotifications } from '@/lib/notifications';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 
 const queryClient = new QueryClient({
@@ -31,6 +32,13 @@ function AppRoutes() {
       setClientLocale(user.preferredLanguage);
     }
   }, [user?.preferredLanguage]);
+
+  useEffect(() => {
+    installPushTapHandler();
+    if (isAuthenticated) {
+      void setupPushNotifications();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';

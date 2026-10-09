@@ -98,7 +98,24 @@
     "noPasswordTitle": "እስካሁን የይለፍ ቃል የለም",
     "noPasswordHint": "ይህ መለያ የይለፍ ቃል የለውም። የቢንጎ ፕላስ ቦትን በቴሌግራም ይክፈቱ፣ የግብዣ ሊንክዎን ይንኩ፣ እና “የይለፍ ቃል ይፍጠሩ” የሚለውን ተጠቅመው የይለፍ ቃል ያዘጋጁ — ከዚያ እዚህ ይግቡ።",
     "openBot": "የቴሌግራም ቦትን ይክፈቱ",
-    "loginEyebrow": "እንደምን አለህ"
+    "loginEyebrow": "እንደምን አለህ",
+    "forgotPassword": "የይለፍ ቃል ረሳህ?",
+    "forgotPasswordTitle": "የይለፍ ቃልዎን ያስተካክሉ",
+    "forgotPasswordHint": "የስልክ ቁጥርዎን ያስገቡ። አካውንት ካለ፣ የአንድ ጊዜ የማስተካከያ ኮድ ወደ ቴሌግራምዎ ይላካል።",
+    "sendResetCode": "የማስተካከያ ኮድ ይላኩ",
+    "resetPasswordTitle": "የማስተካከያ ኮዱን ያስገቡ",
+    "resetPasswordHint": "ከቴሌግራምዎ የተላከውን ባለ 6 አሃዝ ኮድ ያስገቡ እና አዲስ የይለፍ ቃል ይምረጡ።",
+    "resetCode": "የማስተካከያ ኮድ",
+    "newPassword": "አዲስ የይለፍ ቃል",
+    "confirmNewPassword": "አዲስ የይለፍ ቃል ያረጋግጡ",
+    "resetPassword": "የይለፍ ቃል ያስተካክሉ",
+    "resendCode": "ኮድ እንደገና ይላኩ",
+    "resending": "እየተላከ ነው…",
+    "resetCodeSentHint": "አዲስ ኮድ ወደ ቴሌግራምዎ ተልኳል።",
+    "invalidPhone": "የስልክ ቁጥርዎን ያስገቡ",
+    "invalidCode": "ባለ 6 አሃዝ ኮዱን ያስገቡ",
+    "weakPassword": "የይለፍ ቃል ቢያንስ 4 ፊደላት መሆን አለበት",
+    "passwordMismatch": "የይለፍ ቃላቶቹ አይመሳሰሉም"
   },
   "roles": {
     "ADMIN": "አስተዳዳሪ",
@@ -137,7 +154,11 @@
     "invite_already_registered": "መለያዎ ቀድሞውኑ ተመዝግቧል። ሜኑዎን ለመክፈት /start ይጠቀሙ።",
     "account_suspended": "መለያዎ ታግዷል። ለዝርዝር መረጃ የመርከቡ ባለቤትን ያነጋግሩ።",
     "admin_pending": "የአስተዳዳሪ መለያዎ ከሱፐር አስተዳዳሪ ጸድቆ በመጠበቅ ላይ ነው። መለያዎ እስኪጸድቅ ድረስ የአስተዳዳሪ ባህሪያትን መጠቀም አይችሉም።",
-    "request_already_processed": "ይህ ጥያቄ ቀድሞውኑ ተከናውኗል።"
+    "request_already_processed": "ይህ ጥያቄ ቀድሞውኑ ተከናውኗል።",
+    "invalid_otp": "ያ የማስተካከያ ኮድ ትክክል አይደለም። ኮዱን አርጋግጠው እንደገና ይሞክሩ።",
+    "otp_expired": "የማስተካከያ ኮዱ ጊዜው አልፏል። አዲስ ኮድ ጠይቀው እንደገና ይሞክሩ።",
+    "otp_max_attempts": "በጣም ብዙ የተሳሳቱ ሙከራዎች። የማስተካከያ ኮዱ ተሽሯል — አዲስ ይጠይቁ።",
+    "weak_password": "አዲሱ የይለፍ ቃል ቢያንስ 4 ፊደላት መሆን አለበት።"
   },
   "ws": {
     "gameRestarted": "ጨዋታው በአዲስ የቁጥር ቅደም እንደገና እየተጀመረ ነው። የተመዘገቡ ተጫዋቾች ሁሉ ካርዳቸውን ጠብቀው እንደገና መጫወት ይችላሉ።",

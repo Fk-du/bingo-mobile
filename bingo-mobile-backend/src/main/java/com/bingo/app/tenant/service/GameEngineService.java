@@ -1668,6 +1668,13 @@ public class GameEngineService {
      */
     public static final int COUNTDOWN_SECONDS = 5;
 
+    /**
+     * Countdown shown when an admin starts a brand-new game. Deliberately longer
+     * than {@link #COUNTDOWN_SECONDS} so the device push sent at STARTING has
+     * time to reach players who are out of the app.
+     */
+    public static final int START_COUNTDOWN_SECONDS = 10;
+
     // Why a game is counting down; sent to clients so they can explain it to players.
     public static final String REASON_START = "start";
     public static final String REASON_RESUME = "resume";

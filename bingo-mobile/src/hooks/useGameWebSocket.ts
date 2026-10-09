@@ -3,6 +3,7 @@ import { Client, IMessage } from '@stomp/stompjs';
 import { useGameStore } from '@/store/game.store';
 import { CalledNumberResponse, GameStatus, BingoClaimResponse } from '@/types';
 import { getWsBaseUrl } from '@/lib/backend';
+import { scheduleGameStartLocalNotification } from '@/lib/notifications';
 import { tokenStorage } from '@/store/tokenStorage';
 import { translateClientMessage } from '@/lib/clientTranslations';
 
@@ -53,7 +54,7 @@ export function useGameWebSocket(gameId: number | null) {
           client.subscribe(`/topic/game/${gameId}`, (message: IMessage) => {
             try {
               const event: GameEvent = JSON.parse(message.body);
-              handleGameEvent(event);
+              handleGameEvent(event, gameId);
             } catch {
               console.error('Failed to parse game event');
             }
@@ -80,7 +81,7 @@ export function useGameWebSocket(gameId: number | null) {
   }, [gameId, setConnecting, reset]);
 }
 
-function handleGameEvent(event: GameEvent) {
+function handleGameEvent(event: GameEvent, gameId: number) {
   const store = useGameStore.getState();
 
   switch (event.type) {
@@ -98,6 +99,13 @@ function handleGameEvent(event: GameEvent) {
       // left wondering why a resumed game went quiet.
       if (event.data.status === 'STARTING') {
         store.setStartReason((event.data.reason as string | undefined) ?? 'start');
+        // A device notification for the moment the countdown expires, so a player
+        // who steps away is still pulled back in. Guarded client-side to the
+        // countdown window; the server push covers players who are fully out.
+        void scheduleGameStartLocalNotification(
+          event.data.startTime as string | undefined,
+          gameId
+        );
       } else {
         store.setStartReason(null);
       }

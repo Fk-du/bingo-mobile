@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { AppTextInput, Button, Card, FieldLabel, Screen, Subtitle, Title } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
@@ -96,6 +96,12 @@ export default function LoginScreen() {
               secureTextEntry
             />
           </View>
+
+          <Pressable onPress={() => router.push('/(auth)/forgot-password')} hitSlop={8}>
+            <Text className="text-sm text-right" style={{ color: colors.primary }}>
+              {t('auth.forgotPassword') ?? 'Forgot password?'}
+            </Text>
+          </Pressable>
 
           <Button onPress={handleLogin} disabled={loading}>
             {loading ? t('common.loading') ?? 'Loading…' : t('mobile.login') ?? 'Log in'}

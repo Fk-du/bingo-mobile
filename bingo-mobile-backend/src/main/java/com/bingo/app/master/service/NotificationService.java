@@ -1,6 +1,7 @@
 package com.bingo.app.master.service;
 
 import com.bingo.app.bot.BingoTelegramBot;
+import com.bingo.app.infrastructure.push.ExpoPushClient;
 import com.bingo.app.master.entity.Notification;
 import com.bingo.app.master.entity.User;
 import com.bingo.app.master.repository.NotificationRepository;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -28,11 +30,13 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final ExpoPushClient expoPushClient;
     private final ObjectProvider<BingoTelegramBot> botProvider;
     private final ObjectProvider<SimpMessagingTemplate> messagingTemplateProvider;
     private final ObjectMapper objectMapper;
 
     private final ExecutorService telegramExecutor = Executors.newFixedThreadPool(2);
+    private final ExecutorService pushExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     @Value("${bingo.webapp.url}")
     private String webAppUrl;
@@ -40,6 +44,7 @@ public class NotificationService {
     @PreDestroy
     public void shutdown() {
         telegramExecutor.shutdownNow();
+        pushExecutor.shutdownNow();
     }
 
     @Transactional(transactionManager = "masterTransactionManager")
@@ -142,6 +147,66 @@ public class NotificationService {
         } catch (Exception e) {
             log.warn("Failed to push notification via WebSocket: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Sends a one-time password-reset code straight to the user's Telegram chat.
+     * Deliberately does <em>not</em> persist a {@link Notification} row: the code
+     * must not live in the database in clear text (its hash is kept in
+     * {@code password_reset_codes}). Accounts without a real Telegram chat (the
+     * synthetic mobile-only id) fail silently here, and the code simply can't be
+     * delivered.
+     */
+    public void sendResetCode(Long userId, String text) {
+        sendTelegram(userId, text);
+    }
+
+    /**
+     * Device push to every player registered in a game, fired the moment a
+     * brand-new game enters its starting countdown, so players who have left the
+     * app still get a system notification. Non-blocking: the batch is sent on a
+     * virtual thread and tokens Expo no longer recognizes are dropped.
+     */
+    public void sendGameStartingPush(Long gameId, List<Long> playerIds) {
+        if (playerIds == null || playerIds.isEmpty()) {
+            return;
+        }
+        pushExecutor.execute(() -> {
+            try {
+                Map<String, User> byToken = new HashMap<>();
+                for (User user : userRepository.findAllById(playerIds)) {
+                    String token = user.getPushToken();
+                    if (token != null && !token.isBlank()) {
+                        byToken.put(token, user);
+                    }
+                }
+                if (byToken.isEmpty()) {
+                    return;
+                }
+
+                List<ExpoPushClient.PushMessage> messages = byToken.keySet().stream()
+                        .map(token -> new ExpoPushClient.PushMessage(
+                                token,
+                                "Game starting!",
+                                "A game you joined is starting now — open the app to play.",
+                                Map.of("gameId", gameId)))
+                        .toList();
+
+                List<String> invalid = expoPushClient.send(messages);
+                if (!invalid.isEmpty()) {
+                    for (String token : invalid) {
+                        User user = byToken.get(token);
+                        if (user != null) {
+                            user.setPushToken(null);
+                            userRepository.save(user);
+                        }
+                    }
+                    log.info("Cleared {} expired push token(s) after game-start push for game {}", invalid.size(), gameId);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to send game-start push for game {}: {}", gameId, e.getMessage());
+            }
+        });
     }
 
     private void sendTelegram(Long userId, String text) {

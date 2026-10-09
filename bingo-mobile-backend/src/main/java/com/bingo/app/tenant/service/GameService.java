@@ -15,6 +15,7 @@ import com.bingo.app.tenant.enums.GameStatus;
 import com.bingo.app.tenant.enums.TransactionStatus;
 import com.bingo.app.tenant.enums.TransactionType;
 import com.bingo.app.tenant.exception.GameProgressException;
+import com.bingo.app.master.service.NotificationService;
 import com.bingo.app.tenant.repository.CalledNumberRepository;
 import com.bingo.app.tenant.repository.GameCardRepository;
 import com.bingo.app.tenant.repository.GameRepository;
@@ -53,6 +54,7 @@ public class GameService {
     private final PrizeRules prizeRules;
     private final com.bingo.app.tenant.repository.AutomationConfigRepository automationConfigRepository;
     private final com.bingo.app.tenant.repository.CardPreviewRepository cardPreviewRepository;
+    private final NotificationService notificationService;
 
     @Transactional(transactionManager = "tenantTransactionManager")
     public AdminGameResponse createGameWithEntryFee(Long adminUserId, CreateGameRequest request) {
@@ -191,12 +193,22 @@ public class GameService {
         // flips the game to IN_PROGRESS and begins calling once it elapses.
         releasePreviews(gameId);
         game.setStatus(GameStatus.STARTING);
-        game.setStartTime(LocalDateTime.now().plusSeconds(5));
+        game.setStartTime(LocalDateTime.now().plusSeconds(GameEngineService.START_COUNTDOWN_SECONDS));
         game.setCurrentCallIndex(0);
         game.setTotalNumbersCalled(0);
 
         Game saved = gameRepository.save(game);
         log.info("Game started: id={}, adminUserId={}", gameId, adminUserId);
+
+        // Players who registered but stepped away get a device push so they can
+        // come back before the countdown runs out. Only the new-game start path
+        // fires this — resumes/restarts keep WebSocket-only notifications.
+        List<Long> playerIds = gameCardRepository.findByGameId(gameId).stream()
+                .map(GameCard::getPlayerId)
+                .distinct()
+                .toList();
+        notificationService.sendGameStartingPush(gameId, playerIds);
+
         return tenantMapper.toDto(saved);
     }
 

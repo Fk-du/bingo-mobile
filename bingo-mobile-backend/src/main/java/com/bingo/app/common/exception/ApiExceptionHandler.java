@@ -2,6 +2,7 @@ package com.bingo.app.common.exception;
 
 import com.bingo.app.master.exception.AdminDeletionException;
 import com.bingo.app.master.exception.InviteRegistrationException;
+import com.bingo.app.master.exception.PasswordResetException;
 import com.bingo.app.tenant.exception.GameCreationException;
 import com.bingo.app.tenant.exception.GameProgressException;
 import com.bingo.app.tenant.exception.PlayerActionException;
@@ -84,6 +85,11 @@ public class ApiExceptionHandler {
             default -> HttpStatus.UNAUTHORIZED;
         };
         return build(status, ex.getMessage(), ex.getUserMessage(), ex.getCode());
+    }
+
+    @ExceptionHandler(PasswordResetException.class)
+    public ResponseEntity<Map<String, Object>> handlePasswordReset(PasswordResetException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), ex.getUserMessage(), ex.getCode());
     }
 
     // ------------------------------------------------------------------

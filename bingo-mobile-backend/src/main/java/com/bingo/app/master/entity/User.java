@@ -90,6 +90,10 @@ public class User implements UserDetails {
     @Column(name = "preferred_language")
     private String preferredLanguage = "en";
 
+    /** Expo push token (device) so the system can notify the player while the app is closed. */
+    @Column(name = "push_token")
+    private String pushToken;
+
     @Builder.Default
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();

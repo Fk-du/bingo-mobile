@@ -130,7 +130,7 @@ public class GameController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
         var game = gameService.startGameForAdmin(principal.getUser().getId(), id);
-        gameEngineService.scheduleGameStart(game.id(), GameEngineService.COUNTDOWN_SECONDS,
+        gameEngineService.scheduleGameStart(game.id(), GameEngineService.START_COUNTDOWN_SECONDS,
                 GameEngineService.REASON_START);
         return ApiResponse.ok("Game starting", game);
     }

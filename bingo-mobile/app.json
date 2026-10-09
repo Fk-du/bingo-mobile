@@ -39,6 +39,13 @@
       ],
       "expo-secure-store",
       [
+        "expo-notifications",
+        {
+          "color": "#6B5BFF",
+          "defaultChannel": "games"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {
