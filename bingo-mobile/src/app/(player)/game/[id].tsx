@@ -634,7 +634,7 @@ export default function LiveGameScreen() {
       let prefix = 'L';
       if (cardSort === 'mostCalled') { v = calledCount(c); prefix = 'C'; }
       if (cardSort === 'mostSquares') { v = squares(c); prefix = 'S'; }
-      if (cardSort === 'mostSmallCrosses') { v = smallCrosses(c); prefix = 'X'; }
+      if (cardSort === 'mostSmallCrosses') { v = smallCrosses(c); prefix = '+'; }
       if (cardSort === 'mostTs') { v = ts(c); prefix = 'T'; }
       if (cardSort === 'mostRows') { v = rows(c); prefix = 'L'; }
       if (v === max && v > 0) {

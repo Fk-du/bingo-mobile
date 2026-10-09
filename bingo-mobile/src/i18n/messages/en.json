@@ -98,7 +98,8 @@
     "noPasswordTitle": "No password yet",
     "noPasswordHint": "This account has no password. Open the BingoPlus bot in Telegram, tap your invite link, and use “Create Password” to set one — then log in here.",
     "openBot": "Open Telegram bot",
-    "loginEyebrow": "Welcome back"
+    "loginEyebrow": "Welcome back",
+    "forgotPassword": "Forgot password?"
   },
   "roles": {
     "ADMIN": "Admin",

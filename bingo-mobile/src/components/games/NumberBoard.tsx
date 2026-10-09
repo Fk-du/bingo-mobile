@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import type { TextStyle } from 'react-native';
+import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
+import type { ViewStyle } from 'react-native';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
 
@@ -23,12 +23,109 @@ const CHIP_TONES = [
   { border: '#e11d48', bg: '#e11d4815', text: '#e11d48' },
 ];
 
-const LAST_BORDER = 'rgba(139, 94, 60, 0.9)';
-const LAST_BACKGROUND = '#8B5E3C';
+// The last-called ball stands out from the rest: gold instead of the column
+// colour, with dark ink in the white disc so it reads against the bright ball.
+const LAST_COLOR = '#FFB454';
+const LAST_INK = '#241a00';
+const LAST_GLOW = '0 0 14px rgba(255, 180, 84, 0.85)';
 
 /** The B/I/N/G/O column letter a number falls in, for compact call labels. */
 export function numberLetter(n: number): string {
   return RANGES.find((r) => n >= r.min && n <= r.max)?.letter ?? '';
+}
+
+function toneFor(n: number): (typeof CHIP_TONES)[number] {
+  return CHIP_TONES[RANGES.findIndex((r) => n >= r.min && n <= r.max) % CHIP_TONES.length] ?? CHIP_TONES[0];
+}
+
+/**
+ * A single pool-ball call marker: a round ball in the range colour with a white
+ * number disc, the way billiard balls show their number. The most recent call
+ * (`bounce`) turns gold and pulses on the spot so the new number catches the
+ * eye the moment it lands.
+ */
+function PoolBall({
+  n,
+  letter,
+  color,
+  ink,
+  size,
+  bounce = false,
+  bare = false,
+  borderColor = 'transparent',
+}: {
+  n: number;
+  letter?: string;
+  color: string;
+  ink: string;
+  size?: number;
+  bounce?: boolean;
+  bare?: boolean;
+  borderColor?: string;
+}): React.JSX.Element {
+  const [pulse] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (!bounce) return;
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 260, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [bounce, pulse]);
+
+  const outerStyle: ViewStyle = size
+    ? { width: size, height: size, borderRadius: size / 2 }
+    : { width: '100%', aspectRatio: 1, borderRadius: 999, maxWidth: 34 };
+  const innerSize = size ? Math.round(size * 0.62) : undefined;
+  const fontSize = size ? Math.max(10, Math.round(size * 0.3)) : 11;
+
+  return (
+    <Animated.View
+      className="items-center justify-center"
+      style={[
+        outerStyle,
+        {
+          backgroundColor: color,
+          borderColor: bounce ? '#FFF7E0' : borderColor,
+          borderWidth: bare ? 1 : bounce ? 2 : 0,
+          boxShadow: bounce ? LAST_GLOW : undefined,
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.16] }) }],
+        },
+      ]}
+    >
+      <View
+        style={{
+          width: innerSize ?? '58%',
+          height: innerSize,
+          aspectRatio: innerSize ? undefined : 1,
+          borderRadius: innerSize ? innerSize / 2 : 999,
+          backgroundColor: bare ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.92)',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text className="font-black" style={{ fontSize, color: ink, lineHeight: fontSize * 1.15, letterSpacing: -0.4 }}>
+          {letter != null ? `${letter} ${n}` : n}
+        </Text>
+      </View>
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: size ? size * 0.12 : '11%',
+          left: size ? size * 0.18 : '16%',
+          width: size ? size * 0.3 : '28%',
+          height: size ? size * 0.14 : '12%',
+          borderRadius: size ? size * 0.07 : 40,
+          backgroundColor: bare ? 'transparent' : 'rgba(255,255,255,0.3)',
+        }}
+      />
+    </Animated.View>
+  );
 }
 
 export function NumberBoard({
@@ -50,7 +147,6 @@ export function NumberBoard({
   const stickToStart = useRef(true);
   const called = new Set(calledNumbers);
 
-  const lastLetter = lastCalledNumber != null ? numberLetter(lastCalledNumber) : '';
   const toggleLabel = collapsed
     ? (t('game.expandNumbers') ?? 'Expand called numbers')
     : (t('game.minimizeNumbers') ?? 'Minimize called numbers');
@@ -84,7 +180,7 @@ export function NumberBoard({
               horizontal
               showsHorizontalScrollIndicator={false}
               style={{ flex: 1, minWidth: 0 }}
-              contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+              contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               scrollEventThrottle={32}
               onScroll={(e) => {
                 stickToStart.current = e.nativeEvent.contentOffset.x <= 8;
@@ -96,16 +192,7 @@ export function NumberBoard({
         </View>
         <View className="flex-row items-center" style={{ gap: 6 }}>
           {!collapsed && lastCalledNumber != null && (
-            <View className="flex-row items-center" style={{ gap: 5 }}>
-              <View
-                className="rounded-lg border px-2 py-0.5"
-                style={{ borderColor: '#fbbf2480', backgroundColor: '#fbbf24', boxShadow: '0 0 12px rgba(242,201,76,0.6)' }}
-              >
-                <Text className="text-[11px] font-black text-black">
-                  {lastLetter} {lastCalledNumber}
-                </Text>
-              </View>
-            </View>
+            <PoolBall n={lastCalledNumber} color={LAST_COLOR} ink={LAST_INK} size={36} bounce />
           )}
           <Pressable
             onPress={() => setCollapsed((v) => !v)}
@@ -124,43 +211,33 @@ export function NumberBoard({
       </View>
 
       {!collapsed ? (
-        <View style={{ gap: 4 }}>
+        <View className="mt-1" style={{ gap: 4 }}>
           {RANGES.map(({ letter, min, max }, toneIdx) => {
             const tone = CHIP_TONES[toneIdx];
             return (
               <View key={letter} className="flex-row items-stretch" style={{ gap: 3 }}>
                 <View
                   className="w-7 items-center justify-center rounded-lg border font-bold"
-                  style={{ height: 26, borderColor: tone.border + '40', backgroundColor: tone.bg }}
+                  style={{ height: 34, borderColor: tone.border + '40', backgroundColor: tone.bg }}
                 >
-                  <Text className="text-[11px] font-black">{letter}</Text>
+                  <Text className="text-[11px] font-black" style={{ color: tone.text }}>{letter}</Text>
                 </View>
                 {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => {
                   const isCalled = called.has(n);
                   const isLast = n === lastCalledNumber;
-                  const cellStyle = isLast
-                    ? {
-                        borderColor: LAST_BORDER,
-                        backgroundColor: LAST_BACKGROUND,
-                        boxShadow: '0 0 10px rgba(139,94,60,0.55)',
-                      }
-                    : isCalled
-                      ? { borderColor: tone.border, backgroundColor: tone.bg }
-                      : { borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt };
-                  const inkStyle: TextStyle | undefined = isLast
-                    ? { color: '#000000', fontWeight: '900' }
-                    : isCalled
-                      ? { color: colors.textPrimary, fontWeight: '700' }
-                      : { color: colors.textSecondary };
                   return (
                     <View
                       key={n}
-                      className="flex-1 items-center justify-center rounded-md border"
-                      style={{ height: 26, ...cellStyle }}
+                      className="flex-1 items-center justify-center"
+                      style={{ height: 34 }}
                     >
-                      <Text className="text-[11px] font-bold tracking-tight" style={inkStyle}>
-                        {n}
-                      </Text>
+                      {isLast ? (
+                        <PoolBall n={n} color={LAST_COLOR} ink={LAST_INK} bounce />
+                      ) : isCalled ? (
+                        <PoolBall n={n} color={tone.text} ink={tone.text} />
+                      ) : (
+                        <PoolBall n={n} color={colors.surfaceAlt} ink={colors.textSecondary} bare borderColor={colors.borderInactive} />
+                      )}
                     </View>
                   );
                 })}
@@ -178,44 +255,18 @@ export function NumberBoard({
  * history is shown rather than a slice: the row scrolls sideways, so a player
  * can read back through every number that has come out, and the latest chip
  * stays at the resting edge so a minimized board always shows the newest call.
+ * Every chip is a small pool ball in its range colour; the newest bounces gold.
  */
 function RecentCalls({ numbers }: { numbers: number[] }): React.JSX.Element {
   return (
     <>
       {[...numbers].reverse().map((n, i) => {
         const isLatest = i === 0;
-        return (
-          <View
-            key={`${n}-${i}`}
-            className="items-center justify-center rounded-md border"
-            style={
-              isLatest
-                ? {
-                    minWidth: 26,
-                    height: 20,
-                    paddingHorizontal: 5,
-                    borderColor: LAST_BORDER,
-                    backgroundColor: LAST_BACKGROUND,
-                  }
-                : {
-                    minWidth: 20,
-                    height: 20,
-                    paddingHorizontal: 3,
-                    borderColor: 'rgba(148,163,184,0.25)',
-                    backgroundColor: 'transparent',
-                  }
-            }
-          >
-            <Text
-              style={
-                isLatest
-                  ? { fontSize: 11, fontWeight: '900', color: '#000000' }
-                  : { fontSize: 10, fontWeight: '700', color: '#94a3b8' }
-              }
-            >
-              {n}
-            </Text>
-          </View>
+        const tone = toneFor(n);
+        return isLatest ? (
+          <PoolBall key={`${n}-${i}`} n={n} color={LAST_COLOR} ink={LAST_INK} size={34} bounce />
+        ) : (
+          <PoolBall key={`${n}-${i}`} n={n} color={tone.text} ink={tone.text} size={28} />
         );
       })}
     </>
