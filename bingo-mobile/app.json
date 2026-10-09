@@ -77,6 +77,12 @@
       "eas": {
         "projectId": "db2b3808-3326-4089-81d0-e60e7562cbc5"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/db2b3808-3326-4089-81d0-e60e7562cbc5"
     }
   }
 }
