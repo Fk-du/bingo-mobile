@@ -27,7 +27,10 @@
     "notAvailable": "N/A",
     "refresh": "አድስ",
     "entryFee": "የመግቢያ ክፍያ",
-    "logoutConfirm": "እርግጠኛ ነዎት መውጣት እንደሚፈልጉ?"
+    "logoutConfirm": "እርግጠኛ ነዎት መውጣት እንደሚፈልጉ?",
+    "updateAvailable": "አዲስ ስሪት አለ",
+    "updateReady": "ለመጫን ዝግጁ የሆነ አዲስ ስሪት አለ",
+    "updateRestart": "ለማዘመን እንደገና ጀምር"
   },
   "nav": {
     "player": {

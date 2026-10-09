@@ -27,7 +27,10 @@
     "notAvailable": "N/A",
     "refresh": "Refresh",
     "entryFee": "Entry fee",
-    "logoutConfirm": "Are you sure you want to log out?"
+    "logoutConfirm": "Are you sure you want to log out?",
+    "updateAvailable": "A new version is available",
+    "updateReady": "A new version is ready to install",
+    "updateRestart": "Restart to update"
   },
   "nav": {
     "player": {

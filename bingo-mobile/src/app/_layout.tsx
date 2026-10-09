@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { setClientLocale } from '@/lib/clientTranslations';
 import { installPushTapHandler, setupPushNotifications } from '@/lib/notifications';
 import { ThemeProvider, useTheme } from '@/lib/theme';
+import { UpdateBanner } from '@/components/UpdateBanner';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Stack.Screen name="(admin)" />
         <Stack.Screen name="(super-admin)" />
       </Stack>
+      <UpdateBanner />
     </View>
   );
 }

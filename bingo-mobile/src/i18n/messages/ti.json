@@ -27,7 +27,10 @@
     "notAvailable": "N/A",
     "refresh": "ኣሐድስ",
     "entryFee": "ናይ መእተዊ ክፍሊት",
-    "logoutConfirm": "ካብ ኣካውንትካ ክትወጽእ ከም እትደሊ ርግጸኛ ዲኻ?"
+    "logoutConfirm": "ካብ ኣካውንትካ ክትወጽእ ከም እትደሊ ርግጸኛ ዲኻ?",
+    "updateAvailable": "ሓድሽ ስሪት ኣሎ",
+    "updateReady": "ንምጽዓቕ ድሉው ዝኾነ ሓድሽ ስሪት ኣሎ",
+    "updateRestart": "ንምዕባይ ደጊም ጀምር"
   },
   "nav": {
     "player": {
