@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, Text, View } from 'react-native';
-import type { ViewStyle } from 'react-native';
+import type { TextStyle, ViewStyle } from 'react-native';
 import { useTranslate } from '@/hooks/useTranslate';
 import { useTheme } from '@/lib/theme';
 
@@ -23,7 +23,10 @@ const CHIP_TONES = [
   { border: '#e11d48', bg: '#e11d4815', text: '#e11d48' },
 ];
 
-// The last-called ball stands out from the rest: gold instead of the column
+const LAST_BORDER = 'rgba(139, 94, 60, 0.9)';
+const LAST_BACKGROUND = '#8B5E3C';
+
+// The newest call in the minimized trail stands out: gold instead of the column
 // colour, with dark ink in the white disc so it reads against the bright ball.
 const LAST_COLOR = '#FFB454';
 const LAST_INK = '#241a00';
@@ -46,22 +49,16 @@ function toneFor(n: number): (typeof CHIP_TONES)[number] {
  */
 function PoolBall({
   n,
-  letter,
   color,
   ink,
   size,
   bounce = false,
-  bare = false,
-  borderColor = 'transparent',
 }: {
   n: number;
-  letter?: string;
   color: string;
   ink: string;
   size?: number;
   bounce?: boolean;
-  bare?: boolean;
-  borderColor?: string;
 }): React.JSX.Element {
   const [pulse] = useState(() => new Animated.Value(0));
 
@@ -90,8 +87,8 @@ function PoolBall({
         outerStyle,
         {
           backgroundColor: color,
-          borderColor: bounce ? '#FFF7E0' : borderColor,
-          borderWidth: bare ? 1 : bounce ? 2 : 0,
+          borderColor: bounce ? '#FFF7E0' : 'transparent',
+          borderWidth: bounce ? 2 : 0,
           boxShadow: bounce ? LAST_GLOW : undefined,
           transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.16] }) }],
         },
@@ -103,13 +100,13 @@ function PoolBall({
           height: innerSize,
           aspectRatio: innerSize ? undefined : 1,
           borderRadius: innerSize ? innerSize / 2 : 999,
-          backgroundColor: bare ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.92)',
+          backgroundColor: 'rgba(255,255,255,0.92)',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
         <Text className="font-black" style={{ fontSize, color: ink, lineHeight: fontSize * 1.15, letterSpacing: -0.4 }}>
-          {letter != null ? `${letter} ${n}` : n}
+          {n}
         </Text>
       </View>
       <View
@@ -121,7 +118,7 @@ function PoolBall({
           width: size ? size * 0.3 : '28%',
           height: size ? size * 0.14 : '12%',
           borderRadius: size ? size * 0.07 : 40,
-          backgroundColor: bare ? 'transparent' : 'rgba(255,255,255,0.3)',
+          backgroundColor: 'rgba(255,255,255,0.3)',
         }}
       />
     </Animated.View>
@@ -147,6 +144,7 @@ export function NumberBoard({
   const stickToStart = useRef(true);
   const called = new Set(calledNumbers);
 
+  const lastLetter = lastCalledNumber != null ? numberLetter(lastCalledNumber) : '';
   const toggleLabel = collapsed
     ? (t('game.expandNumbers') ?? 'Expand called numbers')
     : (t('game.minimizeNumbers') ?? 'Minimize called numbers');
@@ -192,7 +190,16 @@ export function NumberBoard({
         </View>
         <View className="flex-row items-center" style={{ gap: 6 }}>
           {!collapsed && lastCalledNumber != null && (
-            <PoolBall n={lastCalledNumber} color={LAST_COLOR} ink={LAST_INK} size={36} bounce />
+            <View className="flex-row items-center" style={{ gap: 5 }}>
+              <View
+                className="rounded-lg border px-2 py-0.5"
+                style={{ borderColor: '#fbbf2480', backgroundColor: '#fbbf24', boxShadow: '0 0 12px rgba(242,201,76,0.6)' }}
+              >
+                <Text className="text-[11px] font-black text-black">
+                  {lastLetter} {lastCalledNumber}
+                </Text>
+              </View>
+            </View>
           )}
           <Pressable
             onPress={() => setCollapsed((v) => !v)}
@@ -211,33 +218,43 @@ export function NumberBoard({
       </View>
 
       {!collapsed ? (
-        <View className="mt-1" style={{ gap: 4 }}>
+        <View style={{ gap: 4 }}>
           {RANGES.map(({ letter, min, max }, toneIdx) => {
             const tone = CHIP_TONES[toneIdx];
             return (
               <View key={letter} className="flex-row items-stretch" style={{ gap: 3 }}>
                 <View
                   className="w-7 items-center justify-center rounded-lg border font-bold"
-                  style={{ height: 34, borderColor: tone.border + '40', backgroundColor: tone.bg }}
+                  style={{ height: 26, borderColor: tone.border + '40', backgroundColor: tone.bg }}
                 >
-                  <Text className="text-[11px] font-black" style={{ color: tone.text }}>{letter}</Text>
+                  <Text className="text-[11px] font-black">{letter}</Text>
                 </View>
                 {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => {
                   const isCalled = called.has(n);
                   const isLast = n === lastCalledNumber;
+                  const cellStyle = isLast
+                    ? {
+                        borderColor: LAST_BORDER,
+                        backgroundColor: LAST_BACKGROUND,
+                        boxShadow: '0 0 10px rgba(139,94,60,0.55)',
+                      }
+                    : isCalled
+                      ? { borderColor: tone.border, backgroundColor: tone.bg }
+                      : { borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt };
+                  const inkStyle: TextStyle | undefined = isLast
+                    ? { color: '#000000', fontWeight: '900' }
+                    : isCalled
+                      ? { color: colors.textPrimary, fontWeight: '700' }
+                      : { color: colors.textSecondary };
                   return (
                     <View
                       key={n}
-                      className="flex-1 items-center justify-center"
-                      style={{ height: 34 }}
+                      className="flex-1 items-center justify-center rounded-md border"
+                      style={{ height: 26, ...cellStyle }}
                     >
-                      {isLast ? (
-                        <PoolBall n={n} color={LAST_COLOR} ink={LAST_INK} bounce />
-                      ) : isCalled ? (
-                        <PoolBall n={n} color={tone.text} ink={tone.text} />
-                      ) : (
-                        <PoolBall n={n} color={colors.surfaceAlt} ink={colors.textSecondary} bare borderColor={colors.borderInactive} />
-                      )}
+                      <Text className="text-[11px] font-bold tracking-tight" style={inkStyle}>
+                        {n}
+                      </Text>
                     </View>
                   );
                 })}
