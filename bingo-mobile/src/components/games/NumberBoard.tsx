@@ -44,9 +44,10 @@ export function NumberBoard({
   const { colors } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const recentRef = useRef<ScrollView>(null);
-  // Whether the trail is resting at the newest chip, so arrivals keep it in
-  // view without yanking the player back while they read older numbers.
-  const stickToEnd = useRef(true);
+  // The trail is newest-first, so it rests at the newest chip. Whether it is at
+  // that start edge decides whether an arrival keeps it in view without yanking
+  // the player back while they read older numbers.
+  const stickToStart = useRef(true);
   const called = new Set(calledNumbers);
 
   const lastLetter = lastCalledNumber != null ? numberLetter(lastCalledNumber) : '';
@@ -55,7 +56,7 @@ export function NumberBoard({
     : (t('game.minimizeNumbers') ?? 'Minimize called numbers');
 
   useEffect(() => {
-    if (collapsed && stickToEnd.current) recentRef.current?.scrollToEnd({ animated: false });
+    if (collapsed && stickToStart.current) recentRef.current?.scrollTo({ x: 0, animated: false });
   }, [collapsed, calledNumbers.length]);
 
   return (
@@ -86,8 +87,7 @@ export function NumberBoard({
               contentContainerStyle={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
               scrollEventThrottle={32}
               onScroll={(e) => {
-                const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-                stickToEnd.current = contentOffset.x >= contentSize.width - layoutMeasurement.width - 8;
+                stickToStart.current = e.nativeEvent.contentOffset.x <= 8;
               }}
             >
               <RecentCalls numbers={calledNumbers} />
@@ -97,9 +97,6 @@ export function NumberBoard({
         <View className="flex-row items-center" style={{ gap: 6 }}>
           {!collapsed && lastCalledNumber != null && (
             <View className="flex-row items-center" style={{ gap: 5 }}>
-              <Text className="text-[9px] font-bold uppercase tracking-wider" style={{ color: colors.textSecondary }}>
-                {t('game.lastCalled') ?? 'Last'}
-              </Text>
               <View
                 className="rounded-lg border px-2 py-0.5"
                 style={{ borderColor: '#fbbf2480', backgroundColor: '#fbbf24', boxShadow: '0 0 12px rgba(242,201,76,0.6)' }}
@@ -153,7 +150,7 @@ export function NumberBoard({
                   const inkStyle: TextStyle | undefined = isLast
                     ? { color: '#000000', fontWeight: '900' }
                     : isCalled
-                      ? { color: '#ffffff', fontWeight: '700' }
+                      ? { color: colors.textPrimary, fontWeight: '700' }
                       : { color: colors.textSecondary };
                   return (
                     <View
@@ -177,16 +174,16 @@ export function NumberBoard({
 }
 
 /**
- * The minimized board's inline trail of calls, newest on the right. The whole
+ * The minimized board's inline trail of calls, newest on the left. The whole
  * history is shown rather than a slice: the row scrolls sideways, so a player
  * can read back through every number that has come out, and the latest chip
- * stays highlighted as the marker for what just came.
+ * stays at the resting edge so a minimized board always shows the newest call.
  */
 function RecentCalls({ numbers }: { numbers: number[] }): React.JSX.Element {
   return (
     <>
-      {numbers.map((n, i) => {
-        const isLatest = i === numbers.length - 1;
+      {[...numbers].reverse().map((n, i) => {
+        const isLatest = i === 0;
         return (
           <View
             key={`${n}-${i}`}

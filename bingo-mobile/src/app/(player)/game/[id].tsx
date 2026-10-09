@@ -257,9 +257,11 @@ export default function LiveGameScreen() {
   const lastCalledNumber =
     game.calledNumbers.length > 0 ? game.calledNumbers[game.calledNumbers.length - 1].number : null;
 
-  // Switching a game to auto-mark hands the marking back to the server, so the
-  // numbers already called have to be carried across first or the board would
-  // come back empty. Mirrors what the old per-game toggle did.
+  // Auto-mark hands the marking to whoever is responsible: on, the board reads
+  // the calls straight off the number board; off, only the player's own daubs
+  // count. Turning it off must not silently daub every number already called, or
+  // the card would look fully auto-marked the moment the player turns it off, so
+  // only the marks the server already holds are carried across.
   const applyAutoMark = useCallback(
     async (enabled: boolean, cards: PlayerCardView[]) => {
       if (enabled) {
@@ -271,11 +273,7 @@ export default function LiveGameScreen() {
       }
       const ported = new Set<number>();
       for (const card of cards) {
-        for (const row of card.numbers) {
-          for (const num of row) {
-            if (calledNumberEntries.some((entry) => entry.number === num)) ported.add(num);
-          }
-        }
+        for (const n of card.markedNumbers ?? []) ported.add(n);
       }
       ported.add(0);
       setGlobalMarks(ported);
@@ -283,7 +281,7 @@ export default function LiveGameScreen() {
         await gamesApi.saveMarks(gameId, card.cardId, [...ported], false);
       }
     },
-    [gameId, calledNumberEntries, setGlobalMarks]
+    [gameId, setGlobalMarks]
   );
 
   // The board follows the stored preference, but the server's per-card flag is
@@ -574,11 +572,13 @@ export default function LiveGameScreen() {
   const sortedPlayerCards = useMemo(() => {
     const cards = [...(game.playerCards ?? [])];
     if (cardSort === 'cardOrder') return cards;
-    const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
-    const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
-    const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
-    const smallCrosses = (c: PlayerCardView) => countSmallCrosses(c.numbers, marksFor(c));
-    const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
+    // The daubs the player actually sees: their own marks in manual mode, and
+    // every called number in auto mode (the server does not persist auto-daubs).
+    const effective = isManual ? globalMarks : new Set(calledNumbers);
+    const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, effective);
+    const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, effective);
+    const smallCrosses = (c: PlayerCardView) => countSmallCrosses(c.numbers, effective);
+    const ts = (c: PlayerCardView) => countTs(c.numbers, effective);
     const calledSetAll = new Set(calledNumbers);
     const calledCount = (c: PlayerCardView) => {
       const nums = c.numbers?.flat() ?? [];
@@ -602,11 +602,11 @@ export default function LiveGameScreen() {
     if (!game.playerCards || game.playerCards.length === 0 || cardSort === 'cardOrder') {
       return new Map<number, string>();
     }
-    const marksFor = (c: PlayerCardView) => (isManual ? globalMarks : new Set(c.markedNumbers ?? []));
-    const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, marksFor(c));
-    const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, marksFor(c));
-    const smallCrosses = (c: PlayerCardView) => countSmallCrosses(c.numbers, marksFor(c));
-    const ts = (c: PlayerCardView) => countTs(c.numbers, marksFor(c));
+    const effective = isManual ? globalMarks : new Set(calledNumbers);
+    const rows = (c: PlayerCardView) => countMarkedRows(c.numbers, effective);
+    const squares = (c: PlayerCardView) => countSmallSquares(c.numbers, effective);
+    const smallCrosses = (c: PlayerCardView) => countSmallCrosses(c.numbers, effective);
+    const ts = (c: PlayerCardView) => countTs(c.numbers, effective);
     const calledSetAll = new Set(calledNumbers);
     const calledCount = (c: PlayerCardView) => {
       const nums = c.numbers?.flat() ?? [];
@@ -729,6 +729,7 @@ export default function LiveGameScreen() {
               winnerCards={state?.winnerCards ?? []}
               bannedCards={state?.bannedCards ?? []}
               calledNumbers={calledNumbers}
+              lastCalledNumber={lastCalledNumber}
             />
           </>
         )}
@@ -884,7 +885,7 @@ export default function LiveGameScreen() {
                   hitSlop={6}
                   className="flex-row items-center gap-1.5"
                 >
-                  <Text className="text-sm">
+                  <Text className="text-sm" style={{ color: colors.textPrimary }}>
                     {(() => {
                       const all = new Set<number>();
                       for (const pc of game.playerCards ?? []) all.add(pc.cardId);
@@ -977,7 +978,7 @@ export default function LiveGameScreen() {
               />
             ))}
             {sortedPlayerCards.map((card) => {
-              const marked = isManual ? globalMarks : new Set(card.markedNumbers ?? []);
+              const marked = isManual ? globalMarks : new Set(calledNumbers);
               const prog = isManual ? patternProgress(card.numbers, marked, winningPattern) : null;
               const done = prog?.done;
               const total = prog?.total;
@@ -997,8 +998,7 @@ export default function LiveGameScreen() {
                   tone={tone}
                   t={t}
                   cardIdLabel={topHints.get(card.cardId) ?? (t('game.cardNumber', { id: String(card.cardId) }) ?? `Card #${card.cardId}`)}
-                  called={calledNumbers}
-                  marked={isManual ? [...marked] : []}
+                  marked={[...marked]}
                   lastCalledNumber={lastCalledNumber}
                   interactive={!selectionMode && isManual && !card.banned && !card.winner}
                   onToggleMark={(n) => void toggleMark(n)}

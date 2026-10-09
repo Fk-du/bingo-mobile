@@ -91,14 +91,14 @@ class BingoPatternRulesTest {
     @DisplayName("T and cross families win on placements the demo does not use")
     void tAndCrossFamiliesWinOnAnyArrangement() {
         assertAll(
-                // Three small T's: vertical stems on the left/right edges, one horizontal on the bottom.
+                // Two small T's (bars on the top and bottom rows) plus a full middle column.
                 () -> assertFamilyWins("THREE_SMALL_T",
-                        Set.of("0,0", "1,0", "2,0", "1,1",    // stem-on-the-right T on the left
-                                "0,4", "1,4", "2,4", "1,3",    // stem-on-the-left T on the right
-                                "4,0", "4,1", "4,2", "3,1")),  // stem-up T along the bottom
-                // Three full pluses, sharing cells the way the demo does but in other spots.
+                        Set.of("0,0", "0,1", "0,2", "1,1",    // stem-down T on the top row
+                                "4,0", "4,1", "4,2", "3,1",    // stem-up T on the bottom row
+                                "1,2", "3,2")),                // completes column 2 as the named line
+                // Two disjoint full pluses plus a full row that spans the card.
                 () -> assertFamilyWins("THREE_SMALL_CROSSES",
-                        union(plus(1, 1), plus(1, 3), plus(3, 1))),
+                        union(plus(1, 3), plus(3, 1), rows(1))),
                 // Large T in any of its four orientations, plus the named extra lines
                 // anywhere else: top bar (demo's), bottom bar, left bar, right bar.
                 () -> assertFamilyWins("LARGE_T_TWO_LINES", union(rows(0), cols(2), rows(3, 4))),

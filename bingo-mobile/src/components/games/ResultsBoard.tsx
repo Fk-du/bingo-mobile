@@ -10,6 +10,7 @@ interface ResultsBoardProps {
   winnerCards: WinnerCardView[];
   bannedCards: BannedCardView[];
   calledNumbers: number[];
+  lastCalledNumber?: number | null;
 }
 
 /**
@@ -17,7 +18,7 @@ interface ResultsBoardProps {
  * opens its own card on tap, and every banned card is listed beneath. The whole
  * room sees the same two lists, so an outcome is never a bare headline.
  */
-export function ResultsBoard({ winnerCards, bannedCards, calledNumbers }: ResultsBoardProps) {
+export function ResultsBoard({ winnerCards, bannedCards, calledNumbers, lastCalledNumber = null }: ResultsBoardProps) {
   const t = useTranslate();
   const { colors } = useTheme();
   const [openWinner, setOpenWinner] = useState<WinnerCardView | null>(null);
@@ -89,7 +90,7 @@ export function ResultsBoard({ winnerCards, bannedCards, calledNumbers }: Result
                 </Text>
               )}
             </View>
-            <CardGrid numbers={openWinner.numbers} called={calledNumbers} />
+            <CardGrid numbers={openWinner.numbers} called={calledNumbers} lastCalledNumber={lastCalledNumber} />
             <Button variant="primary" onPress={() => setOpenWinner(null)}>
               {t('common.close') ?? 'Close'}
             </Button>

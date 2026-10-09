@@ -90,9 +90,9 @@ public final class BingoPatternRules {
             // --- T shapes and crosses ------------------------------------------------
             case "LARGE_T_TWO_LINES" -> largeT(m, lines, 2);
             case "LARGE_T_THREE_LINES" -> largeT(m, lines, 3);
-            case "THREE_SMALL_T" -> packs(smallTShapes(m), 3);
+            case "THREE_SMALL_T" -> total >= 1 && packs(smallTShapes(m), 2);
             case "LARGE_CROSS_TWO_SQUARES" -> rowComplete(m, 2) && colComplete(m, 2) && squares >= 2;
-            case "THREE_SMALL_CROSSES" -> fullCrosses(m) >= 3;
+            case "THREE_SMALL_CROSSES" -> total >= 1 && packs(fullCrossMasks(m), 2);
 
             default -> false;
         };
@@ -162,8 +162,8 @@ public final class BingoPatternRules {
             case "THREE_SQUARES_FOUR_DOTS" ->
                     inAny(blocks, cellBit) || isDot(m, blocks, row, col);
 
-            case "THREE_SMALL_T" -> inAny(smallTShapes(m), cellBit);
-            case "THREE_SMALL_CROSSES" -> inAny(fullCrossMasks(m), cellBit);
+            case "THREE_SMALL_T" -> lineCovers(lines, row, col) || inAny(smallTShapes(m), cellBit);
+            case "THREE_SMALL_CROSSES" -> lineCovers(lines, row, col) || inAny(fullCrossMasks(m), cellBit);
 
             default -> false;
         };
@@ -352,11 +352,6 @@ public final class BingoPatternRules {
             dots++; // the centre is always a dot
         }
         return dots;
-    }
-
-    /** Every complete five-cell plus sign (centres in rows/cols 1..3); overlaps are allowed. */
-    private static int fullCrosses(boolean[][] m) {
-        return fullCrossMasks(m).size();
     }
 
     /** The cell masks of every complete five-cell plus sign. */

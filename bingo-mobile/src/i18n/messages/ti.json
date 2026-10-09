@@ -435,12 +435,12 @@
     "hintTHREE_LINES_NO_FREE_DISJOINT": "ሰለስተ ዘዪነካከኡ መስመራት ፍሪ ዘይትንክፉ።",
     "FOUR_LINES_NO_FREE_DISJOINT": "ኣርባዕተ ዘዪነካከኡ መስመራት ፍሪ ዘይትንክፉ",
     "hintFOUR_LINES_NO_FREE_DISJOINT": "ኣርባዕተ ዘዪነካከኡ መስመራት ፍሪ ዘይትንክፉ።",
-    "THREE_SMALL_T": "ሰለስተ ዘዪነካከኡ ንኣሽቱ T ቅርጽታት",
-    "hintTHREE_SMALL_T": "ኣብ ካርድ ዝተበተኑ ሰለስተ ንኣሽቱ T ቅርጽታት።",
+    "THREE_SMALL_T": "ክልተ ዘዪነካከኡ ንኣሽቱ T ቅርጽታት + ሓደ መስመር",
+    "hintTHREE_SMALL_T": "ክልተ ንኣሽቱ T ቅርጽታት ምስ ሓደ ምሉእ መስመር።",
     "LARGE_CROSS_TWO_SQUARES": "ዓቢ መስቀል + ክልተ ንኣሽቱ ስኴር",
     "hintLARGE_CROSS_TWO_SQUARES": "ኣብ ማእከል ዓቢ መስቀል ምስ ኣብ ነፍሲ ወከፍ ወገን ሓደ ስኴር።",
-    "THREE_SMALL_CROSSES": "ሰለስተ ዘዪነካከኡ  ንኣሽቱ መስቀላት",
-    "hintTHREE_SMALL_CROSSES": "ኣብ ካርድ ዝተዘርግሑ ሰለስተ ንኣሽቱ ምልክታት ሕብረት (+)።"
+    "THREE_SMALL_CROSSES": "ክልተ ዘዪነካከኡ ንኣሽቱ መስቀላት + ሓደ መስመር",
+    "hintTHREE_SMALL_CROSSES": "ክልተ ንኣሽቱ መስቀላት ብሓደ ምሉእ መስመር ዝተኣሳሰሩ።"
   },
   "game": {
     "gameNumber": "ጸወታ #{id}",

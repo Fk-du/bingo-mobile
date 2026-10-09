@@ -61,7 +61,7 @@ public final class WinningPatternGeometry {
         // --- T shapes and crosses ----------------------------------------------------
         GRIDS.put("LARGE_T_TWO_LINES", "*****" + "*****" + "..*.." + "..*.." + "*****");
         GRIDS.put("LARGE_T_THREE_LINES", "*****" + "*****" + "..*.." + "*****" + "*****");
-        GRIDS.put("THREE_SMALL_T", "***.." + ".*..." + "*...." + "**.*." + "*.***");
+        GRIDS.put("THREE_SMALL_T", "***.*" + ".*..*" + "....*" + ".*..*" + "***.*");
         GRIDS.put("LARGE_CROSS_TWO_SQUARES", "***.." + "***.." + "*****" + "..***" + "..***");
         GRIDS.put("THREE_SMALL_CROSSES", ".*..." + "***.." + "*****" + "..***" + "...*.");
 

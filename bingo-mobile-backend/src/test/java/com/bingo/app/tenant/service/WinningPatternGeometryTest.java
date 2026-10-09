@@ -234,16 +234,15 @@ class WinningPatternGeometryTest {
     }
 
     /**
-     * THREE_SMALL_T names a shape rather than lines, so it is guarded by
-     * component count instead: each of the three shapes must be its own connected group.
-     * It used to be a single diagonal smear.
+     * THREE_SMALL_T's demo is two disconnected small T's plus a separate full line, so it
+     * breaks into three connected groups. It used to be a single diagonal smear.
      */
     @Test
-    @DisplayName("the three-shape patterns really contain three separate shapes")
+    @DisplayName("the three-shape demo really contains three separate components")
     void threeShapePatternsHaveThreeComponents() {
         for (String code : List.of("THREE_SMALL_T")) {
             List<int[]> cells = WinningPatternGeometry.cells(code);
-            assertEquals(3, componentCount(cells), code + " must be three disconnected shapes");
+            assertEquals(3, componentCount(cells), code + " must be three disconnected components");
         }
     }
 

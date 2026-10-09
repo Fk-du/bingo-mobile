@@ -269,21 +269,6 @@ class ExhaustiveFamilyCompletionTest {
         return dots;
     }
 
-    private static int crossCount(int mask) {
-        boolean[] m = marks(mask);
-        int crosses = 0;
-        for (int r = 1; r < 4; r++) {
-            for (int c = 1; c < 4; c++) {
-                boolean ok = m[r * 5 + c] && m[(r - 1) * 5 + c] && m[(r + 1) * 5 + c]
-                        && m[r * 5 + c - 1] && m[r * 5 + c + 1];
-                if (ok) {
-                    crosses++;
-                }
-            }
-        }
-        return crosses;
-    }
-
     private static boolean largeT(int mask, int extraLines) {
         boolean[] m = marks(mask);
         boolean barTop = m[0] && m[1] && m[2] && m[3] && m[4]
@@ -334,7 +319,6 @@ class ExhaustiveFamilyCompletionTest {
         LineCounts l = countLines(mask);
         int squares = 0;
         int dots = 0;
-        int crosses = 0;
         List<Integer> blocks = null;
         if (squaresFamily(code)) {
             blocks = completeBlocks(mask);
@@ -342,9 +326,6 @@ class ExhaustiveFamilyCompletionTest {
         }
          if ("THREE_SQUARES_FOUR_DOTS".equals(code)) {
             dots = dotCount(mask);
-        }
-        if ("THREE_SMALL_CROSSES".equals(code)) {
-            crosses = crossCount(mask);
         }
         return switch (code) {
             case "FOUR_LINES" -> l.total() >= 4;
@@ -368,8 +349,8 @@ class ExhaustiveFamilyCompletionTest {
             case "THREE_SQUARES_FOUR_DOTS" -> squares >= 3 && dots >= 4;
             case "LARGE_T_TWO_LINES" -> largeT(mask, 2);
             case "LARGE_T_THREE_LINES" -> largeT(mask, 3);
-            case "THREE_SMALL_T" -> canPack(SMALL_TS, 3, mask);
-            case "THREE_SMALL_CROSSES" -> crosses >= 3;
+            case "THREE_SMALL_T" -> l.total() >= 1 && canPack(SMALL_TS, 2, mask);
+            case "THREE_SMALL_CROSSES" -> l.total() >= 1 && canPack(PLUSES, 2, mask);
             case "LARGE_CROSS_TWO_SQUARES" -> {
                 boolean[] m = marks(mask);
                 boolean row2 = m[10] && m[11] && m[12] && m[13] && m[14];
@@ -521,13 +502,12 @@ class ExhaustiveFamilyCompletionTest {
             case "LARGE_T_THREE_LINES" -> addLargeT(ways, 3);
             case "THREE_SMALL_T" -> {
                 List<List<Integer>> packs = new ArrayList<>();
-                disjointCombos(SMALL_TS, 3, 0, 0, new ArrayList<>(), packs);
+                disjointCombos(SMALL_TS, 2, 0, 0, new ArrayList<>(), packs);
                 for (List<Integer> pack : packs) {
-                    int m = 0;
-                    for (int i : pack) {
-                        m |= SMALL_TS.get(i);
+                    int base = SMALL_TS.get(pack.get(0)) | SMALL_TS.get(pack.get(1));
+                    for (int line = 0; line < 12; line++) {
+                        add(ways, base | LINE[line]);
                     }
-                    add(ways, m);
                 }
             }
             case "LARGE_CROSS_TWO_SQUARES" -> {
@@ -536,8 +516,13 @@ class ExhaustiveFamilyCompletionTest {
                 }
             }
             case "THREE_SMALL_CROSSES" -> {
-                for (int[] cp : combos(9, 3)) {
-                    add(ways, PLUSES.get(cp[0]) | PLUSES.get(cp[1]) | PLUSES.get(cp[2]));
+                List<List<Integer>> packs = new ArrayList<>();
+                disjointCombos(PLUSES, 2, 0, 0, new ArrayList<>(), packs);
+                for (List<Integer> pack : packs) {
+                    int base = PLUSES.get(pack.get(0)) | PLUSES.get(pack.get(1));
+                    for (int line = 0; line < 12; line++) {
+                        add(ways, base | LINE[line]);
+                    }
                 }
             }
             case "HALF_HOUSE" -> {
