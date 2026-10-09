@@ -96,9 +96,9 @@ class BingoPatternRulesTest {
                         Set.of("0,0", "0,1", "0,2", "1,1",    // stem-down T on the top row
                                 "4,0", "4,1", "4,2", "3,1",    // stem-up T on the bottom row
                                 "1,2", "3,2")),                // completes column 2 as the named line
-                // Two disjoint full pluses plus a full row that spans the card.
+                // Two disconnected full pluses plus a diagonal that steers clear of both.
                 () -> assertFamilyWins("THREE_SMALL_CROSSES",
-                        union(plus(1, 3), plus(3, 1), rows(1))),
+                        union(plus(1, 1), plus(3, 3), diag("/"))),
                 // Large T in any of its four orientations, plus the named extra lines
                 // anywhere else: top bar (demo's), bottom bar, left bar, right bar.
                 () -> assertFamilyWins("LARGE_T_TWO_LINES", union(rows(0), cols(2), rows(3, 4))),

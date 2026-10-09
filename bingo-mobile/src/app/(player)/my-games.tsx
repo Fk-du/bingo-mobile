@@ -52,7 +52,7 @@ export default function PlayerMyGamesScreen() {
                   {t('game.gameNumber', { id: String(item.id) }) ?? `Game #${item.id}`}
                 </Text>
                 <Text className="text-sm flex-1 text-right" style={{ color: colors.textSecondary }}>
-                  {item.winningPattern ?? ''}
+                  {item.winningPattern ? (t(`patterns.${item.winningPattern}`) ?? item.winningPattern) : ''}
                 </Text>
               </View>
               <View className="flex-row flex-wrap gap-3 items-center mt-1">

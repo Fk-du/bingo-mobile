@@ -49,7 +49,7 @@ const PATTERN_GRIDS: Record<string, string> = {
   LARGE_T_THREE_LINES: '*****' + '*****' + '..*..' + '*****' + '*****',
   THREE_SMALL_T: '***.*' + '.*..*' + '....*' + '.*..*' + '***.*',
   LARGE_CROSS_TWO_SQUARES: '***..' + '***..' + '*****' + '..***' + '..***',
-  THREE_SMALL_CROSSES: '.*...' + '***..' + '*****' + '..***' + '...*.',
+  THREE_SMALL_CROSSES: '*..*.' + '.****' + '.***.' + '****.' + '.*..*',
 
   // Half card
   HALF_HOUSE: '*****' + '*****' + '*****' + '.....' + '.....',

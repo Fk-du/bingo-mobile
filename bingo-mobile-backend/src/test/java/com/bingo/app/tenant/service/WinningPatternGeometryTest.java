@@ -247,17 +247,35 @@ class WinningPatternGeometryTest {
     }
 
     /**
-     * THREE_SMALL_CROSSES is two full five-cell plus signs that overlap a full line (they share
-     * cells with it, so the whole pattern is one connected shape). It used to be a diamond ring.
+     * THREE_SMALL_CROSSES is two full five-cell plus signs plus a diagonal line that shares
+     * no cell with either — the crosses stay disconnected and the line stands apart. It used
+     * to run the line straight through both crosses, drawing one single figure.
      */
     @Test
-    @DisplayName("THREE_SMALL_CROSSES completes one line and two full plus signs")
+    @DisplayName("THREE_SMALL_CROSSES completes one line and two disconnected plus signs")
     void threeSmallCrossesIsALineWithTwoPluses() {
         List<int[]> cells = WinningPatternGeometry.cells("THREE_SMALL_CROSSES");
-        assertEquals(Set.of("row2"), completedLines(cells), "exactly one completed line");
-        assertEquals(13, cells.size(), "two 5-cell pluses joined by the shared line");
-        assertTrue(isFullPlus(cells, 1, 1), "plus sign centred at (1,1)");
-        assertTrue(isFullPlus(cells, 3, 3), "plus sign centred at (3,3)");
+        assertEquals(Set.of("diag\\"), completedLines(cells), "exactly one completed line");
+        assertEquals(15, cells.size(), "two 5-cell crosses plus a separate diagonal line");
+        assertTrue(isFullPlus(cells, 1, 3), "plus sign centred at (1,3)");
+        assertTrue(isFullPlus(cells, 3, 1), "plus sign centred at (3,1)");
+        assertTrue(isTwoPlusesPlusMainDiagonal(cells), "every cell is one of the crosses or on the line");
+    }
+
+    /** Whether the demo is exactly the two pluses plus the main diagonal, line apart from the crosses. */
+    private static boolean isTwoPlusesPlusMainDiagonal(List<int[]> cells) {
+        for (int[] cell : cells) {
+            int r = cell[0], c = cell[1];
+            boolean inPlusAcross = (r == 1 && c == 3) || (r == 0 && c == 3) || (r == 2 && c == 3)
+                    || (r == 1 && c == 2) || (r == 1 && c == 4);
+            boolean inPlusDown = (r == 3 && c == 1) || (r == 2 && c == 1) || (r == 4 && c == 1)
+                    || (r == 3 && c == 0) || (r == 3 && c == 2);
+            boolean onLine = r == c;
+            if (!(inPlusAcross || inPlusDown || onLine)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** The five cells of a plus sign centred at (row, col) are all part of the pattern. */

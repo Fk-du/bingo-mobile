@@ -92,7 +92,7 @@ public final class BingoPatternRules {
             case "LARGE_T_THREE_LINES" -> largeT(m, lines, 3);
             case "THREE_SMALL_T" -> total >= 1 && packs(smallTShapes(m), 2);
             case "LARGE_CROSS_TWO_SQUARES" -> rowComplete(m, 2) && colComplete(m, 2) && squares >= 2;
-            case "THREE_SMALL_CROSSES" -> total >= 1 && packs(fullCrossMasks(m), 2);
+            case "THREE_SMALL_CROSSES" -> twoCrossesPlusSeparateLine(m);
 
             default -> false;
         };
@@ -366,6 +366,54 @@ public final class BingoPatternRules {
             }
         }
         return crosses;
+    }
+
+    /**
+     * "Two disconnected crosses + a line": two full plus signs that share no cell with
+     * each other <em>and</em> a complete line that shares no cell with either cross. A
+     * cross that a line runs straight through would make the three a single shape, so the
+     * line must stand apart for the name to hold.
+     */
+    private static boolean twoCrossesPlusSeparateLine(boolean[][] m) {
+        List<Integer> crosses = fullCrossMasks(m);
+        for (int i = 0; i < crosses.size(); i++) {
+            int first = crosses.get(i);
+            for (int j = i + 1; j < crosses.size(); j++) {
+                int second = crosses.get(j);
+                if ((first & second) != 0) {
+                    continue; // the two crosses must be disconnected
+                }
+                int both = first | second;
+                for (int line : completeLineCellMasks(m)) {
+                    if ((line & both) == 0) {
+                        return true; // a line that steers clear of both crosses
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** The cell set of every line fully covered by the marked cells. */
+    private static List<Integer> completeLineCellMasks(boolean[][] m) {
+        List<Integer> lines = new ArrayList<>();
+        for (int r = 0; r < 5; r++) {
+            if (rowComplete(m, r)) {
+                lines.add(cellMask(r, 0) | cellMask(r, 1) | cellMask(r, 2) | cellMask(r, 3) | cellMask(r, 4));
+            }
+        }
+        for (int c = 0; c < 5; c++) {
+            if (colComplete(m, c)) {
+                lines.add(cellMask(0, c) | cellMask(1, c) | cellMask(2, c) | cellMask(3, c) | cellMask(4, c));
+            }
+        }
+        if (diagComplete(m)) {
+            lines.add(cellMask(0, 0) | cellMask(1, 1) | cellMask(2, 2) | cellMask(3, 3) | cellMask(4, 4));
+        }
+        if (antiDiagComplete(m)) {
+            lines.add(cellMask(0, 4) | cellMask(1, 3) | cellMask(2, 2) | cellMask(3, 1) | cellMask(4, 0));
+        }
+        return lines;
     }
 
     /** Every 4-cell small T (three in a row plus a perpendicular stem), as a cell bitmask. */

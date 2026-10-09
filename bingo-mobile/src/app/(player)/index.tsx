@@ -97,7 +97,7 @@ export default function PlayerHomeScreen() {
             minimumFontScale={0.75}
             style={{ color: colors.gold }}
           >
-            {liveGame?.winningPattern ?? '—'}
+            {liveGame?.winningPattern ? (t(`patterns.${liveGame.winningPattern}`) ?? liveGame.winningPattern) : '—'}
           </Text>
         </Pressable>
       </View>

@@ -269,6 +269,53 @@ class ExhaustiveFamilyCompletionTest {
         return dots;
     }
 
+    /** Every complete five-cell plus sign on the card. */
+    private static List<Integer> completePluses(int mask) {
+        List<Integer> out = new ArrayList<>();
+        int all = mask | CENTRE;
+        for (int s : PLUSES) {
+            if ((all & s) == s) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    /** The cell set of every line on the card (the free centre counts as always marked). */
+    private static List<Integer> completeLineCellMasks(int mask) {
+        List<Integer> out = new ArrayList<>();
+        int all = mask | CENTRE;
+        for (int line : LINE) {
+            if ((all & line) == line) {
+                out.add(line);
+            }
+        }
+        return out;
+    }
+
+    /** "Two disconnected crosses + a line": two cell-disjoint pluses and one complete line
+     *  whose cells are outside both, so the line stands apart from the crosses. */
+    private static boolean twoCrossesPlusSeparateLine(int mask) {
+        List<Integer> crosses = completePluses(mask);
+        List<Integer> lines = completeLineCellMasks(mask);
+        for (int i = 0; i < crosses.size(); i++) {
+            for (int j = i + 1; j < crosses.size(); j++) {
+                int first = crosses.get(i);
+                int second = crosses.get(j);
+                if ((first & second) != 0) {
+                    continue;
+                }
+                int both = first | second;
+                for (int line : lines) {
+                    if ((line & both) == 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean largeT(int mask, int extraLines) {
         boolean[] m = marks(mask);
         boolean barTop = m[0] && m[1] && m[2] && m[3] && m[4]
@@ -350,7 +397,7 @@ class ExhaustiveFamilyCompletionTest {
             case "LARGE_T_TWO_LINES" -> largeT(mask, 2);
             case "LARGE_T_THREE_LINES" -> largeT(mask, 3);
             case "THREE_SMALL_T" -> l.total() >= 1 && canPack(SMALL_TS, 2, mask);
-            case "THREE_SMALL_CROSSES" -> l.total() >= 1 && canPack(PLUSES, 2, mask);
+            case "THREE_SMALL_CROSSES" -> twoCrossesPlusSeparateLine(mask);
             case "LARGE_CROSS_TWO_SQUARES" -> {
                 boolean[] m = marks(mask);
                 boolean row2 = m[10] && m[11] && m[12] && m[13] && m[14];
@@ -521,7 +568,9 @@ class ExhaustiveFamilyCompletionTest {
                 for (List<Integer> pack : packs) {
                     int base = PLUSES.get(pack.get(0)) | PLUSES.get(pack.get(1));
                     for (int line = 0; line < 12; line++) {
-                        add(ways, base | LINE[line]);
+                        if ((base & LINE[line]) == 0) {
+                            add(ways, base | LINE[line]);
+                        }
                     }
                 }
             }

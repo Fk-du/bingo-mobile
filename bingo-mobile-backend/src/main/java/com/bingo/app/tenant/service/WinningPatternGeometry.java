@@ -63,7 +63,7 @@ public final class WinningPatternGeometry {
         GRIDS.put("LARGE_T_THREE_LINES", "*****" + "*****" + "..*.." + "*****" + "*****");
         GRIDS.put("THREE_SMALL_T", "***.*" + ".*..*" + "....*" + ".*..*" + "***.*");
         GRIDS.put("LARGE_CROSS_TWO_SQUARES", "***.." + "***.." + "*****" + "..***" + "..***");
-        GRIDS.put("THREE_SMALL_CROSSES", ".*..." + "***.." + "*****" + "..***" + "...*.");
+        GRIDS.put("THREE_SMALL_CROSSES", "*..*." + ".****" + ".***." + "****." + ".*..*");
 
         // --- Half card ---------------------------------------------------------------
         GRIDS.put("HALF_HOUSE", "*****" + "*****" + "*****" + "....." + ".....");

@@ -440,7 +440,7 @@
     "LARGE_CROSS_TWO_SQUARES": "ዓቢ መስቀል + ክልተ ንኣሽቱ ስኴር",
     "hintLARGE_CROSS_TWO_SQUARES": "ኣብ ማእከል ዓቢ መስቀል ምስ ኣብ ነፍሲ ወከፍ ወገን ሓደ ስኴር።",
     "THREE_SMALL_CROSSES": "ክልተ ዘዪነካከኡ ንኣሽቱ መስቀላት + ሓደ መስመር",
-    "hintTHREE_SMALL_CROSSES": "ክልተ ንኣሽቱ መስቀላት ብሓደ ምሉእ መስመር ዝተኣሳሰሩ።"
+    "hintTHREE_SMALL_CROSSES": "ክልተ ንኣሽቱ መስቀላት ምስ ሓደ መስመር።"
   },
   "game": {
     "gameNumber": "ጸወታ #{id}",

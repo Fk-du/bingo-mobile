@@ -435,12 +435,12 @@
     "hintTHREE_LINES_NO_FREE_DISJOINT": "The top two rows and the bottom row — never through the free centre.",
     "FOUR_LINES_NO_FREE_DISJOINT": "Four Disconnected Lines Not Touching the Free Space",
     "hintFOUR_LINES_NO_FREE_DISJOINT": "All four edges of the card.",
-    "THREE_SMALL_T": "Two Disconnected Small T Shapes + a Line",
+    "THREE_SMALL_T": "Two Small T Shapes + a Line all Disconnected",
     "hintTHREE_SMALL_T": "Two small T shapes plus one full line.",
     "LARGE_CROSS_TWO_SQUARES": "Large Cross + Two Small Squares",
     "hintLARGE_CROSS_TWO_SQUARES": "A full cross through the middle row and column, with a square in the top-left and another in the bottom-right corner.",
-    "THREE_SMALL_CROSSES": "Two Disconnected Small Crosses + a Line",
-    "hintTHREE_SMALL_CROSSES": "Two small plus signs joined by a full line."
+    "THREE_SMALL_CROSSES": "Two Small Crosses + a Line all Disconnected",
+    "hintTHREE_SMALL_CROSSES": "Two small crosses plus one full line."
   },
   "game": {
     "gameNumber": "Game #{id}",
