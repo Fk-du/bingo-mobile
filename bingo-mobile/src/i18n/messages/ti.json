@@ -521,7 +521,7 @@
     "manualMarking": "ብኢድ",
     "sound": "ድምጺ",
     "tapToMark": "ሓደ ግዜ ቁጽሪ ጠውቕ — ኣብ ኩሎም ዘለዉ ካርዳትካ ይምልከት።",
-    "claimBanned": "ኣብ ካርድ #{cardId} ዘይግቡእ ጠለብ ቢንጎ — እቲ ካርድ ናይ መወዳእታ ዝተጸውዐ ቁጽሪ ስለዘይብሉ ተኽልኪሉ።",
+    "claimBanned": "ቁጽሪ {lastNumber} ንድፊ ንኽትፈጥር ኣይሕግዝን — ካርድ #{cardId} ተኽልኪሉ።",
     "claimPending": "ብካርድ #{cardId} ቢንጎ ተሓቲቱ!",
     "claimWin": "ቢንጎ! {amount} ብር ተዓዊትካ።",
     "closeWindow": "ዕጸው",

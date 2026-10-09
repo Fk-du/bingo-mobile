@@ -76,7 +76,7 @@ export function CardTile({
         )}
         {status}
       </View>
-      <View className={dimmed ? 'opacity-60' : ''}>
+      <View>
         <CardGrid
           numbers={card.numbers}
           called={called}
@@ -89,13 +89,14 @@ export function CardTile({
           onSelect={onSelectToggle}
           onLongPressCard={onLongPressCard}
           markColor={markColor}
+          frozen={dimmed}
         />
       </View>
       {dimmed && (
         <View className="items-center gap-0.5">
           <Text className="text-[11px] font-black uppercase tracking-wider text-red-500">{cardIdLabel}</Text>
           <Text className="text-center text-[10px] text-red-500/80">
-            {t('game.bannedCardHint') ?? 'This card is banned.'}
+            ❄ {t('game.bannedCardHint') ?? 'This card is banned.'}
           </Text>
         </View>
       )}

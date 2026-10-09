@@ -217,6 +217,51 @@ class GameEngineClaimScreeningTest {
     }
 
     @Test
+    @DisplayName("pattern complete but the last call adds no component: rejected on submit, card banned")
+    void lateClaimWithUnhelpfulLastNumberIsRejectedAndBanned() throws Exception {
+        Game game = liveGame();
+        game.setWinningPattern("FIVE_LINES");
+        GameCard card = heldCard(CARD_ID, CARD_WITH_5);
+        // Rows 0-2 plus columns 0-1 are five lines; 25 lands on a cell that completes nothing.
+        stubClaimContext(game, card, List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14,
+                15, 16, 17, 21, 22, 25));
+
+        var result = engine.claimBingo(GAME_ID, PLAYER_ID, CARD_ID, null, null);
+
+        assertAll(
+                () -> assertFalse(result.isValid(), "a late claim is not valid"),
+                () -> assertTrue(result.isBanned(), "the card is banned"),
+                () -> assertFalse(result.isPendingReview(), "no admin review is queued"),
+                () -> assertTrue(card.isBanned(), "the claimed card is frozen"),
+                () -> assertEquals(GameStatus.IN_PROGRESS, game.getStatus(),
+                        "a late claim never pauses the game")
+        );
+
+        var saved = org.mockito.ArgumentCaptor.forClass(BingoClaim.class);
+        verify(bingoClaimRepository).save(saved.capture());
+        assertTrue(saved.getValue().getRejectionReason().contains("doesn't help you create the pattern"));
+    }
+
+    @Test
+    @DisplayName("pattern complete and the last call finishes a component: left pending, game pauses")
+    void helpfulLastNumberIsLeftForAdmin() throws Exception {
+        Game game = liveGame();
+        game.setWinningPattern("FIVE_LINES");
+        GameCard card = heldCard(CARD_ID, CARD_WITH_5);
+        // Rows 0-3 plus column 0: five lines, the fifth finished by 21.
+        stubClaimContext(game, card, java.util.stream.IntStream.rangeClosed(1, 21).boxed().toList());
+
+        var result = engine.claimBingo(GAME_ID, PLAYER_ID, CARD_ID, null, null);
+
+        assertAll(
+                () -> assertTrue(result.isPendingReview(), "the admin still decides winners"),
+                () -> assertFalse(result.isBanned(), "a possible claim is never banned"),
+                () -> assertFalse(card.isBanned(), "the card keeps playing"),
+                () -> assertEquals(GameStatus.CLAIM_PENDING, game.getStatus())
+        );
+    }
+
+    @Test
     @DisplayName("no number called yet: nothing to check, claim waits for the admin")
     void claimBeforeAnyNumberIsCalledIsLeftForAdmin() throws Exception {
         Game game = liveGame();

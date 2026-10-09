@@ -286,7 +286,7 @@ public class GameController {
                 request == null ? null : request.getAutoMark());
         String message;
         if (result.isBanned()) {
-            message = "Invalid Bingo claim — you have been banned from this game";
+            message = "Invalid Bingo claim — the last called number doesn't help create the pattern, so the card was banned";
         } else if (result.isPendingReview()) {
             message = "Bingo claimed!";
         } else {

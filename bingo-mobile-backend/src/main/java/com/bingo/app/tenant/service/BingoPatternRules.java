@@ -98,6 +98,146 @@ public final class BingoPatternRules {
         };
     }
 
+    /**
+     * Whether the last number called "helped make the pattern": its marked cell is part of
+     * at least one complete component the pattern counts — a line, a 2x2 block, a small T,
+     * a cross, a free dot, or the winning half/house layout.
+     *
+     * <p>A component only becomes complete when its last missing cell is called, so a number
+     * that lies on no complete component added nothing to the card. A pattern already
+     * satisfied by an earlier call therefore only wins again once a later call completes a
+     * further component — which is exactly how a player who was late to shout Bingo may
+     * still claim with extra lines or shapes beyond the demonstrated pattern. A number that
+     * is absent from the card, or is an isolated mark, never helps.
+     */
+    public static boolean lastNumberHelps(int[][] card, Set<Integer> called, int lastNumber, String code) {
+        if (card == null || code == null || card.length != 5) {
+            return false;
+        }
+        int cell = cellOf(card, lastNumber);
+        if (cell < 0) {
+            return false;
+        }
+        int row = cell / 5;
+        int col = cell % 5;
+        boolean[][] m = marked(card, called);
+        if (!m[row][col]) {
+            return false;
+        }
+
+        int lines = completeLinesMask(m);
+        List<Integer> blocks = completeBlocks(m);
+        int cellBit = cellMask(row, col);
+
+        return switch (code) {
+            // The winning house always contains the last cell.
+            case "FULL_HOUSE" -> true;
+            case "HALF_HOUSE" -> halfHouseContains(m, row, col);
+
+            // Any complete line counts (rows, columns and diagonals).
+            case "FOUR_LINES", "FIVE_LINES", "SIX_LINES", "SEVEN_LINES", "EIGHT_LINES",
+                 "THREE_LINES_ONE_DIAG", "TWO_VERT_TWO_HORIZ_ONE_DIAG",
+                 "TWO_HORIZ_TWO_VERT_TWO_DIAG", "TWO_TOUCH_TWO_NO_TOUCH",
+                 "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES" -> lineCovers(lines, row, col);
+
+            // Only lines that never rely on the free centre.
+            case "THREE_LINES_NO_FREE_DISJOINT", "FOUR_LINES_NO_FREE_DISJOINT",
+                 "FOUR_LINES_NO_FREE", "FIVE_LINES_NO_FREE" ->
+                    lineCovers(nonCentreLines(lines), row, col);
+
+            // Only lines through the free centre.
+            case "FOUR_LINES_TOUCH_FREE" -> lineCovers(lines & CENTRE_LINES, row, col);
+
+            // Rows and columns, plus 2x2 blocks.
+            case "TWO_VERT_TWO_HORIZ", "TWO_VERT_THREE_HORIZ", "LARGE_CROSS_TWO_SQUARES" ->
+                    lineCovers(lines & (ROW_MASK | COL_MASK), row, col) || inAny(blocks, cellBit);
+
+            // Any line, plus blocks.
+            case "TWO_LINES_TWO_SQUARES", "TWO_LINES_TWO_SEP_SQUARES" ->
+                    lineCovers(lines, row, col) || inAny(blocks, cellBit);
+
+            case "FOUR_SQUARES" -> inAny(blocks, cellBit);
+
+            // A block, or an isolated marked cell counting as a free dot.
+            case "THREE_SQUARES_FOUR_DOTS" ->
+                    inAny(blocks, cellBit) || isDot(m, blocks, row, col);
+
+            case "THREE_SMALL_T" -> inAny(smallTShapes(m), cellBit);
+            case "THREE_SMALL_CROSSES" -> inAny(fullCrossMasks(m), cellBit);
+
+            default -> false;
+        };
+    }
+
+    /** Grid index of {@code number} on the card, or -1 when the card does not hold it. */
+    private static int cellOf(int[][] card, int number) {
+        for (int r = 0; r < 5; r++) {
+            for (int c = 0; c < 5; c++) {
+                if (card[r][c] == number) {
+                    return r * 5 + c;
+                }
+            }
+        }
+        return -1;
+    }
+
+    /** Complete lines that never use the free centre (non-centre rows and columns). */
+    private static int nonCentreLines(int lines) {
+        return lines & (ROW_MASK | COL_MASK) & ~CENTRE_LINES;
+    }
+
+    /** Whether cell (row,col) lies on any complete line in the mask. */
+    private static boolean lineCovers(int lines, int row, int col) {
+        return (lines & (1 << row)) != 0
+                || (lines & (1 << (5 + col))) != 0
+                || (row == col && (lines & (1 << 10)) != 0)
+                || (row + col == 4 && (lines & (1 << 11)) != 0);
+    }
+
+    private static boolean inAny(List<Integer> masks, int cellBit) {
+        for (int mask : masks) {
+            if ((mask & cellBit) != 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A marked cell outside every complete block (the free dot of a squares-and-dots card). */
+    private static boolean isDot(boolean[][] m, List<Integer> blocks, int row, int col) {
+        if (!m[row][col]) {
+            return false;
+        }
+        int cellBit = cellMask(row, col);
+        for (int block : blocks) {
+            if ((block & cellBit) != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Whether a completed half-house layout that contains cell (row,col) is on the card. */
+    private static boolean halfHouseContains(boolean[][] m, int row, int col) {
+        for (List<int[]> layout : WinningPatternGeometry.variants("HALF_HOUSE")) {
+            boolean complete = true;
+            boolean contains = false;
+            for (int[] cell : layout) {
+                if (!m[cell[0]][cell[1]]) {
+                    complete = false;
+                    break;
+                }
+                if (cell[0] == row && cell[1] == col) {
+                    contains = true;
+                }
+            }
+            if (complete && contains) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** The centre is free, so a card cell is "marked" whenever it is called or is (2,2). */
     private static boolean[][] marked(int[][] card, Set<Integer> called) {
         boolean[][] m = new boolean[5][5];
@@ -216,11 +356,17 @@ public final class BingoPatternRules {
 
     /** Every complete five-cell plus sign (centres in rows/cols 1..3); overlaps are allowed. */
     private static int fullCrosses(boolean[][] m) {
-        int crosses = 0;
+        return fullCrossMasks(m).size();
+    }
+
+    /** The cell masks of every complete five-cell plus sign. */
+    private static List<Integer> fullCrossMasks(boolean[][] m) {
+        List<Integer> crosses = new ArrayList<>();
         for (int r = 1; r < 4; r++) {
             for (int c = 1; c < 4; c++) {
                 if (m[r][c] && m[r - 1][c] && m[r + 1][c] && m[r][c - 1] && m[r][c + 1]) {
-                    crosses++;
+                    crosses.add(cellMask(r, c) | cellMask(r - 1, c) | cellMask(r + 1, c)
+                            | cellMask(r, c - 1) | cellMask(r, c + 1));
                 }
             }
         }

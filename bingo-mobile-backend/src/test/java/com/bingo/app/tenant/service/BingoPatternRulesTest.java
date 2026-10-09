@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -23,9 +24,10 @@ class BingoPatternRulesTest {
         int[][] card = new int[5][5];
         for (int r = 0; r < 5; r++) {
             for (int c = 0; c < 5; c++) {
-                card[r][c] = (r == 2 && c == 2) ? 0 : n++;
+                card[r][c] = n++;
             }
         }
+        card[2][2] = 0;
         return card;
     }
 
@@ -109,6 +111,75 @@ class BingoPatternRulesTest {
                 () -> assertFamilyWins("LARGE_CROSS_TWO_SQUARES", union(rows(2), cols(2), block(0, 0), block(0, 3))),
                 // HALF_HOUSE wins through a non-primary variant (the right three columns).
                 () -> assertFamilyWins("HALF_HOUSE", cols(2, 3, 4))
+        );
+    }
+
+    // --- The last called number must help make the pattern ---------------------------
+
+    @Test
+    @DisplayName("a line ladder is helped on time, and a delayed player is helped again by the call that adds a line")
+    void lineLadderLastNumberHelps() {
+        int[][] card = card();
+        // Rows 0-3 plus column 0: five complete lines, the fifth finished by 21 (cell 4,0).
+        Set<Integer> fiveLines = called(card, union(rows(0, 1, 2, 3), cols(0)));
+        // Columns 0 and 1: a sixth line exists only once 22 (cell 4,1) is called.
+        Set<Integer> sixLines = called(card, union(rows(0, 1, 2, 3), cols(0, 1)));
+
+        assertAll(
+                () -> assertTrue(BingoPatternRules.wins(card, fiveLines, "FIVE_LINES")),
+                () -> assertTrue(BingoPatternRules.lastNumberHelps(card, fiveLines, 21, "FIVE_LINES"),
+                        "the on-time fifth line is finished by the last call"),
+                () -> assertTrue(BingoPatternRules.wins(card, sixLines, "FIVE_LINES")),
+                () -> assertTrue(BingoPatternRules.lastNumberHelps(card, sixLines, 22, "FIVE_LINES"),
+                        "a late player is helped again when the last call adds the sixth line")
+        );
+    }
+
+    @Test
+    @DisplayName("a call that completes no component does not help, even when the pattern is already won")
+    void unhelpfulLastNumberDoesNotHelp() {
+        int[][] card = card();
+        // Rows 0-2 plus columns 0 and 1: five lines. Cell (4,4)=25 completes none of them.
+        Set<Integer> fiveLines = called(card, union(rows(0, 1, 2), cols(0, 1)));
+        Set<Integer> with25 = new HashSet<>(fiveLines);
+        with25.add(25);
+
+        assertAll(
+                () -> assertTrue(BingoPatternRules.wins(card, with25, "FIVE_LINES"),
+                        "the pattern was already complete before 25"),
+                () -> assertFalse(BingoPatternRules.lastNumberHelps(card, with25, 25, "FIVE_LINES"),
+                        "an isolated mark completes no line"),
+                () -> assertFalse(BingoPatternRules.lastNumberHelps(card, with25, 26, "FIVE_LINES"),
+                        "a number missing from the card never helps")
+        );
+    }
+
+    @Test
+    @DisplayName("shape families are helped only by the shape they count, not by a stray line")
+    void shapeFamilyLastNumberHelps() {
+        int[][] card = card();
+        // Four disjoint 2x2 blocks win FOUR_SQUARES.
+        Set<Integer> fourSquares = called(card,
+                union(block(0, 0), block(0, 3), block(2, 0), block(2, 3)));
+        // Add a whole column: a line, but no block containing (4,4)=25.
+        Set<Integer> lineOnly = new HashSet<>(fourSquares);
+        lineOnly.addAll(Set.of(5, 10, 15, 20, 25));
+
+        // Three blocks plus four free dots, dots away from any block.
+        Set<Integer> squaresAndDots = called(card,
+                union(block(0, 0), block(0, 3), block(2, 2), dots("0,2", "2,0", "4,2", "4,4")));
+
+        assertAll(
+                () -> assertTrue(BingoPatternRules.wins(card, fourSquares, "FOUR_SQUARES")),
+                () -> assertTrue(BingoPatternRules.lastNumberHelps(card, fourSquares, 4, "FOUR_SQUARES"),
+                        "cell (0,3) completes the top-right block"),
+                () -> assertTrue(BingoPatternRules.wins(card, lineOnly, "FOUR_SQUARES")),
+                () -> assertFalse(BingoPatternRules.lastNumberHelps(card, lineOnly, 25, "FOUR_SQUARES"),
+                        "column 4 completes no block, so it does not help FOUR_SQUARES"),
+                () -> assertTrue(BingoPatternRules.lastNumberHelps(card, squaresAndDots, 25,
+                        "THREE_SQUARES_FOUR_DOTS"), "cell (4,4) is a free dot"),
+                () -> assertTrue(BingoPatternRules.lastNumberHelps(card, squaresAndDots, 1,
+                        "THREE_SQUARES_FOUR_DOTS"), "cell (0,0) completes the top-left block")
         );
     }
 

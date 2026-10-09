@@ -495,7 +495,14 @@ export default function LiveGameScreen() {
         game.setRestartNotice(t('mobile.restartNotice') ?? 'Game restarting…');
         setReport({ message: t('mobile.restartNotice') ?? 'Game restarting…', kind: 'pending' });
       } else if (res.data.banned) {
-        setReport({ message: t('game.claimBanned', { cardId: String(card.cardId) }) ?? 'This card is banned', kind: 'banned' });
+        setReport({
+          message:
+            t('game.claimBanned', {
+              cardId: String(card.cardId),
+              lastNumber: lastCalledNumber != null ? String(lastCalledNumber) : '—',
+            }) ?? 'This card is banned',
+          kind: 'banned',
+        });
       } else if (res.data.pendingReview) {
         setReport({
           message: t('game.claimPending', { cardId: String(card.cardId) }) ?? 'Claim pending review…',
@@ -1001,7 +1008,7 @@ export default function LiveGameScreen() {
                   selectable={selectionMode}
                   selected={selectedCardIds.has(card.cardId)}
                   onSelectToggle={() => toggleSelected(card.cardId)}
-                  onLongPressCard={() => startSelection(card.cardId)}
+                  onLongPressCard={card.banned || card.winner ? undefined : () => startSelection(card.cardId)}
                   markColor={markPaint}
                   footer={
                     <>

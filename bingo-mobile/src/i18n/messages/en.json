@@ -521,7 +521,7 @@
     "manualMarking": "Manual",
     "sound": "Sound",
     "tapToMark": "Tap a number once — it marks on all your cards that contain it.",
-    "claimBanned": "Invalid Bingo claim on card #{cardId} — the card doesn't have the last called number, so it was banned.",
+    "claimBanned": "Number {lastNumber} doesn't help you create the pattern — card #{cardId} was banned.",
     "claimPending": "Bingo claimed with card #{cardId}!",
     "claimWin": "Bingo! You won {amount} birr.",
     "closeWindow": "Close window",

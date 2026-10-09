@@ -515,13 +515,16 @@ public class GameEngineService {
      * Claim Bingo for a player — allows multiple simultaneous claims.
      * The system only makes decisions it can prove. At submission time that is
      * a rejection: when the game's pattern is readable, a card on which the
-     * pattern is provably incomplete can never become a real Bingo, so the
-     * claim is rejected, the card banned and the game never paused; when the
-     * pattern is not readable the last-called-number heuristic applies (a card
-     * without the game's last called number is impossible). A claim whose
-     * pattern is provably complete, and every claim the system cannot prove
-     * either way, waits in the pending queue for the automatic reviewer, which
-     * decides every remaining claim from server truth within seconds.
+     * pattern is provably incomplete can never become a real Bingo, and a card
+     * whose last called number completes no further pattern component has also
+     * missed the moment (a late claim only wins again on a call that completes
+     * another line or shape), so either claim is rejected, the card banned and
+     * the game never paused; when the pattern is not readable the
+     * last-called-number heuristic applies (a card without the game's last
+     * called number is impossible). A claim whose pattern is provably complete
+     * and whose last number helped complete it, and every claim the system cannot
+     * prove either way, waits in the pending queue for the automatic reviewer,
+     * which decides every remaining claim from server truth within seconds.
      */
     @Transactional(transactionManager = "tenantTransactionManager")
     public BingoClaimResult claimBingo(Long gameId, Long playerId, Long cardId, java.util.List<Integer> markedNumbers, Boolean autoMark) throws JsonProcessingException {
@@ -566,17 +569,20 @@ public class GameEngineService {
             gameCardRepository.save(gameCard);
         }
 
-        // Two certain rejections can happen here, in order of reliability:
+        // Certain rejections can happen here, in order of reliability:
         //  - the pattern is readable and the card provably does not complete it
         //    with the numbers called so far — no future call can undo a claim
         //    that was already impossible when it was made;
+        //  - the pattern is readable and complete, but the last called number
+        //    completed no further component — the player missed the winning call
+        //    and must wait for a later call that adds another line or shape;
         //  - the pattern is not readable — the legacy heuristic: a card that
         //    does not even contain the game's last called number cannot hold a
         //    real Bingo.
-        // A provably complete pattern skips both checks: the win is real however
-        // late the player claims, and waits for the automatic reviewer to confirm
-        // it. Unreadable card data proves nothing and stays in the queue for the
-        // reviewer to reject from the registered card.
+        // A provably complete pattern whose last number helped skips the checks:
+        // the win is real however late the player claims, and waits for the
+        // automatic reviewer to confirm it. Unreadable card data proves nothing
+        // and stays in the queue for the reviewer to reject from the registered card.
         Integer lastCalledNumber = calledNumbers.isEmpty()
                 ? null
                 : calledNumbers.get(calledNumbers.size() - 1);
@@ -588,6 +594,11 @@ public class GameEngineService {
                 return rejectImpossibleClaim(game, gameCard, card, calledNumbers,
                         "Pattern " + game.getWinningPattern()
                                 + " is not complete with the numbers called so far");
+            }
+            if (!BingoPatternRules.lastNumberHelps(cardNumbers, new HashSet<>(calledNumbers),
+                    lastCalledNumber, game.getWinningPattern())) {
+                return rejectImpossibleClaim(game, gameCard, card, calledNumbers,
+                        "Number " + lastCalledNumber + " doesn't help you create the pattern");
             }
         } else if (lastCalledNumber != null && cardNumbers != null
                 && !cardContainsNumber(cardNumbers, lastCalledNumber)) {
@@ -1024,7 +1035,7 @@ public class GameEngineService {
                 try {
                     rejectClaim(gameId, claim.getId(), adminId,
                             "auto: Pattern " + game.getWinningPattern()
-                                    + " not complete on this card with called numbers");
+                                    + " not complete on this card, or its last called number completed no component");
                 } catch (Exception e) {
                     log.warn("Game {}: auto-reject (LOSS) of claim {} failed: {}", gameId, claim.getId(), e.getMessage());
                 }
@@ -1092,7 +1103,8 @@ public class GameEngineService {
     /**
      * Decide a claim on server truth alone. Validation is fully automatic: a
      * claim is a {@linkplain ClaimVerdict#WIN win} when the registered card
-     * completes the game's pattern with the numbers called so far, and a
+     * completes the game's pattern with the numbers called so far and the last
+     * called number completed a further pattern component, and a
      * {@linkplain ClaimVerdict#LOSS loss} for everything else. Missing or
      * unreadable card data, an unrecognized winning pattern, or a card the
      * server cannot parse are all losses — a claim is never left undecided
@@ -1108,7 +1120,10 @@ public class GameEngineService {
         if (!isRecognizedPattern(pattern) || !cardGridIsSane(serverCard)) {
             return ClaimVerdict.LOSS;
         }
-        if (validateBingo(serverCard, serverCalled, pattern)) {
+        int lastCalled = serverCalled.get(serverCalled.size() - 1);
+        if (validateBingo(serverCard, serverCalled, pattern)
+                && BingoPatternRules.lastNumberHelps(serverCard, new HashSet<>(serverCalled),
+                        lastCalled, pattern)) {
             return ClaimVerdict.WIN;
         }
         return ClaimVerdict.LOSS;

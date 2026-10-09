@@ -472,7 +472,7 @@
     "manualMarking": "በእጅ ማስታወሻ",
     "sound": "ድምፅ",
     "tapToMark": "ቁጥር አንዴ ይንኩ — በሁሉም ካርዶችዎ ላይ ምልክት ያደርጋል።",
-    "claimBanned": "በካርድ #{cardId} ላይ ያልተፈቀደ ቢንጎ ጥያቄ — ካርዱ የመጨረሻውን የተጠራ ቁጥር የለውም ስለሆነ ተገድቧል።",
+    "claimBanned": "ቁጥር {lastNumber} ንድፉን ለመፍጠር አይረዳም — ካርድ #{cardId} ተገድቧል።",
     "claimPending": "በካርድ #{cardId} ቢንጎ ተጠይቋል!",
     "claimWin": "ቢንጎ! {amount} ብርን አሸንፈዋል።",
     "closeWindow": "መስኮቱን ዝጋ",

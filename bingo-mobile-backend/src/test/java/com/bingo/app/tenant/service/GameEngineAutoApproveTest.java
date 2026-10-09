@@ -227,6 +227,24 @@ class GameEngineAutoApproveTest {
     }
 
     @Test
+    @DisplayName("auto-approve: a complete pattern whose last call added no component is a loss")
+    void latePatternIsRejected() {
+        Game g = liveGame("FIVE_LINES");
+        // Five lines (rows 0-2, columns 0-1) are complete; 25 completes no line.
+        calls(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17, 21, 22, 25));
+        BingoClaim c = claim(1L, 101L, 1000L, WIN_CARD);
+
+        engine.automatedClaimReview(GAME_ID, ADMIN_ID);
+
+        assertAll(
+                () -> assertEquals("REJECTED", c.getResult()),
+                () -> assertNotNull(c.getValidatedAt()),
+                () -> assertTrue(c.getRejectionReason().startsWith("auto: Pattern FIVE_LINES"))
+        );
+        verify(walletService, never()).creditWinnings(anyLong(), any(), anyLong());
+    }
+
+    @Test
     @DisplayName("auto-approve: two simultaneous winners both approved and the pot split")
     void simultaneousWinnersSplitThePot() {
         Game g = liveGame("FOUR_LINES");

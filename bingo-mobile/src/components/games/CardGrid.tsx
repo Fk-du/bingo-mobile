@@ -30,6 +30,8 @@ interface CardGridProps {
   onLongPressCard?: () => void;
   /** Fill for a called/marked cell. Chosen by the player in game settings. */
   markColor?: { fill: string; border: string };
+  /** Banned card: tinted red, dimmed and non-interactive. */
+  frozen?: boolean;
 }
 
 export function CardGrid({
@@ -44,6 +46,7 @@ export function CardGrid({
   onSelect,
   onLongPressCard,
   markColor = DEFAULT_MARK,
+  frozen = false,
 }: CardGridProps) {
   const { colors } = useTheme();
   const calledSet = new Set(called);
@@ -53,8 +56,19 @@ export function CardGrid({
   return (
     <View
       className="w-full rounded-xl border p-1.5"
-      style={{ gap: 2, borderColor: colors.borderInactive, backgroundColor: colors.surfaceAlt, ...(selected ? { borderColor: colors.primary } : {}) }}
+      style={{
+        gap: 2,
+        borderColor: frozen ? colors.danger : colors.borderInactive,
+        backgroundColor: frozen ? 'rgba(255,92,108,0.10)' : colors.surfaceAlt,
+        opacity: frozen ? 0.72 : 1,
+        ...(selected ? { borderColor: colors.primary } : {}),
+      }}
     >
+      {frozen && (
+        <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+          <Text style={{ fontSize: 44, opacity: 0.3 }}>❄</Text>
+        </View>
+      )}
       <View className="flex-row" style={{ gap: 2 }}>
         {LETTERS.map((letter, index) => (
           <View
