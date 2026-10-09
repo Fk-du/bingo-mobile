@@ -27,10 +27,7 @@
     "notAvailable": "N/A",
     "refresh": "ኣሐድስ",
     "entryFee": "ናይ መእተዊ ክፍሊት",
-    "logoutConfirm": "ካብ ኣካውንትካ ክትወጽእ ከም እትደሊ ርግጸኛ ዲኻ?",
-    "updateAvailable": "ሓድሽ ስሪት ኣሎ",
-    "updateReady": "ንምጽዓቕ ድሉው ዝኾነ ሓድሽ ስሪት ኣሎ",
-    "updateRestart": "ንምዕባይ ደጊም ጀምር"
+    "logoutConfirm": "ካብ ኣካውንትካ ክትወጽእ ከም እትደሊ ርግጸኛ ዲኻ?"
   },
   "nav": {
     "player": {
@@ -101,24 +98,7 @@
     "noPasswordTitle": "ገና ምስጢራዊ ቃል የለን",
     "noPasswordHint": "እዚ ኣካውንት ምስጢራዊ ቃል የብሉን። ኣብ ቴለግራም ናይ ቢንጎ ፕላስ ቦት ክፈት፡ ሊንክ መዋፈሪኻ ጠውቕ፡ “ምስጢራዊ ቃል ፍጠር” ተጠቐም ሓደ ኣቐምጥ — ድሕሪኡ ኣብዚ እቶ።",
     "openBot": "ናይ ቴለግራም ቦት ክፈት",
-    "loginEyebrow": "እንቋዕ ብደሓን ተመሊስካ",
-    "forgotPassword": "ምስጢራዊ ቃልካ ረሲዕካ?",
-    "forgotPasswordTitle": "ምስጢራዊ ቃልካ መልስ",
-    "forgotPasswordHint": "ቁጽሪ ተሌፎንካ ኣትዉ። ኣካውንት'ስ እንተሃልዩ፡ ሓደ ጊዜ ዚጥቀም ናይ ምልስ ኮድ ናብ ቴለግራምካ ይለኣኽ።",
-    "sendResetCode": "ኮድ ምልስ ስደድ",
-    "resetPasswordTitle": "ኮድ ምልስ ኣትዉ",
-    "resetPasswordHint": "እቲ በቲ ቴለግራምካ ዝተላአኸ 6 ኣሃዝ ኮድ ኣትዉ ከዚያ ሓድሽ ምስጢራዊ ቃል ምረጽ።",
-    "resetCode": "ኮድ ምልስ",
-    "newPassword": "ሓድሽ ምስጢራዊ ቃል",
-    "confirmNewPassword": "ሓድሽ ምስጢራዊ ቃል ኣረጋግጽ",
-    "resetPassword": "ምስጢራዊ ቃል መልስ",
-    "resendCode": "ኮድ ደጊም ስደድ",
-    "resending": "ይልኣኽ ኣሎ…",
-    "resetCodeSentHint": "ሓድሽ ኮድ ናብ ቴለግራምካ ተላኢኹ።",
-    "invalidPhone": "ቁጽሪ ተሌፎንካ ኣትዉ",
-    "invalidCode": "እቲ 6 ኣሃዝ ኮድ ኣትዉ",
-    "weakPassword": "ምስጢራዊ ቃል እንተወሓደ 4 ፊደላት ክህልዎ ኣለዎ",
-    "passwordMismatch": "ምስጢራዊ ቃላት ኣይመሳሰሉን"
+    "loginEyebrow": "እንቋዕ ብደሓን ተመሊስካ"
   },
   "roles": {
     "ADMIN": "ኣተሓሓዛይ",
@@ -157,11 +137,7 @@
     "invite_already_registered": "ኣካውንትካ ቀደም ተመዝጊቡ እዩ። ዝርዝርካ ንምኽፋት /start ተጠቐም።",
     "account_suspended": "ኣካውንትካ ደው ኢሉ እዩ። ንዝያዳ ሓበሬታ ንወናኒ መድረኽ ተወከሶ።",
     "admin_pending": "ናይ ኣተሓሓዛይ ኣካውንትካ ካብ ሱፐር ኣተሓሓዛይ ምጽዳቕ ይጽበ ኣሎ። ኣካውንትካ ክሳብ ዝጸድቕ ናይ ኣተሓሓዛይ ኣገልግሎታት ክትጥቀም ኣይትኽእልን ኢኻ።",
-    "request_already_processed": "እዚ ሕቶ ቀደም ተወዲኡ እዩ።",
-    "invalid_otp": "እቲ ናይ ምልስ ኮድ ቅኑዕ ኣይኰነን። ነቲ ኮድ ርኣዮ ደጊም ፈትን።",
-    "otp_expired": "እቲ ናይ ምልስ ኮድ ግዜኡ ሓልፉ። ሓድሽ ኮድ ሕተት ደጊም ፈትን።",
-    "otp_max_attempts": "ብዙሕ ጌጋ ሙከራታት ኰይኑ። እቲ ናይ ምልስ ኮድ ተሲሱ — ሓድሽ ሕተት።",
-    "weak_password": "እቲ ሓድሽ ምስጢራዊ ቃል እንተወሓደ 4 ፊደላት ክህልዎ ኣለዎ።"
+    "request_already_processed": "እዚ ሕቶ ቀደም ተወዲኡ እዩ።"
   },
   "mobile": {
     "navLobby": "ጸወታ",
@@ -459,7 +435,7 @@
     "hintTHREE_LINES_NO_FREE_DISJOINT": "ሰለስተ ዘዪነካከኡ መስመራት ፍሪ ዘይትንክፉ።",
     "FOUR_LINES_NO_FREE_DISJOINT": "ኣርባዕተ ዘዪነካከኡ መስመራት ፍሪ ዘይትንክፉ",
     "hintFOUR_LINES_NO_FREE_DISJOINT": "ኣርባዕተ ዘዪነካከኡ መስመራት ፍሪ ዘይትንክፉ።",
-    "THREE_SMALL_T": "ክልተ ዘዪነካከኡ ንኣሽቱ T ቅርጽታት + ሓደ መስመር",
+    "THREE_SMALL_T": "ክልተ ንኣሽቱ T ቅርጽታት + ሓደ መስመር ዘዪነካከኡ",
     "hintTHREE_SMALL_T": "ክልተ ንኣሽቱ T ቅርጽታት ምስ ሓደ ምሉእ መስመር።",
     "LARGE_CROSS_TWO_SQUARES": "ዓቢ መስቀል + ክልተ ንኣሽቱ ስኴር",
     "hintLARGE_CROSS_TWO_SQUARES": "ኣብ ማእከል ዓቢ መስቀል ምስ ኣብ ነፍሲ ወከፍ ወገን ሓደ ስኴር።",

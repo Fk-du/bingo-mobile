@@ -1,0 +1,9 @@
+1, the three disconnected cross and small T game patterns are I think impossible. make them two disconnected cross/small-T and one line. I think I have changed the pattern for the three disconnected crosses in backend only in the front(setting the pattern name from admin page) if I didn't fixed it though do it to this recommended pattern. also make sure all the validation options for it in both front/backend
+
+2, the card sort feature(and its hint like L-2 for 2 lines drawn) are not working.
+3, auto mark is never become off(it marks even in off)
+4, 'select all' is invisible in dark mode(change its color to white in this mode), and the numbers in the called number history board become invisible when they are called and marked(change the marked numbers text-color to black)
+5, the lable in the 'last called number'  is covering the the area(registerd no of cards) so remove it(the lable). 
+6, when the hitory board is minimized the last called number gets hidden change the direction so that the one called last apears and the first one hides.
+7, when player preview the winner, they have to see the last called number in the card in different color
+8, make sure the rules of the last called number(it has to exist in the card, it has to help for creating the pattern not just its existence is enough) for a card to claim BINGO

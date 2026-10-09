@@ -27,10 +27,7 @@
     "notAvailable": "N/A",
     "refresh": "አድስ",
     "entryFee": "የመግቢያ ክፍያ",
-    "logoutConfirm": "እርግጠኛ ነዎት መውጣት እንደሚፈልጉ?",
-    "updateAvailable": "አዲስ ስሪት አለ",
-    "updateReady": "ለመጫን ዝግጁ የሆነ አዲስ ስሪት አለ",
-    "updateRestart": "ለማዘመን እንደገና ጀምር"
+    "logoutConfirm": "እርግጠኛ ነዎት መውጣት እንደሚፈልጉ?"
   },
   "nav": {
     "player": {
@@ -101,24 +98,7 @@
     "noPasswordTitle": "እስካሁን የይለፍ ቃል የለም",
     "noPasswordHint": "ይህ መለያ የይለፍ ቃል የለውም። የቢንጎ ፕላስ ቦትን በቴሌግራም ይክፈቱ፣ የግብዣ ሊንክዎን ይንኩ፣ እና “የይለፍ ቃል ይፍጠሩ” የሚለውን ተጠቅመው የይለፍ ቃል ያዘጋጁ — ከዚያ እዚህ ይግቡ።",
     "openBot": "የቴሌግራም ቦትን ይክፈቱ",
-    "loginEyebrow": "እንደምን አለህ",
-    "forgotPassword": "የይለፍ ቃል ረሳህ?",
-    "forgotPasswordTitle": "የይለፍ ቃልዎን ያስተካክሉ",
-    "forgotPasswordHint": "የስልክ ቁጥርዎን ያስገቡ። አካውንት ካለ፣ የአንድ ጊዜ የማስተካከያ ኮድ ወደ ቴሌግራምዎ ይላካል።",
-    "sendResetCode": "የማስተካከያ ኮድ ይላኩ",
-    "resetPasswordTitle": "የማስተካከያ ኮዱን ያስገቡ",
-    "resetPasswordHint": "ከቴሌግራምዎ የተላከውን ባለ 6 አሃዝ ኮድ ያስገቡ እና አዲስ የይለፍ ቃል ይምረጡ።",
-    "resetCode": "የማስተካከያ ኮድ",
-    "newPassword": "አዲስ የይለፍ ቃል",
-    "confirmNewPassword": "አዲስ የይለፍ ቃል ያረጋግጡ",
-    "resetPassword": "የይለፍ ቃል ያስተካክሉ",
-    "resendCode": "ኮድ እንደገና ይላኩ",
-    "resending": "እየተላከ ነው…",
-    "resetCodeSentHint": "አዲስ ኮድ ወደ ቴሌግራምዎ ተልኳል።",
-    "invalidPhone": "የስልክ ቁጥርዎን ያስገቡ",
-    "invalidCode": "ባለ 6 አሃዝ ኮዱን ያስገቡ",
-    "weakPassword": "የይለፍ ቃል ቢያንስ 4 ፊደላት መሆን አለበት",
-    "passwordMismatch": "የይለፍ ቃላቶቹ አይመሳሰሉም"
+    "loginEyebrow": "እንደምን አለህ"
   },
   "roles": {
     "ADMIN": "አስተዳዳሪ",
@@ -157,11 +137,7 @@
     "invite_already_registered": "መለያዎ ቀድሞውኑ ተመዝግቧል። ሜኑዎን ለመክፈት /start ይጠቀሙ።",
     "account_suspended": "መለያዎ ታግዷል። ለዝርዝር መረጃ የመርከቡ ባለቤትን ያነጋግሩ።",
     "admin_pending": "የአስተዳዳሪ መለያዎ ከሱፐር አስተዳዳሪ ጸድቆ በመጠበቅ ላይ ነው። መለያዎ እስኪጸድቅ ድረስ የአስተዳዳሪ ባህሪያትን መጠቀም አይችሉም።",
-    "request_already_processed": "ይህ ጥያቄ ቀድሞውኑ ተከናውኗል።",
-    "invalid_otp": "ያ የማስተካከያ ኮድ ትክክል አይደለም። ኮዱን አርጋግጠው እንደገና ይሞክሩ።",
-    "otp_expired": "የማስተካከያ ኮዱ ጊዜው አልፏል። አዲስ ኮድ ጠይቀው እንደገና ይሞክሩ።",
-    "otp_max_attempts": "በጣም ብዙ የተሳሳቱ ሙከራዎች። የማስተካከያ ኮዱ ተሽሯል — አዲስ ይጠይቁ።",
-    "weak_password": "አዲሱ የይለፍ ቃል ቢያንስ 4 ፊደላት መሆን አለበት።"
+    "request_already_processed": "ይህ ጥያቄ ቀድሞውኑ ተከናውኗል።"
   },
   "ws": {
     "gameRestarted": "ጨዋታው በአዲስ የቁጥር ቅደም እንደገና እየተጀመረ ነው። የተመዘገቡ ተጫዋቾች ሁሉ ካርዳቸውን ጠብቀው እንደገና መጫወት ይችላሉ።",
@@ -410,12 +386,12 @@
     "hintTHREE_LINES_NO_FREE_DISJOINT": "የላይኛው፣ የሁለተኛው እና የታችኛው ሙሉ ረድፎች — 15 ቁጥሮች፤ ፍሪ መሃል አይጠቀምም።",
     "FOUR_LINES_NO_FREE_DISJOINT": "አራት ማይገናኙ ፍሪ ያልነኩ መስመሮች",
     "hintFOUR_LINES_NO_FREE_DISJOINT": "ፍሪ መሃል አይነኩም።",
-    "THREE_SMALL_T": "ሁለት የተለያዩ ትንንሽ T ቅርጾች + አንድ መስመር",
+    "THREE_SMALL_T": "ሁለት ትንንሽ T ቅርጾች + አንድ መስመር የተለያዩ",
     "hintTHREE_SMALL_T": "ሁለት ትንንሽ T ቅርጾች ከአንድ ሙሉ መስመር ጋር።",
     "LARGE_CROSS_TWO_SQUARES": "ትልቅ መስቀል ከሁለት ትንንሽ ስኰር ጋር",
     "hintLARGE_CROSS_TWO_SQUARES": "ሙሉ መስቀል እና በሁለት ተቃራኒ ማዕዘኖች ውስጥ የሚገኙ ሁለት 2x2 ስኰር።",
     "THREE_SMALL_CROSSES": "ሁለት የተለያዩ ትንንሽ መስቀሎች + አንድ መስመር",
-    "hintTHREE_SMALL_CROSSES": "ሁለት ትንንሽ መስቀሎች ከአንድ ሙሉ መስመር ጋር።"
+    "hintTHREE_SMALL_CROSSES": "ሁለት ትንንሽ መስቀሎች ከአንድ መስመር ጋር።"
   },
   "game": {
     "gameNumber": "ጨዋታ #{id}",
