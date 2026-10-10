@@ -1,9 +1,11 @@
 package com.bingo.app.master.dto.response;
 
+import com.bingo.app.master.dto.DepositAccount;
 import com.bingo.app.master.entity.User;
 import lombok.Builder;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Builder(toBuilder = true)
 public record UserProfileResponse(
@@ -17,7 +19,7 @@ public record UserProfileResponse(
         boolean verified,
         Long adminUserId,
         String businessName,
-        String depositAccountInfo,
+        List<DepositAccount> depositAccounts,
         boolean adminApproved,
         Long parentId,
         BigDecimal balance,
@@ -41,7 +43,6 @@ public record UserProfileResponse(
                 .verified(isVerified(user))
                 .adminUserId(user.getAdminUserId())
                 .businessName(user.getBusinessName())
-                .depositAccountInfo(user.getDepositAccountInfo())
                 .adminApproved(user.isAdminApproved())
                 .parentId(user.getParentId())
                 .balance(user.getBalance())
