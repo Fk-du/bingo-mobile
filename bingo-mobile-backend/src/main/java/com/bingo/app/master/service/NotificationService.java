@@ -1,6 +1,7 @@
 package com.bingo.app.master.service;
 
 import com.bingo.app.bot.BingoTelegramBot;
+import com.bingo.app.bot.onboarding.OnboardingBot;
 import com.bingo.app.infrastructure.push.ExpoPushClient;
 import com.bingo.app.master.entity.Notification;
 import com.bingo.app.master.entity.User;
@@ -15,8 +16,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +35,7 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final ExpoPushClient expoPushClient;
     private final ObjectProvider<BingoTelegramBot> botProvider;
+    private final ObjectProvider<OnboardingBot> onboardingBotProvider;
     private final ObjectProvider<SimpMessagingTemplate> messagingTemplateProvider;
     private final ObjectMapper objectMapper;
 
@@ -214,17 +218,36 @@ public class NotificationService {
             try {
                 User user = userRepository.findById(userId).orElse(null);
                 if (user == null || user.getTelegramId() == null) return;
-                BingoTelegramBot bot = botProvider.getIfAvailable();
-                if (bot == null) return;
 
                 SendMessage message = SendMessage.builder()
                         .chatId(user.getTelegramId())
                         .text(text)
                         .build();
 
-                bot.execute(message);
+                // Prefer the registration-only bot first (users register there),
+                // then the game bot. Any bot the user has a chat with can deliver.
+                List<TelegramLongPollingBot> bots = new ArrayList<>();
+                OnboardingBot onboardingBot = onboardingBotProvider.getIfAvailable();
+                if (onboardingBot != null) bots.add(onboardingBot);
+                BingoTelegramBot gameBot = botProvider.getIfAvailable();
+                if (gameBot != null) bots.add(gameBot);
+
+                boolean delivered = false;
+                for (TelegramLongPollingBot bot : bots) {
+                    try {
+                        bot.execute(message);
+                        delivered = true;
+                        break;
+                    } catch (Exception e) {
+                        log.debug("Telegram send via @{} failed: {}", bot.getBotUsername(), e.getMessage());
+                    }
+                }
+                if (!delivered) {
+                    log.warn("Telegram reset-code delivery to user {} failed on all {} bot(s)",
+                            userId, bots.size());
+                }
             } catch (Exception e) {
-                log.debug("Telegram push failed for user {}: {}", userId, e.getMessage());
+                log.warn("Telegram push failed for user {}: {}", userId, e.getMessage());
             }
         });
     }
