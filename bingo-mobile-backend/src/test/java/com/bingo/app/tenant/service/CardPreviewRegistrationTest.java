@@ -139,34 +139,43 @@ class CardPreviewRegistrationTest {
         }
 
         @Test
-        @DisplayName("tops the holding up to the requested count instead of dealing a second batch")
-        void previewTopsUp() {
+        @DisplayName("adds the requested number on top of what is already held")
+        void previewAddsAnotherBatch() {
+            holdingNothing();
             when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(2L);
             when(cardPreviewRepository.findByGameIdAndPlayerIdOrderByCreatedAtAsc(GAME_ID, PLAYER_ID))
-                    .thenReturn(List.of(held(card(1)), held(card(2))));
-            when(cardRepository.findRandomAvailable(any(), eq(3)))
-                    .thenReturn(List.of(card(3), card(4), card(5)));
+                    .thenReturn(List.of(held(card(1)), held(card(2)), held(card(3)), held(card(4)),
+                            held(card(5)), held(card(6)), held(card(7))));
+            when(cardRepository.findRandomAvailable(any(), eq(5)))
+                    .thenReturn(List.of(card(3), card(4), card(5), card(6), card(7)));
 
             List<PreviewCardResponse> previews = service.previewCards(GAME_ID, PLAYER_ID, 5);
 
-            assertThat(previews).extracting(PreviewCardResponse::cardId).containsExactly(1L, 2L);
-            // Only the 3 missing cards are picked up; the 2 already held are not replaced.
-            verify(cardRepository).findRandomAvailable(any(), eq(3));
-            verify(cardPreviewRepository, times(3)).save(any(CardPreview.class));
+            assertThat(previews).extracting(PreviewCardResponse::cardId)
+                    .containsExactly(1L, 2L, 3L, 4L, 5L, 6L, 7L);
+            // A fresh batch of 5 is dealt each time rather than the missing-to-a-total.
+            verify(cardRepository).findRandomAvailable(any(), eq(5));
+            verify(cardPreviewRepository, times(5)).save(any(CardPreview.class));
             verify(walletService, never()).deductBet(anyLong(), any(), anyLong());
         }
 
         @Test
-        @DisplayName("re-requesting what is already held does not deal anything new")
-        void previewIsIdempotent() {
+        @DisplayName("deals another batch when the same count is asked again")
+        void previewAddsAgain() {
+            holdingNothing();
             when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(5L);
             when(cardPreviewRepository.findByGameIdAndPlayerIdOrderByCreatedAtAsc(GAME_ID, PLAYER_ID))
-                    .thenReturn(List.of(held(card(1)), held(card(2)), held(card(3)), held(card(4)), held(card(5))));
+                    .thenReturn(List.of(held(card(1)), held(card(2)), held(card(3)), held(card(4)),
+                            held(card(5)), held(card(6)), held(card(7)), held(card(8)), held(card(9)),
+                            held(card(10))));
+            when(cardRepository.findRandomAvailable(any(), eq(5)))
+                    .thenReturn(List.of(card(6), card(7), card(8), card(9), card(10)));
 
             List<PreviewCardResponse> previews = service.previewCards(GAME_ID, PLAYER_ID, 5);
 
-            assertThat(previews).hasSize(5);
-            verify(cardRepository, never()).findRandomAvailable(any(), anyInt());
+            assertThat(previews).hasSize(10);
+            verify(cardRepository).findRandomAvailable(any(), eq(5));
+            verify(cardPreviewRepository, times(5)).save(any(CardPreview.class));
         }
 
         @Test
@@ -214,17 +223,15 @@ class CardPreviewRegistrationTest {
         }
 
         @Test
-        @DisplayName("tops the holding up to the ask, never past the 50-card limit")
-        void previewTopUpRespectsCap() {
+        @DisplayName("refuses an additive request that would pass the 50-card limit")
+        void previewAdditiveRespectsCap() {
             when(cardPreviewRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(45L);
             when(gameCardRepository.countByGameIdAndPlayerId(GAME_ID, PLAYER_ID)).thenReturn(0L);
-            when(cardRepository.findRandomAvailable(any(), eq(5)))
-                    .thenReturn(List.of(card(1), card(2), card(3), card(4), card(5)));
 
-            service.previewCards(GAME_ID, PLAYER_ID, 50);
+            playerSees("Ask for 5 or fewer more", () -> service.previewCards(GAME_ID, PLAYER_ID, 50));
 
-            verify(cardRepository).findRandomAvailable(any(), eq(5));
-            verify(cardPreviewRepository, times(5)).save(any(CardPreview.class));
+            verify(cardRepository, never()).findRandomAvailable(any(), anyInt());
+            verify(cardPreviewRepository, never()).save(any());
         }
     }
 

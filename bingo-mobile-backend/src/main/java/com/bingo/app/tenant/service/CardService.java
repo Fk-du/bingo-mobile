@@ -321,32 +321,33 @@ public class CardService {
      *
      * <p>Previewed cards are held rather than merely displayed, so a card the
      * player is looking at cannot be dealt to somebody else in the meantime.
-     * Requesting a preview again tops the holding up to {@code count} rather
-     * than dealing a second batch, which keeps a player from filling the pool
-     * with previews they never intend to buy.
+     * Each request deals {@code count} fresh previews on top of what is already
+     * held, so a player can come back and add more; the per-game cap still
+     * stops anyone from filling the pool with previews they never intend to
+     * buy.</p>
      */
     @Transactional(transactionManager = "tenantTransactionManager")
     public List<PreviewCardResponse> previewCards(Long gameId, Long playerId, int count) {
         Game game = requireRegistrationOpen(gameId);
         requireNoOtherActiveGame(gameId, playerId);
 
-        if (count > MAX_CARDS_PER_GAME) {
-            // The player asked for a number the game never allows, so they are told
-            // the rule instead of quietly being handed a smaller set.
-            throw new PlayerActionException("Too many cards requested",
-                    "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
-                            + " Ask for " + MAX_CARDS_PER_GAME + " or fewer.");
-        }
-
-        int wanted = Math.max(1, count);
         long held = cardPreviewRepository.countByGameIdAndPlayerId(gameId, playerId);
         long registered = gameCardRepository.countByGameIdAndPlayerId(gameId, playerId);
         long totalOwnedInGame = held + registered;
-        if (totalOwnedInGame >= wanted) {
-            // Already holding/registered at least this many: just show what is on hold.
-            return heldPreviews(gameId, playerId);
+
+        int wanted = Math.max(1, count);
+        if (wanted > MAX_CARDS_PER_GAME || totalOwnedInGame + wanted > MAX_CARDS_PER_GAME) {
+            // Adding this batch would pass the per-game cap, so the player is
+            // told how many more they may still pick up instead of being
+            // quietly handed a smaller set.
+            long stillAllowed = MAX_CARDS_PER_GAME - totalOwnedInGame;
+            throw new PlayerActionException("Too many cards requested",
+                    "You can hold at most " + MAX_CARDS_PER_GAME + " cards in a game."
+                            + " You already have " + totalOwnedInGame + "."
+                            + " Ask for " + stillAllowed + " or fewer more.");
         }
-        int missing = (int) (wanted - totalOwnedInGame);
+
+        int missing = wanted;
 
         List<Card> free = cardRepository.findRandomAvailable(LIVE_STATUS_NAMES, missing);
         if (free.size() < missing) {
