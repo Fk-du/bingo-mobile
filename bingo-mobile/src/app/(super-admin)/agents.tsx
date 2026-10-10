@@ -15,6 +15,8 @@ const WARN_PRESETS = [
   'warnPresetPolicy',
 ] as const;
 
+const GRID_ITEM = { flexBasis: '47%', flexGrow: 1 } as const;
+
 export default function SuperAdminAgentsScreen() {
   const t = useTranslate();
   const { colors } = useTheme();
@@ -125,27 +127,29 @@ export default function SuperAdminAgentsScreen() {
                     <View className="flex-1 pr-2">
                       <Text className="font-semibold" style={{ color: colors.textPrimary }}>{agentName(a)}</Text>
                       <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                        {t('super.idLabel') ?? 'ID'} {a.adminUserId}
+                        {t('super.idLabel', { id: String(a.adminUserId) }) ?? `ID ${a.adminUserId}`}
                       </Text>
                     </View>
                     <StatusPill status="PENDING" />
                   </View>
                   <View className="flex-row gap-2">
                     <Button
+                      compact
                       variant="success"
-                      style={{ flex: 1, paddingVertical: 10 }}
+                      style={GRID_ITEM}
                       disabled={statusMutation.isPending}
                       onPress={() => statusMutation.mutate({ id: a.adminUserId, status: 'APPROVE' })}
                     >
-                      <Text className="text-white text-sm font-semibold">{t('admin.approve') ?? 'Approve'}</Text>
+                      <Text className="text-white text-xs font-semibold">{t('admin.approve') ?? 'Approve'}</Text>
                     </Button>
                     <Button
+                      compact
                       variant="danger"
-                      style={{ flex: 1, paddingVertical: 10 }}
+                      style={GRID_ITEM}
                       disabled={statusMutation.isPending}
                       onPress={() => statusMutation.mutate({ id: a.adminUserId, status: 'REJECT' })}
                     >
-                      <Text className="text-white text-sm font-semibold">{t('admin.reject') ?? 'Reject'}</Text>
+                      <Text className="text-white text-xs font-semibold">{t('admin.reject') ?? 'Reject'}</Text>
                     </Button>
                   </View>
                 </View>
@@ -179,37 +183,38 @@ export default function SuperAdminAgentsScreen() {
                     <View className="flex-1 pr-2">
                       <Text className="font-semibold" style={{ color: colors.textPrimary }}>{agentName(a)}</Text>
                       <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                        {t('super.idLabel') ?? 'ID'} {a.adminUserId}
+                        {t('super.idLabel', { id: String(a.adminUserId) }) ?? `ID ${a.adminUserId}`}
                       </Text>
                     </View>
                     <StatusPill status={a.active ? 'ACTIVE' : 'SUSPENDED'} />
                   </View>
                   <View className="flex-row gap-2 flex-wrap">
-                    <Button variant="green" style={{ flex: 1 }} onPress={() => setStatsAgent(a)}>
-                      <Text className="text-sm font-semibold" style={{ color: colors.success }}>{t('super.stats') ?? 'Stats'}</Text>
+                    <Button compact variant="green" style={GRID_ITEM} onPress={() => setStatsAgent(a)}>
+                      <Text className="text-xs font-semibold" style={{ color: colors.success }}>{t('super.stats') ?? 'Stats'}</Text>
                     </Button>
-                    <Button variant="ghost" style={{ flex: 1 }} onPress={() => setWarnAgent(a)}>
-                      <Text className="text-sm" style={{ color: colors.textSecondary }}>{t('super.warn') ?? 'Warn'}</Text>
+                    <Button compact variant="ghost" style={GRID_ITEM} onPress={() => setWarnAgent(a)}>
+                      <Text className="text-xs" style={{ color: colors.textSecondary }}>{t('super.warn') ?? 'Warn'}</Text>
                     </Button>
                     {a.active ? (
-                      <Button variant="danger" style={{ flex: 1 }} onPress={() => setSuspendAgent(a)}>
-                        <Text className="text-white text-sm font-semibold">{t('super.suspend') ?? 'Suspend'}</Text>
+                      <Button compact variant="danger" style={GRID_ITEM} onPress={() => setSuspendAgent(a)}>
+                        <Text className="text-white text-xs font-semibold">{t('super.suspend') ?? 'Suspend'}</Text>
                       </Button>
                     ) : (
-                      <Button variant="success" style={{ flex: 1 }} onPress={() => statusMutation.mutate({ id: a.adminUserId, status: 'RESUME' })}>
-                        <Text className="text-white text-sm font-semibold">{t('super.resume') ?? 'Resume'}</Text>
+                      <Button compact variant="success" style={GRID_ITEM} onPress={() => statusMutation.mutate({ id: a.adminUserId, status: 'RESUME' })}>
+                        <Text className="text-white text-xs font-semibold">{t('super.resume') ?? 'Resume'}</Text>
                       </Button>
                     )}
                     {/* Delete is deliberately not a filled danger button: it sits
                         beside Suspend, which is the reversible action, and only
                         reads as destructive until the confirm dialog is opened. */}
                     <Button
+                      compact
                       variant="ghost"
-                      style={{ flex: 1 }}
+                      style={GRID_ITEM}
                       disabled={deleteMutation.isPending}
                       onPress={() => setDeleteAgent(a)}
                     >
-                      <Text className="text-red-500 text-sm font-semibold">{t('super.delete') ?? 'Delete'}</Text>
+                      <Text className="text-red-500 text-xs font-semibold">{t('super.delete') ?? 'Delete'}</Text>
                     </Button>
                   </View>
                 </View>

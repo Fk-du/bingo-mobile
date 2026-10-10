@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme';
 import { AgentResponse, CardRequestResponse, AdminGameResponse, GameStatus } from '@/types';
 
 const BAR_HEIGHT = 128;
+const GRID_ITEM = { flexBasis: '47%', flexGrow: 1 } as const;
 
 export default function SuperAdminDashboardScreen() {
   const { colors } = useTheme();
@@ -58,7 +59,7 @@ export default function SuperAdminDashboardScreen() {
           <Pressable
             onPress={() => router.push('/(super-admin)/agents')}
             className="active:opacity-80"
-            style={{ width: '48%' }}
+            style={GRID_ITEM}
           >
             <Metric
               label={t('super.totalAgents') ?? 'Total Agents'}
@@ -67,21 +68,25 @@ export default function SuperAdminDashboardScreen() {
               note={t('super.activeCount', { count: activeAgents.length }) ?? `${activeAgents.length} active`}
             />
           </Pressable>
-          <Metric
-            label={t('super.barGames') ?? 'Games'}
-            value={gamesQuery.isLoading ? '...' : games.length}
-            tone="warning"
-            note={t('super.completedCount', { count: endedGames.length }) ?? `${endedGames.length} completed`}
-          />
-          <Metric
-            label={t('super.liveGames') ?? 'Live Games'}
-            value={gamesQuery.isLoading ? '...' : inProgressGames.length}
-            tone="success"
-          />
+          <View style={GRID_ITEM}>
+            <Metric
+              label={t('super.barGames') ?? 'Games'}
+              value={gamesQuery.isLoading ? '...' : games.length}
+              tone="warning"
+              note={t('super.completedCount', { count: endedGames.length }) ?? `${endedGames.length} completed`}
+            />
+          </View>
+          <View style={GRID_ITEM}>
+            <Metric
+              label={t('super.liveGames') ?? 'Live Games'}
+              value={gamesQuery.isLoading ? '...' : inProgressGames.length}
+              tone="success"
+            />
+          </View>
           <Pressable
             onPress={() => router.push('/(super-admin)/agents')}
             className="active:opacity-80"
-            style={{ width: '48%' }}
+            style={GRID_ITEM}
           >
             <Metric
               label={t('super.pendingApprovals') ?? 'Pending Approvals'}
@@ -97,7 +102,7 @@ export default function SuperAdminDashboardScreen() {
           <Pressable
             onPress={() => router.push('/(super-admin)/cards')}
             className="active:opacity-80"
-            style={{ width: '48%' }}
+            style={GRID_ITEM}
           >
             <Metric
               label={t('super.scEyebrow') ?? 'Cards'}
@@ -166,7 +171,7 @@ export default function SuperAdminDashboardScreen() {
                   <View className="flex-1 pr-2">
                     <Text className="text-sm font-medium" style={{ color: colors.textPrimary }}>{agentName(a)}</Text>
                     <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                      {t('super.balanceColon') ?? 'Balance'}: {a.balance.toLocaleString()}
+                      {t('super.balanceColon', { balance: a.balance.toLocaleString() }) ?? `Balance: ${a.balance.toLocaleString()}`}
                     </Text>
                   </View>
                   {a.approved ? (

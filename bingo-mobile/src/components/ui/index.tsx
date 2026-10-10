@@ -288,10 +288,18 @@ export function Metric({
   const t = toneStyle[tone];
   return (
     <View className="flex-1 rounded-2xl border p-4" style={{ borderColor: t.border, backgroundColor: t.bg }}>
-      <Text className="text-[11px] font-medium uppercase tracking-[0.18em]" style={{ color: colors.textSecondary }}>
+      <Text className="text-[11px] font-medium uppercase tracking-[0.18em]" style={{ color: colors.textSecondary }} numberOfLines={2}>
         {label}
       </Text>
-      <Text className="mt-1.5 text-2xl font-bold" style={{ color: colors.textPrimary }}>{value}</Text>
+      <Text
+        className="mt-1.5 text-2xl font-bold"
+        style={{ color: colors.textPrimary }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.6}
+      >
+        {value}
+      </Text>
       {note ? <Text className="mt-1 text-xs" style={{ color: colors.textSecondary }}>{note}</Text> : null}
     </View>
   );
