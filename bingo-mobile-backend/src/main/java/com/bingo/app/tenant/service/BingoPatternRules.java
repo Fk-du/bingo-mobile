@@ -90,9 +90,9 @@ public final class BingoPatternRules {
             // --- T shapes and crosses ------------------------------------------------
             case "LARGE_T_TWO_LINES" -> largeT(m, lines, 2);
             case "LARGE_T_THREE_LINES" -> largeT(m, lines, 3);
-            case "THREE_SMALL_T" -> total >= 1 && packs(smallTShapes(m), 2);
+            case "TWO_SMALL_T_PLUS_LINE" -> twoSmallTPlusSeparateLine(m);
             case "LARGE_CROSS_TWO_SQUARES" -> rowComplete(m, 2) && colComplete(m, 2) && squares >= 2;
-            case "THREE_SMALL_CROSSES" -> twoCrossesPlusSeparateLine(m);
+            case "TWO_SMALL_CROSSES_PLUS_LINE" -> twoCrossesPlusSeparateLine(m);
 
             default -> false;
         };
@@ -162,8 +162,8 @@ public final class BingoPatternRules {
             case "THREE_SQUARES_FOUR_DOTS" ->
                     inAny(blocks, cellBit) || isDot(m, blocks, row, col);
 
-            case "THREE_SMALL_T" -> lineCovers(lines, row, col) || inAny(smallTShapes(m), cellBit);
-            case "THREE_SMALL_CROSSES" -> lineCovers(lines, row, col) || inAny(fullCrossMasks(m), cellBit);
+            case "TWO_SMALL_T_PLUS_LINE" -> lineCovers(lines, row, col) || inAny(smallTShapes(m), cellBit);
+            case "TWO_SMALL_CROSSES_PLUS_LINE" -> lineCovers(lines, row, col) || inAny(fullCrossMasks(m), cellBit);
 
             default -> false;
         };
@@ -414,6 +414,32 @@ public final class BingoPatternRules {
             lines.add(cellMask(0, 4) | cellMask(1, 3) | cellMask(2, 2) | cellMask(3, 1) | cellMask(4, 0));
         }
         return lines;
+    }
+
+    /**
+     * "Two disconnected small T's + a line": two 4-cell T's that share no cell with
+     * each other <em>and</em> a complete line that shares no cell with either T. A
+     * line that runs straight through a T would make the two a single shape, so the
+     * line must stand apart for the name ("all disconnected") to hold.
+     */
+    private static boolean twoSmallTPlusSeparateLine(boolean[][] m) {
+        List<Integer> shapes = smallTShapes(m);
+        for (int i = 0; i < shapes.size(); i++) {
+            int first = shapes.get(i);
+            for (int j = i + 1; j < shapes.size(); j++) {
+                int second = shapes.get(j);
+                if ((first & second) != 0) {
+                    continue; // the two T's must be disconnected
+                }
+                int both = first | second;
+                for (int line : completeLineCellMasks(m)) {
+                    if ((line & both) == 0) {
+                        return true; // a line that steers clear of both T's
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** Every 4-cell small T (three in a row plus a perpendicular stem), as a cell bitmask. */

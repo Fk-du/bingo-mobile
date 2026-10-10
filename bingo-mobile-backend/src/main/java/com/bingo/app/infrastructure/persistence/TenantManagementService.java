@@ -42,7 +42,8 @@ public class TenantManagementService {
             "db/migration/V16__game_prize_amount.sql",
             "db/migration/V17__card_previews.sql",
             "db/migration/V18__drop_max_players.sql",
-            "db/migration/V19__drop_custom_pattern.sql"
+            "db/migration/V19__drop_custom_pattern.sql",
+            "db/migration/V20__rename_two_small_shape_patterns.sql"
     );
 
     private final TenantRegistryRepository tenantRegistryRepository;

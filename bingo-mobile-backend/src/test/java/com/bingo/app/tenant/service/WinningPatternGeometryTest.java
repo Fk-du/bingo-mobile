@@ -36,8 +36,8 @@ class WinningPatternGeometryTest {
             "TWO_HORIZ_TWO_VERT_TWO_DIAG",
             "FOUR_SQUARES", "TWO_LINES_TWO_SQUARES", "TWO_LINES_TWO_SEP_SQUARES",
             "THREE_SQUARES_FOUR_DOTS",
-            "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES", "THREE_SMALL_T",
-            "LARGE_CROSS_TWO_SQUARES", "THREE_SMALL_CROSSES",
+            "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES", "TWO_SMALL_T_PLUS_LINE",
+            "LARGE_CROSS_TWO_SQUARES", "TWO_SMALL_CROSSES_PLUS_LINE",
             "HALF_HOUSE"
     );
 
@@ -234,27 +234,27 @@ class WinningPatternGeometryTest {
     }
 
     /**
-     * THREE_SMALL_T's demo is two disconnected small T's plus a separate full line, so it
+     * TWO_SMALL_T_PLUS_LINE's demo is two disconnected small T's plus a separate full line, so it
      * breaks into three connected groups. It used to be a single diagonal smear.
      */
     @Test
     @DisplayName("the three-shape demo really contains three separate components")
     void threeShapePatternsHaveThreeComponents() {
-        for (String code : List.of("THREE_SMALL_T")) {
+        for (String code : List.of("TWO_SMALL_T_PLUS_LINE")) {
             List<int[]> cells = WinningPatternGeometry.cells(code);
             assertEquals(3, componentCount(cells), code + " must be three disconnected components");
         }
     }
 
     /**
-     * THREE_SMALL_CROSSES is two full five-cell plus signs plus a diagonal line that shares
+     * TWO_SMALL_CROSSES_PLUS_LINE is two full five-cell plus signs plus a diagonal line that shares
      * no cell with either — the crosses stay disconnected and the line stands apart. It used
      * to run the line straight through both crosses, drawing one single figure.
      */
     @Test
-    @DisplayName("THREE_SMALL_CROSSES completes one line and two disconnected plus signs")
+    @DisplayName("TWO_SMALL_CROSSES_PLUS_LINE completes one line and two disconnected plus signs")
     void threeSmallCrossesIsALineWithTwoPluses() {
-        List<int[]> cells = WinningPatternGeometry.cells("THREE_SMALL_CROSSES");
+        List<int[]> cells = WinningPatternGeometry.cells("TWO_SMALL_CROSSES_PLUS_LINE");
         assertEquals(Set.of("diag\\"), completedLines(cells), "exactly one completed line");
         assertEquals(15, cells.size(), "two 5-cell crosses plus a separate diagonal line");
         assertTrue(isFullPlus(cells, 1, 3), "plus sign centred at (1,3)");

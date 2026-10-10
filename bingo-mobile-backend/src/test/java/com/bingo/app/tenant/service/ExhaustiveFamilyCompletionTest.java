@@ -316,6 +316,41 @@ class ExhaustiveFamilyCompletionTest {
         return false;
     }
 
+    /** Every 4-cell small T (three in a row plus a stem) on the card. */
+    private static List<Integer> completeSmallTs(int mask) {
+        List<Integer> out = new ArrayList<>();
+        int all = mask | CENTRE;
+        for (int s : SMALL_TS) {
+            if ((all & s) == s) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    /** "Two disconnected small T's + a line": two cell-disjoint T's and one complete line
+     *  whose cells are outside both, so the line stands apart from the T's. */
+    private static boolean twoSmallTPlusSeparateLine(int mask) {
+        List<Integer> ts = completeSmallTs(mask);
+        List<Integer> lines = completeLineCellMasks(mask);
+        for (int i = 0; i < ts.size(); i++) {
+            for (int j = i + 1; j < ts.size(); j++) {
+                int first = ts.get(i);
+                int second = ts.get(j);
+                if ((first & second) != 0) {
+                    continue;
+                }
+                int both = first | second;
+                for (int line : lines) {
+                    if ((line & both) == 0) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private static boolean largeT(int mask, int extraLines) {
         boolean[] m = marks(mask);
         boolean barTop = m[0] && m[1] && m[2] && m[3] && m[4]
@@ -396,8 +431,8 @@ class ExhaustiveFamilyCompletionTest {
             case "THREE_SQUARES_FOUR_DOTS" -> squares >= 3 && dots >= 4;
             case "LARGE_T_TWO_LINES" -> largeT(mask, 2);
             case "LARGE_T_THREE_LINES" -> largeT(mask, 3);
-            case "THREE_SMALL_T" -> l.total() >= 1 && canPack(SMALL_TS, 2, mask);
-            case "THREE_SMALL_CROSSES" -> twoCrossesPlusSeparateLine(mask);
+            case "TWO_SMALL_T_PLUS_LINE" -> twoSmallTPlusSeparateLine(mask);
+            case "TWO_SMALL_CROSSES_PLUS_LINE" -> twoCrossesPlusSeparateLine(mask);
             case "LARGE_CROSS_TWO_SQUARES" -> {
                 boolean[] m = marks(mask);
                 boolean row2 = m[10] && m[11] && m[12] && m[13] && m[14];
@@ -547,13 +582,15 @@ class ExhaustiveFamilyCompletionTest {
             case "THREE_SQUARES_FOUR_DOTS" -> addThreeSquaresFourDots(ways);
             case "LARGE_T_TWO_LINES" -> addLargeT(ways, 2);
             case "LARGE_T_THREE_LINES" -> addLargeT(ways, 3);
-            case "THREE_SMALL_T" -> {
+            case "TWO_SMALL_T_PLUS_LINE" -> {
                 List<List<Integer>> packs = new ArrayList<>();
                 disjointCombos(SMALL_TS, 2, 0, 0, new ArrayList<>(), packs);
                 for (List<Integer> pack : packs) {
                     int base = SMALL_TS.get(pack.get(0)) | SMALL_TS.get(pack.get(1));
                     for (int line = 0; line < 12; line++) {
-                        add(ways, base | LINE[line]);
+                        if ((base & LINE[line]) == 0) {
+                            add(ways, base | LINE[line]);
+                        }
                     }
                 }
             }
@@ -562,7 +599,7 @@ class ExhaustiveFamilyCompletionTest {
                     add(ways, unionLines(2, 7) | BLOCKS.get(bp[0]) | BLOCKS.get(bp[1]));
                 }
             }
-            case "THREE_SMALL_CROSSES" -> {
+            case "TWO_SMALL_CROSSES_PLUS_LINE" -> {
                 List<List<Integer>> packs = new ArrayList<>();
                 disjointCombos(PLUSES, 2, 0, 0, new ArrayList<>(), packs);
                 for (List<Integer> pack : packs) {
@@ -732,8 +769,8 @@ class ExhaustiveFamilyCompletionTest {
                 "TWO_HORIZ_TWO_VERT_TWO_DIAG",
                 "FOUR_SQUARES", "TWO_LINES_TWO_SQUARES", "TWO_LINES_TWO_SEP_SQUARES",
                 "THREE_SQUARES_FOUR_DOTS",
-                "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES", "THREE_SMALL_T",
-                "LARGE_CROSS_TWO_SQUARES", "THREE_SMALL_CROSSES",
+                "LARGE_T_TWO_LINES", "LARGE_T_THREE_LINES", "TWO_SMALL_T_PLUS_LINE",
+                "LARGE_CROSS_TWO_SQUARES", "TWO_SMALL_CROSSES_PLUS_LINE",
                 "HALF_HOUSE", "FULL_HOUSE"
         );
     }

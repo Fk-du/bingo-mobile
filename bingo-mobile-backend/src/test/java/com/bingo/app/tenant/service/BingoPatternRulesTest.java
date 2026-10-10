@@ -46,6 +46,12 @@ class BingoPatternRulesTest {
                 code + " must win on " + sorted(arrangement) + " (demo-oblivious family)");
     }
 
+    private void assertFamilyLoses(String code, Set<String> arrangement) {
+        int[][] card = card();
+        assertFalse(BingoPatternRules.wins(card, called(card, arrangement), code),
+                code + " must NOT win on " + sorted(arrangement));
+    }
+
     // Line families: any N complete lines, any mix of rows/cols/diagonals -------------
     @Test
     @DisplayName("line ladders win on any N lines, not the demo's")
@@ -91,13 +97,21 @@ class BingoPatternRulesTest {
     @DisplayName("T and cross families win on placements the demo does not use")
     void tAndCrossFamiliesWinOnAnyArrangement() {
         assertAll(
-                // Two small T's (bars on the top and bottom rows) plus a full middle column.
-                () -> assertFamilyWins("THREE_SMALL_T",
+                // Two small T's (bars on the top and bottom rows) plus a full column
+                // that shares no cell with either, so everything stays disconnected.
+                () -> assertFamilyWins("TWO_SMALL_T_PLUS_LINE",
                         Set.of("0,0", "0,1", "0,2", "1,1",    // stem-down T on the top row
                                 "4,0", "4,1", "4,2", "3,1",    // stem-up T on the bottom row
-                                "1,2", "3,2")),                // completes column 2 as the named line
+                                "0,4", "1,4", "2,4", "3,4", "4,4")), // completes column 4, clear
+                // A full line that runs through a T is not this pattern: the three
+                // shapes must be three separate components, so column 2 here (which
+                // passes through both T bars) must NOT win.
+                () -> assertFamilyLoses("TWO_SMALL_T_PLUS_LINE",
+                        Set.of("0,0", "0,1", "0,2", "1,1",    // stem-down T on the top row
+                                "4,0", "4,1", "4,2", "3,1",    // stem-up T on the bottom row
+                                "1,2", "3,2")),                // completes column 2 through the T's
                 // Two disconnected full pluses plus a diagonal that steers clear of both.
-                () -> assertFamilyWins("THREE_SMALL_CROSSES",
+                () -> assertFamilyWins("TWO_SMALL_CROSSES_PLUS_LINE",
                         union(plus(1, 1), plus(3, 3), diag("/"))),
                 // Large T in any of its four orientations, plus the named extra lines
                 // anywhere else: top bar (demo's), bottom bar, left bar, right bar.
