@@ -2,6 +2,9 @@
   "common": {
     "appName": "ቢንጎ ፕላስ",
     "loading": "በመጫን ላይ…",
+    "updateReady": "ማተግበርያ ለአድሳት ዝግጁ ነው",
+    "updateRestart": "ለማደስ ዳግም ያስጀምሩ",
+    "updateAvailable": "አዲስ ማተግበርያ አለ",
     "error": "የሆነ ስህተት ተከስቷል",
     "retry": "ድጋሚ ይሞክሩ",
     "save": "መዝግብ",

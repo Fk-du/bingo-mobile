@@ -2,6 +2,9 @@
   "common": {
     "appName": "BingoPlus",
     "loading": "Loading…",
+    "updateReady": "A new version is ready to install",
+    "updateRestart": "Restart to update",
+    "updateAvailable": "A new version is available",
     "error": "Something went wrong",
     "retry": "Retry",
     "save": "Save",

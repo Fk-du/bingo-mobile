@@ -2,6 +2,9 @@
   "common": {
     "appName": "ቢንጎ ፕላስ",
     "loading": "ይጽዕን ኣሎ…",
+    "updateReady": "መተግበሪ ንምጽዓን ድሉው ኮይኑ",
+    "updateRestart": "ንምሕዳስ ዳግም ኣስነስ",
+    "updateAvailable": "ሓድሽ መተግበሪ ኣሎ",
     "error": "ገለ ጌጋ ተፈጢሩ",
     "retry": "ዳግም ፈትን",
     "save": "ዓቅብ",
