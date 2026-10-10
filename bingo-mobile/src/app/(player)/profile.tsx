@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { authApi, coinsApi, configApi, getApiErrorMessage, inviteApi, notificationsApi, screenshotsApi, walletApi, withdrawalsApi } from '@/api';
+import { DepositAccounts } from '@/components/DepositAccounts';
 import { AppTextInput, Button, Card, Screen, ScreenBackButton, ScreenHeader } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
 import {
@@ -345,17 +346,9 @@ export default function PlayerProfileScreen() {
               {t('player.buyCoins') ?? 'Buy Birr'}
             </Text>
 
-            {user?.depositAccountInfo ? (
-              <View className="gap-1 rounded-xl border p-3" style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}>
-                <Text className="text-xs font-semibold" style={{ color: colors.secondary }}>
-                  {t('player.sendDepositTo') ?? 'Send deposit to'}
-                </Text>
-                <Text className="text-sm" style={{ color: colors.textPrimary }}>{user.depositAccountInfo}</Text>
-                <Text className="text-xs" style={{ color: colors.textSecondary }}>
-                  {t('player.afterSending') ?? 'After sending, upload your payment screenshot below.'}
-                </Text>
-              </View>
-            ) : null}
+            {user?.depositAccounts && user.depositAccounts.length > 0 && (
+              <DepositAccounts accounts={user.depositAccounts} />
+            )}
 
             <View className="flex-row flex-wrap gap-2">
               {QUICK_AMOUNTS.map((q) => (

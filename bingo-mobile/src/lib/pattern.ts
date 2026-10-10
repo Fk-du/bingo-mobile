@@ -47,9 +47,9 @@ const PATTERN_GRIDS: Record<string, string> = {
   // T shapes and crosses
   LARGE_T_TWO_LINES: '*****' + '*****' + '..*..' + '..*..' + '*****',
   LARGE_T_THREE_LINES: '*****' + '*****' + '..*..' + '*****' + '*****',
-  THREE_SMALL_T: '***.*' + '.*..*' + '....*' + '.*..*' + '***.*',
+  TWO_SMALL_T_PLUS_LINE: '***.*' + '.*..*' + '....*' + '.*..*' + '***.*',
   LARGE_CROSS_TWO_SQUARES: '***..' + '***..' + '*****' + '..***' + '..***',
-  THREE_SMALL_CROSSES: '*..*.' + '.****' + '.***.' + '****.' + '.*..*',
+  TWO_SMALL_CROSSES_PLUS_LINE: '*..*.' + '.****' + '.***.' + '****.' + '.*..*',
 
   // Half card
   HALF_HOUSE: '*****' + '*****' + '*****' + '.....' + '.....',

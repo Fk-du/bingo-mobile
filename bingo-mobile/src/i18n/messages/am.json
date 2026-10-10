@@ -403,12 +403,12 @@
     "hintTHREE_LINES_NO_FREE_DISJOINT": "የላይኛው፣ የሁለተኛው እና የታችኛው ሙሉ ረድፎች — 15 ቁጥሮች፤ ፍሪ መሃል አይጠቀምም።",
     "FOUR_LINES_NO_FREE_DISJOINT": "አራት ማይገናኙ ፍሪ ያልነኩ መስመሮች",
     "hintFOUR_LINES_NO_FREE_DISJOINT": "ፍሪ መሃል አይነኩም።",
-    "THREE_SMALL_T": "ሁለት ትንንሽ T ቅርጾች + አንድ መስመር የተለያዩ",
-    "hintTHREE_SMALL_T": "ሁለት ትንንሽ T ቅርጾች ከአንድ ሙሉ መስመር ጋር።",
+    "TWO_SMALL_T_PLUS_LINE": "ሁለት ትንንሽ T ቅርጾች + አንድ መስመር የተለያዩ",
+    "hintTWO_SMALL_T_PLUS_LINE": "ሁለት ትንንሽ T ቅርጾች ከአንድ ሙሉ መስመር ጋር።",
     "LARGE_CROSS_TWO_SQUARES": "ትልቅ መስቀል ከሁለት ትንንሽ ስኰር ጋር",
     "hintLARGE_CROSS_TWO_SQUARES": "ሙሉ መስቀል እና በሁለት ተቃራኒ ማዕዘኖች ውስጥ የሚገኙ ሁለት 2x2 ስኰር።",
-    "THREE_SMALL_CROSSES": "ሁለት የተለያዩ ትንንሽ መስቀሎች + አንድ መስመር",
-    "hintTHREE_SMALL_CROSSES": "ሁለት ትንንሽ መስቀሎች ከአንድ መስመር ጋር።"
+    "TWO_SMALL_CROSSES_PLUS_LINE": "ሁለት የተለያዩ ትንንሽ መስቀሎች + አንድ መስመር",
+    "hintTWO_SMALL_CROSSES_PLUS_LINE": "ሁለት ትንንሽ መስቀሎች ከአንድ መስመር ጋር።"
   },
   "game": {
     "gameNumber": "ጨዋታ #{id}",

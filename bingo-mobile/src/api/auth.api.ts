@@ -2,6 +2,7 @@ import apiClient from './client';
 import {
   ApiResponse,
   UserProfileResponse,
+  DepositAccount,
   PhoneLoginRequest,
   PhoneAuthResponse,
   PasswordStatusResponse,
@@ -39,7 +40,7 @@ export const authApi = {
     return res.data;
   },
   updateProfile: async (data: {
-    depositAccountInfo?: string;
+    depositAccounts?: DepositAccount[];
     businessName?: string;
     preferredLanguage?: string;
   }) => {

@@ -1,5 +1,11 @@
 import { Role } from './enums';
 
+export interface DepositAccount {
+  bank: string | null;
+  accountNumber: string;
+  ownerName: string | null;
+}
+
 export interface LoginRequest {
   initData: string;
   startParam?: string;
@@ -16,7 +22,7 @@ export interface UserProfileResponse {
   verified: boolean;
   adminUserId: number | null;
   businessName: string | null;
-  depositAccountInfo: string | null;
+  depositAccounts: DepositAccount[] | null;
   adminApproved: boolean;
   parentId: number | null;
   balance: number;

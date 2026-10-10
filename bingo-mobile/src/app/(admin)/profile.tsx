@@ -8,6 +8,7 @@ import { useTranslate } from '@/hooks/useTranslate';
 import { getClientLocale, setClientLocale } from '@/lib/clientTranslations';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/auth.store';
+import type { DepositAccount } from '@/types';
 
 const LOCALES = ['en', 'am', 'ti'] as const;
 
@@ -18,10 +19,17 @@ export default function AdminProfileScreen() {
   const setUser = useAuthStore((s) => s.setUser);
 
   const [businessName, setBusinessName] = useState(user?.businessName ?? '');
-  const [depositAccountInfo, setDepositAccountInfo] = useState(user?.depositAccountInfo ?? '');
+  const [accounts, setAccounts] = useState<DepositAccount[]>(
+    () => (user?.depositAccounts ?? []).map((a) => ({
+      bank: a.bank ?? '',
+      accountNumber: a.accountNumber ?? '',
+      ownerName: a.ownerName ?? '',
+    }))
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingAccounts, setEditingAccounts] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -44,16 +52,57 @@ export default function AdminProfileScreen() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const updateAccount = (index: number, field: keyof DepositAccount, value: string) => {
+    setAccounts((current) => current.map((a, i) => (i === index ? { ...a, [field]: value } : a)));
+  };
+
+  const addAccount = () => {
+    setAccounts((current) => [...current, { bank: '', accountNumber: '', ownerName: '' }]);
+  };
+
+  const removeAccount = (index: number) => {
+    setAccounts((current) => current.filter((_, i) => i !== index));
+  };
+
+  const startEditAccounts = () => {
+    setAccounts(
+      (user?.depositAccounts ?? []).map((a) => ({
+        bank: a.bank ?? '',
+        accountNumber: a.accountNumber ?? '',
+        ownerName: a.ownerName ?? '',
+      }))
+    );
+    setEditingAccounts(true);
+  };
+
+  const accountLine = (a: DepositAccount) =>
+    [a.bank, a.accountNumber, a.ownerName].filter((v) => v && v.trim()).join('   ');
+
   const save = async () => {
     setSaving(true);
     setSaved(false);
     setError(null);
     try {
+      const payload = editingAccounts
+        ? accounts
+            .map((a) => ({
+              bank: a.bank?.trim() || null,
+              accountNumber: a.accountNumber.trim(),
+              ownerName: a.ownerName?.trim() || null,
+            }))
+            .filter((a) => a.accountNumber.length > 0)
+        : undefined;
       const res = await authApi.updateProfile({
         businessName: businessName.trim() || undefined,
-        depositAccountInfo: depositAccountInfo.trim() || undefined,
+        depositAccounts: payload,
       });
       setUser(res.data);
+      setAccounts((res.data.depositAccounts ?? []).map((a) => ({
+        bank: a.bank ?? '',
+        accountNumber: a.accountNumber ?? '',
+        ownerName: a.ownerName ?? '',
+      })));
+      setEditingAccounts(false);
       setSaved(true);
     } catch (e) {
       setError((e as { userMessage?: string }).userMessage ?? (t('admin.failedToSave') ?? 'Failed to save'));
@@ -86,26 +135,103 @@ export default function AdminProfileScreen() {
             placeholder={t('admin.businessNamePlaceholder') ?? 'e.g. Bingo Agent Addis'}
           />
 
-          <FieldLabel>{t('admin.depositAccountInfo') ?? 'Deposit account'} · {t('admin.depositAccountDesc') ?? ''}</FieldLabel>
-          <AppTextInput
-            value={depositAccountInfo}
-            onChangeText={setDepositAccountInfo}
-            placeholder="e.g. TeleBirr: 0911234567&#10;CBE: 1000123456789"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            style={{ minHeight: 100 }}
-          />
+          <FieldLabel>{t('admin.depositAccountTitle') ?? 'Deposit account'}</FieldLabel>
           <Text className="text-xs" style={{ color: colors.textSecondary }}>
-            {t('admin.depositAccountInfoHint') ?? 'TeleBirr number, bank account, or any payment details players should send to'}
+            {t('admin.depositAccountDesc') ?? 'Set the account details players see when depositing.'}
           </Text>
+
+          {editingAccounts ? (
+            <>
+              {accounts.map((account, index) => (
+                <View
+                  key={index}
+                  className="gap-2 rounded-xl border p-3"
+                  style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}
+                >
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-xs font-bold" style={{ color: colors.textSecondary }}>
+                      #{index + 1}
+                    </Text>
+                    <Pressable onPress={() => removeAccount(index)} className="active:opacity-80">
+                      <Text className="text-xs" style={{ color: colors.danger }}>
+                        {t('admin.removeDepositAccount') ?? 'Remove'}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <FieldLabel>{t('admin.depositAccountBank') ?? 'Bank / method'}</FieldLabel>
+                  <AppTextInput
+                    value={account.bank ?? ''}
+                    onChangeText={(v) => updateAccount(index, 'bank', v)}
+                    placeholder={t('admin.depositAccountBankPlaceholder') ?? 'e.g. TeleBirr, CBE'}
+                  />
+
+                  <FieldLabel>{t('admin.depositAccountNumber') ?? 'Account number'}</FieldLabel>
+                  <AppTextInput
+                    value={account.accountNumber}
+                    onChangeText={(v) => updateAccount(index, 'accountNumber', v)}
+                    placeholder={t('admin.depositAccountNumberPlaceholder') ?? '0911234567'}
+                    keyboardType="number-pad"
+                  />
+
+                  <FieldLabel>{t('admin.depositAccountOwner') ?? 'Account name'}</FieldLabel>
+                  <AppTextInput
+                    value={account.ownerName ?? ''}
+                    onChangeText={(v) => updateAccount(index, 'ownerName', v)}
+                    placeholder={t('admin.depositAccountOwnerPlaceholder') ?? 'Name shown on the account'}
+                  />
+                </View>
+              ))}
+
+              <Button variant="outline" onPress={addAccount}>
+                {t('admin.addDepositAccount') ?? '+ Add another account'}
+              </Button>
+              <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                {t('admin.depositAccountInfoHint') ?? 'TeleBirr number, bank account, or any payment details players should send to'}
+              </Text>
+            </>
+          ) : (
+            <>
+              {(user?.depositAccounts?.length ?? 0) === 0 ? (
+                <Text className="text-xs" style={{ color: colors.textSecondary }}>
+                  {t('admin.noDepositAccountsYet') ?? 'No accounts yet. Add the details players should send money to.'}
+                </Text>
+              ) : (
+                (user?.depositAccounts ?? []).map((account, index) => (
+                  <View
+                    key={index}
+                    className="rounded-xl border px-3 py-2.5"
+                    style={{ backgroundColor: colors.surfaceAlt, borderColor: colors.borderInactive }}
+                  >
+                    <Text className="text-sm" style={{ color: colors.textSecondary }}>
+                      {index + 1}. {accountLine(account)}
+                    </Text>
+                  </View>
+                ))
+              )}
+              <Button variant="outline" onPress={startEditAccounts}>
+                {t('admin.editDepositAccounts') ?? 'Edit accounts'}
+              </Button>
+            </>
+          )}
 
           {error ? <Text className="text-sm" style={{ color: colors.danger }}>✕ {error}</Text> : null}
           {saved ? <Text className="text-sm" style={{ color: colors.accent }}>{t('admin.savedSuccessfully') ?? 'Saved successfully.'}</Text> : null}
 
-          <Button disabled={saving} onPress={() => void save()}>
-            {saving ? (t('admin.saving') ?? 'Saving…') : (t('admin.save') ?? 'Save')}
-          </Button>
+          {editingAccounts ? (
+            <View className="flex-row gap-3">
+              <Button variant="outline" className="flex-1" disabled={saving} onPress={() => setEditingAccounts(false)}>
+                {t('common.cancel') ?? 'Cancel'}
+              </Button>
+              <Button className="flex-1" disabled={saving} onPress={() => void save()}>
+                {saving ? (t('admin.saving') ?? 'Saving…') : (t('admin.save') ?? 'Save')}
+              </Button>
+            </View>
+          ) : (
+            <Button disabled={saving} onPress={() => void save()}>
+              {saving ? (t('admin.saving') ?? 'Saving…') : (t('admin.save') ?? 'Save')}
+            </Button>
+          )}
         </Card>
 
         <Card>
