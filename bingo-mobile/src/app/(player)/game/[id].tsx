@@ -10,7 +10,7 @@ import { StartCountdownBanner } from '@/components/games/StartCountdownBanner';
 import { ResultsBoard } from '@/components/games/ResultsBoard';
 import { NumberBoard } from '@/components/games/NumberBoard';
 import { PendingClaimCards } from '@/components/games/PendingClaimCards';
-import { CardCountFan } from '@/components/games/CardCountFan';
+import { CardCountModal } from '@/components/games/CardCountModal';
 import { useNumberAnnouncer } from '@/hooks/useNumberAnnouncer';
 import { Button, Card, Modal, Screen, StatusPill } from '@/components/ui';
 import { useTranslate } from '@/hooks/useTranslate';
@@ -1073,10 +1073,10 @@ export default function LiveGameScreen() {
         </Pressable>
       ) : null}
 
-      {/* The count choices fan straight out of the button that opened them,
-          so picking is one tap instead of open-a-dialog then confirm. */}
+      {/* The add button opens a modal that asks for how many cards, so a
+          player can enter any amount they want. */}
       {isRegistration && !selectionMode && pickerOpen && (
-        <CardCountFan
+        <CardCountModal
           gameId={gameId}
           entryFee={entryFee ?? 0}
           onClose={() => setPickerOpen(false)}
